@@ -172,27 +172,37 @@ class DataFetcher:
             logger.error(f"データ取得エラー ({index_code}): {e}")
             return self._load_fallback_data(f"{country_code}_{index_code}")
     
-    def _get_fred_data(self, series_id: str, country_code: str) -> Optional[float]:
+    def _get_fred_data(self, series_id: str, country_code: str, max_retries: int = 3) -> Optional[float]:
         """
-        FRED APIからデータを取得
+        FRED APIからデータを取得（リトライ付き）
         
         Args:
             series_id: FREDシリーズID
             country_code: 国コード
+            max_retries: 最大リトライ回数
         
         Returns:
             最新値（float）またはNone
         """
         if not self.fred_client:
+            logger.warning(f"FRED APIクライアントが初期化されていません ({series_id}, {country_code})")
             return None
         
-        try:
-            data = self.fred_client.get_series(series_id, limit=1)
-            if not data.empty:
-                return float(data.iloc[-1])
-        except Exception as e:
-            logger.warning(f"FRED API取得エラー ({series_id}, {country_code}): {e}")
+        for attempt in range(max_retries):
+            try:
+                data = self.fred_client.get_series(series_id, limit=1)
+                if not data.empty:
+                    value = float(data.iloc[-1])
+                    logger.debug(f"FRED API取得成功 ({series_id}, {country_code}): {value}")
+                    return value
+                else:
+                    logger.warning(f"FRED APIデータが空です ({series_id}, {country_code}, 試行 {attempt + 1}/{max_retries})")
+            except Exception as e:
+                logger.warning(f"FRED API取得エラー ({series_id}, {country_code}, 試行 {attempt + 1}/{max_retries}): {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(2 ** attempt)  # 指数バックオフ
         
+        logger.error(f"FRED API取得最終失敗 ({series_id}, {country_code})")
         return None
     
     def get_macro_indicators(self, country_code: str, index_data: Optional[Dict] = None) -> Dict:
@@ -221,17 +231,25 @@ class DataFetcher:
         # CPI: FRED APIから取得
         cpi = None
         if country_code == "US":
-            cpi_raw = self._get_fred_data(fred_series["US"]["CPI"], country_code)
-            if cpi_raw is not None:
-                # 前年同月比を計算（最新値と12ヶ月前の値を比較）
-                try:
-                    data = self.fred_client.get_series(fred_series["US"]["CPI"], limit=13)
-                    if len(data) >= 13:
-                        current = float(data.iloc[-1])
-                        previous = float(data.iloc[0])
-                        cpi = ((current / previous) - 1) * 100  # 年率換算（%）
-                except Exception as e:
-                    logger.warning(f"CPI計算エラー ({country_code}): {e}")
+            if not self.fred_client:
+                logger.error(f"FRED APIクライアントが初期化されていません。CPIを取得できません ({country_code})")
+            else:
+                cpi_raw = self._get_fred_data(fred_series["US"]["CPI"], country_code)
+                if cpi_raw is not None:
+                    # 前年同月比を計算（最新値と12ヶ月前の値を比較）
+                    try:
+                        data = self.fred_client.get_series(fred_series["US"]["CPI"], limit=13)
+                        if len(data) >= 13:
+                            current = float(data.iloc[-1])
+                            previous = float(data.iloc[0])
+                            cpi = ((current / previous) - 1) * 100  # 年率換算（%）
+                            logger.info(f"CPI取得成功 ({country_code}): {cpi:.2f}%")
+                        else:
+                            logger.warning(f"CPIデータが不足しています ({country_code}): {len(data)}件")
+                    except Exception as e:
+                        logger.error(f"CPI計算エラー ({country_code}): {e}")
+                else:
+                    logger.error(f"CPI取得失敗 ({country_code})")
         elif country_code == "JP":
             # 日本: e-Stat APIから取得を試行（公式データを優先）
             cpi = self._get_japan_cpi()
@@ -253,7 +271,14 @@ class DataFetcher:
         # 雇用率: FRED APIから取得
         employment_rate = None
         if country_code == "US":
-            employment_rate = self._get_fred_data(fred_series["US"]["employment_rate"], country_code)
+            if not self.fred_client:
+                logger.error(f"FRED APIクライアントが初期化されていません。雇用率を取得できません ({country_code})")
+            else:
+                employment_rate = self._get_fred_data(fred_series["US"]["employment_rate"], country_code)
+                if employment_rate is not None:
+                    logger.info(f"雇用率取得成功 ({country_code}): {employment_rate:.2f}%")
+                else:
+                    logger.error(f"雇用率取得失敗 ({country_code})")
         elif country_code == "JP":
             # 日本: e-Stat APIから取得を試行（公式データを優先）
             employment_rate = self._get_japan_employment_rate()
@@ -363,7 +388,14 @@ class DataFetcher:
         # 政策金利: FRED APIから取得
         policy_rate = None
         if country_code == "US":
-            policy_rate = self._get_fred_data(fred_series["US"]["policy_rate"], country_code)
+            if not self.fred_client:
+                logger.error(f"FRED APIクライアントが初期化されていません。政策金利を取得できません ({country_code})")
+            else:
+                policy_rate = self._get_fred_data(fred_series["US"]["policy_rate"], country_code)
+                if policy_rate is not None:
+                    logger.info(f"政策金利取得成功 ({country_code}): {policy_rate:.2f}%")
+                else:
+                    logger.error(f"政策金利取得失敗 ({country_code})")
         elif country_code == "JP":
             # 日本: FRED APIから取得を試行（無担保コール翌日物金利の代替指標）
             if fred_series["JP"]["policy_rate"]:
