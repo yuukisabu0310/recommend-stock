@@ -15,6 +15,10 @@ on:
 jobs:
   analyze:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     env:
       LANG: C.UTF-8
       LC_ALL: C.UTF-8
@@ -50,6 +54,8 @@ jobs:
       
       - name: Setup Pages
         uses: actions/configure-pages@v4
+        with:
+          enablement: true
         if: github.ref == 'refs/heads/main'
       
       - name: Upload artifact
