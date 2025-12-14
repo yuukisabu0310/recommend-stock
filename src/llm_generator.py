@@ -63,7 +63,7 @@ class LLMGenerator:
             if not self.client:
                 return None
             
-            model = self.ai_config.get('model', 'llama-3.1-70b-versatile')
+            model = self.ai_config.get('model', 'llama-3.3-70b-versatile')
             temperature = self.ai_config.get('temperature', 0.25)
             
             messages = [
@@ -447,10 +447,15 @@ Time Horizon: {timeframe_name}
             "市場データ": market_data
         }
         
-        prompt_template = self.ai_config['prompts']['sector_analysis']
-        prompt = prompt_template.format(data=json.dumps(data_summary, ensure_ascii=False, indent=2))
+        prompt_template = self.ai_config['prompts'].get('sector_analysis', '')
+        if not prompt_template:
+            # デフォルトのプロンプト
+            prompt_template = "以下の市場データを分析し、注目すべきセクターを3つ選定してください。\n\n{data}"
         
-        result_text = self._call_llm(prompt)
+        user_prompt = prompt_template.format(data=json.dumps(data_summary, ensure_ascii=False, indent=2))
+        system_prompt = "あなたは株式市場分析を行うAIアシスタントです。市場データを分析し、注目すべきセクターを選定してください。"
+        
+        result_text = self._call_llm(system_prompt, user_prompt)
         
         if result_text:
             # 簡易的なパース（実際はより堅牢な実装が必要）
@@ -516,10 +521,15 @@ Time Horizon: {timeframe_name}
             "銘柄データ": stocks_data[:20]  # 最大20銘柄
         }
         
-        prompt_template = self.ai_config['prompts']['stock_recommendation']
-        prompt = prompt_template.format(data=json.dumps(data_summary, ensure_ascii=False, indent=2))
+        prompt_template = self.ai_config['prompts'].get('stock_recommendation', '')
+        if not prompt_template:
+            # デフォルトのプロンプト
+            prompt_template = "以下の銘柄データを分析し、推奨銘柄を5つ選定してください。\n\n{data}"
         
-        result_text = self._call_llm(prompt, max_tokens=2000)
+        user_prompt = prompt_template.format(data=json.dumps(data_summary, ensure_ascii=False, indent=2))
+        system_prompt = "あなたは株式市場分析を行うAIアシスタントです。銘柄データを分析し、推奨銘柄を選定してください。"
+        
+        result_text = self._call_llm(system_prompt, user_prompt, max_tokens=2000)
         
         if result_text:
             return self._parse_stock_recommendations(result_text, stocks_data)

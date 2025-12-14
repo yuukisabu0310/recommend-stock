@@ -14,7 +14,7 @@
 
 - **Python 3.11+**: データ取得・分析
 - **yfinance**: 株価データ取得（Yahoo Finance、無料）
-- **Groq API**: 市場方向感の分析・評価（LLM: `llama-3.1-70b-versatile`）
+- **Groq API**: 市場方向感の分析・評価（LLM: `llama-3.3-70b-versatile`）
 - **GitHub Actions**: 定期実行・自動デプロイ
 - **GitHub Pages**: HTML静的表示
 
