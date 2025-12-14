@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>株式市場分析レポート</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+        }
+        .card {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="min-h-screen">
+        <!-- ヘッダー -->
+        <header class="bg-white shadow-md">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                <h1 class="text-3xl font-bold text-gray-900">株式市場分析レポート</h1>
+                <p class="mt-2 text-sm text-gray-600">更新日時: 2025年12月14日 05:26</p>
+            </div>
+        </header>
+        
+        <!-- メインコンテンツ -->
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        <!-- Market Direction Overview -->
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">Market Direction Overview</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                <div class="bg-white rounded-2xl shadow-md p-6 card">
+                    <h3 class="text-xl font-semibold text-gray-900 mb-4">米国</h3>
+                    <div class="space-y-3">
+
+                        <div class="border-l-4 border-gray-300 pl-3 py-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm font-medium text-gray-600">短期</span>
+                                <a href="./details/US-short.html" 
+                                   class="inline-flex items-center px-3 py-1 rounded-lg bg-gray-100 text-gray-800 text-sm font-medium hover:opacity-80 transition">
+                                    → 中立 
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="border-l-4 border-gray-300 pl-3 py-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm font-medium text-gray-600">中期</span>
+                                <a href="./details/US-medium.html" 
+                                   class="inline-flex items-center px-3 py-1 rounded-lg bg-gray-100 text-gray-800 text-sm font-medium hover:opacity-80 transition">
+                                    → 中立 
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="border-l-4 border-gray-300 pl-3 py-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm font-medium text-gray-600">長期</span>
+                                <a href="./details/US-long.html" 
+                                   class="inline-flex items-center px-3 py-1 rounded-lg bg-gray-100 text-gray-800 text-sm font-medium hover:opacity-80 transition">
+                                    → 中立 
+                                </a>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-md p-6 card">
+                    <h3 class="text-xl font-semibold text-gray-900 mb-4">日本</h3>
+                    <div class="space-y-3">
+
+                        <div class="border-l-4 border-gray-300 pl-3 py-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm font-medium text-gray-600">短期</span>
+                                <a href="./details/JP-short.html" 
+                                   class="inline-flex items-center px-3 py-1 rounded-lg bg-gray-100 text-gray-800 text-sm font-medium hover:opacity-80 transition">
+                                    → 中立 
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="border-l-4 border-gray-300 pl-3 py-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm font-medium text-gray-600">中期</span>
+                                <a href="./details/JP-medium.html" 
+                                   class="inline-flex items-center px-3 py-1 rounded-lg bg-gray-100 text-gray-800 text-sm font-medium hover:opacity-80 transition">
+                                    → 中立 
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="border-l-4 border-gray-300 pl-3 py-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm font-medium text-gray-600">長期</span>
+                                <a href="./details/JP-long.html" 
+                                   class="inline-flex items-center px-3 py-1 rounded-lg bg-gray-100 text-gray-800 text-sm font-medium hover:opacity-80 transition">
+                                    → 中立 
+                                </a>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-md p-6 card">
+                    <h3 class="text-xl font-semibold text-gray-900 mb-4">中国</h3>
+                    <div class="space-y-3">
+
+                        <div class="border-l-4 border-green-200 pl-3 py-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm font-medium text-gray-600">短期</span>
+                                <a href="./details/CN-short.html" 
+                                   class="inline-flex items-center px-3 py-1 rounded-lg bg-green-50 text-green-700 text-sm font-medium hover:opacity-80 transition">
+                                    ↗ やや強気 
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="border-l-4 border-gray-300 pl-3 py-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm font-medium text-gray-600">中期</span>
+                                <a href="./details/CN-medium.html" 
+                                   class="inline-flex items-center px-3 py-1 rounded-lg bg-gray-100 text-gray-800 text-sm font-medium hover:opacity-80 transition">
+                                    → 中立 
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="border-l-4 border-gray-300 pl-3 py-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm font-medium text-gray-600">長期</span>
+                                <a href="./details/CN-long.html" 
+                                   class="inline-flex items-center px-3 py-1 rounded-lg bg-gray-100 text-gray-800 text-sm font-medium hover:opacity-80 transition">
+                                    → 中立 
+                                </a>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- 全体サマリー -->
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">全体サマリー</h2>
+            <div class="bg-white rounded-2xl shadow-md p-6">
+                <p class="text-gray-700 mb-4">2025年12月14日の市場環境を要約します。</p>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+                    <div class="flex items-center space-x-3 p-3 rounded-lg bg-gray-100">
+                        <span class="font-semibold text-gray-800">米国</span>
+                        <span class="text-sm text-gray-800">→ 中立</span>
+                    </div>
+
+                    <div class="flex items-center space-x-3 p-3 rounded-lg bg-gray-100">
+                        <span class="font-semibold text-gray-800">日本</span>
+                        <span class="text-sm text-gray-800">→ 中立</span>
+                    </div>
+
+                    <div class="flex items-center space-x-3 p-3 rounded-lg bg-gray-100">
+                        <span class="font-semibold text-gray-800">中国</span>
+                        <span class="text-sm text-gray-800">→ 中立</span>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- 米国 市場判断 -->
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">米国 市場判断</h2>
+
+            <div class="bg-white rounded-2xl shadow-md p-6 mb-6 card">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-semibold text-gray-900">短期</h3>
+                    <span class="inline-flex items-center px-4 py-2 rounded-lg bg-gray-100 text-gray-800 font-medium">
+                        → 中立
+                    </span>
+                </div>
+
+                <div class="mb-4">
+                    <h4 class="text-lg font-semibold text-gray-800 mb-2">結論</h4>
+                    <p class="text-gray-700 leading-relaxed">米国市場は短期で中立の状況です。→ 中立</p>
+                </div>
+
+                <div class="mb-4">
+                    <h4 class="text-lg font-semibold text-gray-800 mb-2">前提</h4>
+                    <p class="text-gray-700 leading-relaxed">テクニカル指標およびマクロ環境が中立的な水準にあります。</p>
+                </div>
+
+                <div class="mb-4 p-4 bg-red-50 rounded-lg border-l-4 border-red-300">
+                    <h4 class="text-lg font-semibold text-red-800 mb-2">最大リスク</h4>
+                    <p class="text-red-700 leading-relaxed">方向性が明確でないため、外部要因に敏感に反応する可能性があります。</p>
+                </div>
+
+                <div class="mb-4 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-300">
+                    <h4 class="text-lg font-semibold text-blue-800 mb-2">転換シグナル</h4>
+                    <p class="text-blue-700 leading-relaxed">明確な方向性を示すマクロデータやテクニカルブレイクが転換シグナルとなります。</p>
+                </div>
+
+                <a href="./logs/US-short.html" 
+                   class="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 font-medium">
+                    思考ログを見る →
+                </a>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-md p-6 mb-6 card">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-semibold text-gray-900">中期</h3>
+                    <span class="inline-flex items-center px-4 py-2 rounded-lg bg-gray-100 text-gray-800 font-medium">
+                        → 中立
+                    </span>
+                </div>
+
+                <div class="mb-4">
+                    <h4 class="text-lg font-semibold text-gray-800 mb-2">結論</h4>
+                    <p class="text-gray-700 leading-relaxed">米国市場は中期で中立の状況です。→ 中立</p>
+                </div>
+
+                <div class="mb-4">
+                    <h4 class="text-lg font-semibold text-gray-800 mb-2">前提</h4>
+                    <p class="text-gray-700 leading-relaxed">テクニカル指標およびマクロ環境が中立的な水準にあります。</p>
+                </div>
+
+                <div class="mb-4 p-4 bg-red-50 rounded-lg border-l-4 border-red-300">
+                    <h4 class="text-lg font-semibold text-red-800 mb-2">最大リスク</h4>
+                    <p class="text-red-700 leading-relaxed">方向性が明確でないため、外部要因に敏感に反応する可能性があります。</p>
+                </div>
+
+                <div class="mb-4 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-300">
+                    <h4 class="text-lg font-semibold text-blue-800 mb-2">転換シグナル</h4>
+                    <p class="text-blue-700 leading-relaxed">明確な方向性を示すマクロデータやテクニカルブレイクが転換シグナルとなります。</p>
+                </div>
+
+                <a href="./logs/US-medium.html" 
+                   class="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 font-medium">
+                    思考ログを見る →
+                </a>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-md p-6 mb-6 card">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-semibold text-gray-900">長期</h3>
+                    <span class="inline-flex items-center px-4 py-2 rounded-lg bg-gray-100 text-gray-800 font-medium">
+                        → 中立
+                    </span>
+                </div>
+
+                <div class="mb-4">
+                    <h4 class="text-lg font-semibold text-gray-800 mb-2">結論</h4>
+                    <p class="text-gray-700 leading-relaxed">米国市場は長期で中立の状況です。→ 中立</p>
+                </div>
+
+                <div class="mb-4">
+                    <h4 class="text-lg font-semibold text-gray-800 mb-2">前提</h4>
+                    <p class="text-gray-700 leading-relaxed">テクニカル指標およびマクロ環境が中立的な水準にあります。</p>
+                </div>
+
+                <div class="mb-4 p-4 bg-red-50 rounded-lg border-l-4 border-red-300">
+                    <h4 class="text-lg font-semibold text-red-800 mb-2">最大リスク</h4>
+                    <p class="text-red-700 leading-relaxed">方向性が明確でないため、外部要因に敏感に反応する可能性があります。</p>
+                </div>
+
+                <div class="mb-4 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-300">
+                    <h4 class="text-lg font-semibold text-blue-800 mb-2">転換シグナル</h4>
+                    <p class="text-blue-700 leading-relaxed">明確な方向性を示すマクロデータやテクニカルブレイクが転換シグナルとなります。</p>
+                </div>
+
+                <a href="./logs/US-long.html" 
+                   class="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 font-medium">
+                    思考ログを見る →
+                </a>
+            </div>
+
+        </section>
+
+        <!-- 日本 市場判断 -->
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">日本 市場判断</h2>
+
+            <div class="bg-white rounded-2xl shadow-md p-6 mb-6 card">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-semibold text-gray-900">短期</h3>
+                    <span class="inline-flex items-center px-4 py-2 rounded-lg bg-gray-100 text-gray-800 font-medium">
+                        → 中立
+                    </span>
+                </div>
+
+                <div class="mb-4">
+                    <h4 class="text-lg font-semibold text-gray-800 mb-2">結論</h4>
+                    <p class="text-gray-700 leading-relaxed">日本市場は短期で中立の状況です。→ 中立</p>
+                </div>
+
+                <div class="mb-4">
+                    <h4 class="text-lg font-semibold text-gray-800 mb-2">前提</h4>
+                    <p class="text-gray-700 leading-relaxed">テクニカル指標およびマクロ環境が中立的な水準にあります。</p>
+                </div>
+
+                <div class="mb-4 p-4 bg-red-50 rounded-lg border-l-4 border-red-300">
+                    <h4 class="text-lg font-semibold text-red-800 mb-2">最大リスク</h4>
+                    <p class="text-red-700 leading-relaxed">方向性が明確でないため、外部要因に敏感に反応する可能性があります。</p>
+                </div>
+
+                <div class="mb-4 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-300">
+                    <h4 class="text-lg font-semibold text-blue-800 mb-2">転換シグナル</h4>
+                    <p class="text-blue-700 leading-relaxed">明確な方向性を示すマクロデータやテクニカルブレイクが転換シグナルとなります。</p>
+                </div>
+
+                <a href="./logs/JP-short.html" 
+                   class="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 font-medium">
+                    思考ログを見る →
+                </a>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-md p-6 mb-6 card">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-semibold text-gray-900">中期</h3>
+                    <span class="inline-flex items-center px-4 py-2 rounded-lg bg-gray-100 text-gray-800 font-medium">
+                        → 中立
+                    </span>
+                </div>
+
+                <div class="mb-4">
+                    <h4 class="text-lg font-semibold text-gray-800 mb-2">結論</h4>
+                    <p class="text-gray-700 leading-relaxed">日本市場は中期で中立の状況です。→ 中立</p>
+                </div>
+
+                <div class="mb-4">
+                    <h4 class="text-lg font-semibold text-gray-800 mb-2">前提</h4>
+                    <p class="text-gray-700 leading-relaxed">テクニカル指標およびマクロ環境が中立的な水準にあります。</p>
+                </div>
+
+                <div class="mb-4 p-4 bg-red-50 rounded-lg border-l-4 border-red-300">
+                    <h4 class="text-lg font-semibold text-red-800 mb-2">最大リスク</h4>
+                    <p class="text-red-700 leading-relaxed">方向性が明確でないため、外部要因に敏感に反応する可能性があります。</p>
+                </div>
+
+                <div class="mb-4 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-300">
+                    <h4 class="text-lg font-semibold text-blue-800 mb-2">転換シグナル</h4>
+                    <p class="text-blue-700 leading-relaxed">明確な方向性を示すマクロデータやテクニカルブレイクが転換シグナルとなります。</p>
+                </div>
+
+                <a href="./logs/JP-medium.html" 
+                   class="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 font-medium">
+                    思考ログを見る →
+                </a>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-md p-6 mb-6 card">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-semibold text-gray-900">長期</h3>
+                    <span class="inline-flex items-center px-4 py-2 rounded-lg bg-gray-100 text-gray-800 font-medium">
+                        → 中立
+                    </span>
+                </div>
+
+                <div class="mb-4">
+                    <h4 class="text-lg font-semibold text-gray-800 mb-2">結論</h4>
+                    <p class="text-gray-700 leading-relaxed">日本市場は長期で中立の状況です。→ 中立</p>
+                </div>
+
+                <div class="mb-4">
+                    <h4 class="text-lg font-semibold text-gray-800 mb-2">前提</h4>
+                    <p class="text-gray-700 leading-relaxed">テクニカル指標およびマクロ環境が中立的な水準にあります。</p>
+                </div>
+
+                <div class="mb-4 p-4 bg-red-50 rounded-lg border-l-4 border-red-300">
+                    <h4 class="text-lg font-semibold text-red-800 mb-2">最大リスク</h4>
+                    <p class="text-red-700 leading-relaxed">方向性が明確でないため、外部要因に敏感に反応する可能性があります。</p>
+                </div>
+
+                <div class="mb-4 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-300">
+                    <h4 class="text-lg font-semibold text-blue-800 mb-2">転換シグナル</h4>
+                    <p class="text-blue-700 leading-relaxed">明確な方向性を示すマクロデータやテクニカルブレイクが転換シグナルとなります。</p>
+                </div>
+
+                <a href="./logs/JP-long.html" 
+                   class="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 font-medium">
+                    思考ログを見る →
+                </a>
+            </div>
+
+        </section>
+
+        <!-- 中国 市場判断 -->
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">中国 市場判断</h2>
+
+            <div class="bg-white rounded-2xl shadow-md p-6 mb-6 card">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-semibold text-gray-900">短期</h3>
+                    <span class="inline-flex items-center px-4 py-2 rounded-lg bg-green-50 text-green-700 font-medium">
+                        ↗ やや強気
+                    </span>
+                </div>
+
+                <div class="mb-4">
+                    <h4 class="text-lg font-semibold text-gray-800 mb-2">結論</h4>
+                    <p class="text-gray-700 leading-relaxed">中国市場は短期で強気の傾向を示しています。↗ やや強気</p>
+                </div>
+
+                <div class="mb-4">
+                    <h4 class="text-lg font-semibold text-gray-800 mb-2">前提</h4>
+                    <p class="text-gray-700 leading-relaxed">テクニカル指標およびマクロ環境が良好な水準にあります。</p>
+                </div>
+
+                <div class="mb-4 p-4 bg-red-50 rounded-lg border-l-4 border-red-300">
+                    <h4 class="text-lg font-semibold text-red-800 mb-2">最大リスク</h4>
+                    <p class="text-red-700 leading-relaxed">上昇トレンドが継続する前提で、急激な調整や外部ショックに注意が必要です。</p>
+                </div>
+
+                <div class="mb-4 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-300">
+                    <h4 class="text-lg font-semibold text-blue-800 mb-2">転換シグナル</h4>
+                    <p class="text-blue-700 leading-relaxed">価格がMA200を大きく下回る、またはボラティリティが急上昇した場合に方向性が転換する可能性があります。</p>
+                </div>
+
+                <a href="./logs/CN-short.html" 
+                   class="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 font-medium">
+                    思考ログを見る →
+                </a>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-md p-6 mb-6 card">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-semibold text-gray-900">中期</h3>
+                    <span class="inline-flex items-center px-4 py-2 rounded-lg bg-gray-100 text-gray-800 font-medium">
+                        → 中立
+                    </span>
+                </div>
+
+                <div class="mb-4">
+                    <h4 class="text-lg font-semibold text-gray-800 mb-2">結論</h4>
+                    <p class="text-gray-700 leading-relaxed">中国市場は中期で中立の状況です。→ 中立</p>
+                </div>
+
+                <div class="mb-4">
+                    <h4 class="text-lg font-semibold text-gray-800 mb-2">前提</h4>
+                    <p class="text-gray-700 leading-relaxed">テクニカル指標およびマクロ環境が中立的な水準にあります。</p>
+                </div>
+
+                <div class="mb-4 p-4 bg-red-50 rounded-lg border-l-4 border-red-300">
+                    <h4 class="text-lg font-semibold text-red-800 mb-2">最大リスク</h4>
+                    <p class="text-red-700 leading-relaxed">方向性が明確でないため、外部要因に敏感に反応する可能性があります。</p>
+                </div>
+
+                <div class="mb-4 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-300">
+                    <h4 class="text-lg font-semibold text-blue-800 mb-2">転換シグナル</h4>
+                    <p class="text-blue-700 leading-relaxed">明確な方向性を示すマクロデータやテクニカルブレイクが転換シグナルとなります。</p>
+                </div>
+
+                <a href="./logs/CN-medium.html" 
+                   class="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 font-medium">
+                    思考ログを見る →
+                </a>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-md p-6 mb-6 card">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-semibold text-gray-900">長期</h3>
+                    <span class="inline-flex items-center px-4 py-2 rounded-lg bg-gray-100 text-gray-800 font-medium">
+                        → 中立
+                    </span>
+                </div>
+
+                <div class="mb-4">
+                    <h4 class="text-lg font-semibold text-gray-800 mb-2">結論</h4>
+                    <p class="text-gray-700 leading-relaxed">中国市場は長期で中立の状況です。→ 中立</p>
+                </div>
+
+                <div class="mb-4">
+                    <h4 class="text-lg font-semibold text-gray-800 mb-2">前提</h4>
+                    <p class="text-gray-700 leading-relaxed">テクニカル指標およびマクロ環境が中立的な水準にあります。</p>
+                </div>
+
+                <div class="mb-4 p-4 bg-red-50 rounded-lg border-l-4 border-red-300">
+                    <h4 class="text-lg font-semibold text-red-800 mb-2">最大リスク</h4>
+                    <p class="text-red-700 leading-relaxed">方向性が明確でないため、外部要因に敏感に反応する可能性があります。</p>
+                </div>
+
+                <div class="mb-4 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-300">
+                    <h4 class="text-lg font-semibold text-blue-800 mb-2">転換シグナル</h4>
+                    <p class="text-blue-700 leading-relaxed">明確な方向性を示すマクロデータやテクニカルブレイクが転換シグナルとなります。</p>
+                </div>
+
+                <a href="./logs/CN-long.html" 
+                   class="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 font-medium">
+                    思考ログを見る →
+                </a>
+            </div>
+
+        </section>
+
+        <!-- 注目セクター -->
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">注目セクター</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+                <div class="bg-white rounded-2xl shadow-md p-6 card">
+                    <div class="flex items-center mb-4">
+                        <span class="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-600 font-bold mr-3">
+                            1
+                        </span>
+                        <h3 class="text-lg font-semibold text-gray-900">AI・半導体</h3>
+                    </div>
+
+                    <div class="mb-3">
+                        <p class="text-sm font-medium text-gray-600 mb-1">注目される理由</p>
+                        <p class="text-gray-700 text-sm">構造的な技術革新による長期成長が見込まれる分野</p>
+                    </div>
+
+                    <div class="mb-3">
+                        <p class="text-sm font-medium text-gray-600 mb-1">波及する分野</p>
+                        <div class="flex flex-wrap gap-2">
+
+                            <span class="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded-lg">半導体製造装置</span>
+
+                            <span class="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded-lg">クラウドインフラ</span>
+
+                            <span class="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded-lg">データセンター</span>
+
+                        </div>
+                    </div>
+
+                    <div>
+                        <span class="inline-flex items-center px-3 py-1 bg-gray-100 text-gray-700 text-xs rounded-lg">
+                            期間: 長期
+                        </span>
+                    </div>
+
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-md p-6 card">
+                    <div class="flex items-center mb-4">
+                        <span class="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-600 font-bold mr-3">
+                            2
+                        </span>
+                        <h3 class="text-lg font-semibold text-gray-900">防衛・セキュリティ</h3>
+                    </div>
+
+                    <div class="mb-3">
+                        <p class="text-sm font-medium text-gray-600 mb-1">注目される理由</p>
+                        <p class="text-gray-700 text-sm">地政学的リスクの高まりにより注目度が上昇</p>
+                    </div>
+
+                    <div class="mb-3">
+                        <p class="text-sm font-medium text-gray-600 mb-1">波及する分野</p>
+                        <div class="flex flex-wrap gap-2">
+
+                            <span class="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded-lg">防衛装備</span>
+
+                            <span class="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded-lg">サイバーセキュリティ</span>
+
+                            <span class="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded-lg">資源安全保障</span>
+
+                        </div>
+                    </div>
+
+                    <div>
+                        <span class="inline-flex items-center px-3 py-1 bg-gray-100 text-gray-700 text-xs rounded-lg">
+                            期間: 中期
+                        </span>
+                    </div>
+
+                </div>
+
+            </div>
+        </section>
+
+        <!-- おすすめ銘柄 -->
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">おすすめ銘柄</h2>
+
+            <div class="mb-8">
+                <h3 class="text-xl font-semibold text-gray-900 mb-4">日本株</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                    <div class="bg-white rounded-2xl shadow-md p-6 card">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="text-lg font-semibold text-gray-900">
+                                1位: SoftBank Group Corp.
+                            </h4>
+                            <span class="px-3 py-1 bg-blue-100 text-blue-700 text-sm font-medium rounded-lg">
+                                9984.T
+                            </span>
+                        </div>
+                        <div class="space-y-2 text-sm">
+                            <div>
+                                <span class="font-medium text-gray-600">投資期間:</span>
+                                <span class="text-gray-700 ml-2">中期</span>
+                            </div>
+                            <div>
+                                <span class="font-medium text-gray-600">割安度:</span>
+                                <span class="text-gray-700 ml-2">適正</span>
+                            </div>
+                            <div class="pt-2 border-t">
+                                <span class="font-medium text-gray-600">注目理由:</span>
+                                <p class="text-gray-700 mt-1">テクニカル指標が良好です。MA200に対する相対位置が37.1%です。</p>
+                            </div>
+                            <div>
+                                <span class="font-medium text-gray-600">前提条件:</span>
+                                <p class="text-gray-700 mt-1">マクロ環境が悪化しないこと、セクター全体のトレンドが継続すること。</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl shadow-md p-6 card">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="text-lg font-semibold text-gray-900">
+                                2位: SoftBank Group Corp.
+                            </h4>
+                            <span class="px-3 py-1 bg-blue-100 text-blue-700 text-sm font-medium rounded-lg">
+                                9984.T
+                            </span>
+                        </div>
+                        <div class="space-y-2 text-sm">
+                            <div>
+                                <span class="font-medium text-gray-600">投資期間:</span>
+                                <span class="text-gray-700 ml-2">中期</span>
+                            </div>
+                            <div>
+                                <span class="font-medium text-gray-600">割安度:</span>
+                                <span class="text-gray-700 ml-2">適正</span>
+                            </div>
+                            <div class="pt-2 border-t">
+                                <span class="font-medium text-gray-600">注目理由:</span>
+                                <p class="text-gray-700 mt-1">テクニカル指標が良好です。MA200に対する相対位置が37.1%です。</p>
+                            </div>
+                            <div>
+                                <span class="font-medium text-gray-600">前提条件:</span>
+                                <p class="text-gray-700 mt-1">マクロ環境が悪化しないこと、セクター全体のトレンドが継続すること。</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl shadow-md p-6 card">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="text-lg font-semibold text-gray-900">
+                                3位: Tokyo Electron Limited
+                            </h4>
+                            <span class="px-3 py-1 bg-blue-100 text-blue-700 text-sm font-medium rounded-lg">
+                                8035.T
+                            </span>
+                        </div>
+                        <div class="space-y-2 text-sm">
+                            <div>
+                                <span class="font-medium text-gray-600">投資期間:</span>
+                                <span class="text-gray-700 ml-2">中期</span>
+                            </div>
+                            <div>
+                                <span class="font-medium text-gray-600">割安度:</span>
+                                <span class="text-gray-700 ml-2">適正</span>
+                            </div>
+                            <div class="pt-2 border-t">
+                                <span class="font-medium text-gray-600">注目理由:</span>
+                                <p class="text-gray-700 mt-1">テクニカル指標が良好です。MA200に対する相対位置が26.2%です。</p>
+                            </div>
+                            <div>
+                                <span class="font-medium text-gray-600">前提条件:</span>
+                                <p class="text-gray-700 mt-1">マクロ環境が悪化しないこと、セクター全体のトレンドが継続すること。</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl shadow-md p-6 card">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="text-lg font-semibold text-gray-900">
+                                4位: Tokyo Electron Limited
+                            </h4>
+                            <span class="px-3 py-1 bg-blue-100 text-blue-700 text-sm font-medium rounded-lg">
+                                8035.T
+                            </span>
+                        </div>
+                        <div class="space-y-2 text-sm">
+                            <div>
+                                <span class="font-medium text-gray-600">投資期間:</span>
+                                <span class="text-gray-700 ml-2">中期</span>
+                            </div>
+                            <div>
+                                <span class="font-medium text-gray-600">割安度:</span>
+                                <span class="text-gray-700 ml-2">適正</span>
+                            </div>
+                            <div class="pt-2 border-t">
+                                <span class="font-medium text-gray-600">注目理由:</span>
+                                <p class="text-gray-700 mt-1">テクニカル指標が良好です。MA200に対する相対位置が26.2%です。</p>
+                            </div>
+                            <div>
+                                <span class="font-medium text-gray-600">前提条件:</span>
+                                <p class="text-gray-700 mt-1">マクロ環境が悪化しないこと、セクター全体のトレンドが継続すること。</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl shadow-md p-6 card">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="text-lg font-semibold text-gray-900">
+                                5位: Toyota Motor Corporation
+                            </h4>
+                            <span class="px-3 py-1 bg-blue-100 text-blue-700 text-sm font-medium rounded-lg">
+                                7203.T
+                            </span>
+                        </div>
+                        <div class="space-y-2 text-sm">
+                            <div>
+                                <span class="font-medium text-gray-600">投資期間:</span>
+                                <span class="text-gray-700 ml-2">中期</span>
+                            </div>
+                            <div>
+                                <span class="font-medium text-gray-600">割安度:</span>
+                                <span class="text-gray-700 ml-2">適正</span>
+                            </div>
+                            <div class="pt-2 border-t">
+                                <span class="font-medium text-gray-600">注目理由:</span>
+                                <p class="text-gray-700 mt-1">テクニカル指標が良好です。MA200に対する相対位置が18.3%です。</p>
+                            </div>
+                            <div>
+                                <span class="font-medium text-gray-600">前提条件:</span>
+                                <p class="text-gray-700 mt-1">マクロ環境が悪化しないこと、セクター全体のトレンドが継続すること。</p>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <div>
+                <h3 class="text-xl font-semibold text-gray-900 mb-4">米国株</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                    <div class="bg-white rounded-2xl shadow-md p-6 card">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="text-lg font-semibold text-gray-900">
+                                1位: Alphabet Inc.
+                            </h4>
+                            <span class="px-3 py-1 bg-blue-100 text-blue-700 text-sm font-medium rounded-lg">
+                                GOOGL
+                            </span>
+                        </div>
+                        <div class="space-y-2 text-sm">
+                            <div>
+                                <span class="font-medium text-gray-600">投資期間:</span>
+                                <span class="text-gray-700 ml-2">中期</span>
+                            </div>
+                            <div>
+                                <span class="font-medium text-gray-600">割安度:</span>
+                                <span class="text-gray-700 ml-2">適正</span>
+                            </div>
+                            <div class="pt-2 border-t">
+                                <span class="font-medium text-gray-600">注目理由:</span>
+                                <p class="text-gray-700 mt-1">テクニカル指標が良好です。MA200に対する相対位置が48.3%です。</p>
+                            </div>
+                            <div>
+                                <span class="font-medium text-gray-600">前提条件:</span>
+                                <p class="text-gray-700 mt-1">マクロ環境が悪化しないこと、セクター全体のトレンドが継続すること。</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl shadow-md p-6 card">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="text-lg font-semibold text-gray-900">
+                                2位: Alphabet Inc.
+                            </h4>
+                            <span class="px-3 py-1 bg-blue-100 text-blue-700 text-sm font-medium rounded-lg">
+                                GOOGL
+                            </span>
+                        </div>
+                        <div class="space-y-2 text-sm">
+                            <div>
+                                <span class="font-medium text-gray-600">投資期間:</span>
+                                <span class="text-gray-700 ml-2">中期</span>
+                            </div>
+                            <div>
+                                <span class="font-medium text-gray-600">割安度:</span>
+                                <span class="text-gray-700 ml-2">適正</span>
+                            </div>
+                            <div class="pt-2 border-t">
+                                <span class="font-medium text-gray-600">注目理由:</span>
+                                <p class="text-gray-700 mt-1">テクニカル指標が良好です。MA200に対する相対位置が48.3%です。</p>
+                            </div>
+                            <div>
+                                <span class="font-medium text-gray-600">前提条件:</span>
+                                <p class="text-gray-700 mt-1">マクロ環境が悪化しないこと、セクター全体のトレンドが継続すること。</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl shadow-md p-6 card">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="text-lg font-semibold text-gray-900">
+                                3位: Tesla, Inc.
+                            </h4>
+                            <span class="px-3 py-1 bg-blue-100 text-blue-700 text-sm font-medium rounded-lg">
+                                TSLA
+                            </span>
+                        </div>
+                        <div class="space-y-2 text-sm">
+                            <div>
+                                <span class="font-medium text-gray-600">投資期間:</span>
+                                <span class="text-gray-700 ml-2">中期</span>
+                            </div>
+                            <div>
+                                <span class="font-medium text-gray-600">割安度:</span>
+                                <span class="text-gray-700 ml-2">適正</span>
+                            </div>
+                            <div class="pt-2 border-t">
+                                <span class="font-medium text-gray-600">注目理由:</span>
+                                <p class="text-gray-700 mt-1">テクニカル指標が良好です。MA200に対する相対位置が32.6%です。</p>
+                            </div>
+                            <div>
+                                <span class="font-medium text-gray-600">前提条件:</span>
+                                <p class="text-gray-700 mt-1">マクロ環境が悪化しないこと、セクター全体のトレンドが継続すること。</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl shadow-md p-6 card">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="text-lg font-semibold text-gray-900">
+                                4位: Tesla, Inc.
+                            </h4>
+                            <span class="px-3 py-1 bg-blue-100 text-blue-700 text-sm font-medium rounded-lg">
+                                TSLA
+                            </span>
+                        </div>
+                        <div class="space-y-2 text-sm">
+                            <div>
+                                <span class="font-medium text-gray-600">投資期間:</span>
+                                <span class="text-gray-700 ml-2">中期</span>
+                            </div>
+                            <div>
+                                <span class="font-medium text-gray-600">割安度:</span>
+                                <span class="text-gray-700 ml-2">適正</span>
+                            </div>
+                            <div class="pt-2 border-t">
+                                <span class="font-medium text-gray-600">注目理由:</span>
+                                <p class="text-gray-700 mt-1">テクニカル指標が良好です。MA200に対する相対位置が32.6%です。</p>
+                            </div>
+                            <div>
+                                <span class="font-medium text-gray-600">前提条件:</span>
+                                <p class="text-gray-700 mt-1">マクロ環境が悪化しないこと、セクター全体のトレンドが継続すること。</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl shadow-md p-6 card">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="text-lg font-semibold text-gray-900">
+                                5位: Broadcom Inc.
+                            </h4>
+                            <span class="px-3 py-1 bg-blue-100 text-blue-700 text-sm font-medium rounded-lg">
+                                AVGO
+                            </span>
+                        </div>
+                        <div class="space-y-2 text-sm">
+                            <div>
+                                <span class="font-medium text-gray-600">投資期間:</span>
+                                <span class="text-gray-700 ml-2">中期</span>
+                            </div>
+                            <div>
+                                <span class="font-medium text-gray-600">割安度:</span>
+                                <span class="text-gray-700 ml-2">適正</span>
+                            </div>
+                            <div class="pt-2 border-t">
+                                <span class="font-medium text-gray-600">注目理由:</span>
+                                <p class="text-gray-700 mt-1">テクニカル指標が良好です。MA200に対する相対位置が28.8%です。</p>
+                            </div>
+                            <div>
+                                <span class="font-medium text-gray-600">前提条件:</span>
+                                <p class="text-gray-700 mt-1">マクロ環境が悪化しないこと、セクター全体のトレンドが継続すること。</p>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </section>
+        </main>
+        
+        <!-- フッター -->
+        <footer class="bg-white border-t mt-12">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                <p class="text-sm text-gray-600">
+                    <strong>免責事項</strong>: 本レポートは研究用途であり、投資助言や売買指示を目的としたものではありません。投資判断は自己責任で行ってください。
+                </p>
+            </div>
+        </footer>
+    </div>
+</body>
+</html>
