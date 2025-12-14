@@ -52,37 +52,85 @@ def main():
         with open(output_dir / "market_data.json", 'w', encoding='utf-8') as f:
             json.dump(market_data, f, ensure_ascii=False, indent=2)
         
-        # 2. 市場分析
-        logger.info("ステップ2: 市場分析")
+        # 2. 市場分析（ルールベース：補助的）
+        logger.info("ステップ2: 市場分析（ルールベース）")
         analyzer = MarketAnalyzer()
-        analysis_result = analyzer.analyze_all_markets(market_data)
-        logger.info("市場分析完了")
+        rule_based_result = analyzer.analyze_all_markets(market_data)
+        logger.info("ルールベース分析完了")
         
-        # 3. LLM生成
-        logger.info("ステップ3: LLM文章生成")
+        # 3. LLM生成（Groq API）
+        logger.info("ステップ3: LLM市場方向感分析（Groq）")
         llm = LLMGenerator()
         
-        # 各国×期間ごとに分析文章を生成
-        for country_code, country_result in analysis_result["countries"].items():
-            country_data = country_result["data"]
-            directions = country_result["directions"]
+        # 分析結果の構造を初期化
+        analysis_result = {
+            "overview": {},
+            "countries": {},
+            "timestamp": rule_based_result["timestamp"]
+        }
+        
+        # 各国×期間ごとにLLMで市場方向感を分析
+        for country_code, country_data in market_data["countries"].items():
+            country_result = {
+                "name": country_data["name"],
+                "code": country_code,
+                "directions": {},
+                "data": country_data,
+                "analysis": {}
+            }
             
-            country_result["analysis"] = {}
-            
-            for timeframe_code, direction_data in directions.items():
-                timeframe_name = next(
-                    (tf['name'] for tf in analyzer.config['timeframes'] if tf['code'] == timeframe_code),
-                    timeframe_code
-                )
+            for timeframe in analyzer.config['timeframes']:
+                timeframe_code = timeframe['code']
+                timeframe_name = timeframe['name']
                 
-                analysis_text = llm.generate_market_analysis(
+                logger.info(f"LLM分析中: {country_code} - {timeframe_code}")
+                
+                # Groq LLMで市場方向感を分析
+                llm_direction = llm.generate_market_direction(
                     country_data,
-                    direction_data,
+                    timeframe_code,
                     timeframe_name
                 )
                 
-                country_result["analysis"][timeframe_code] = analysis_text
-                logger.info(f"分析生成完了: {country_code} - {timeframe_code}")
+                # ルールベース結果も保持（思考ログ用）
+                rule_based_direction = rule_based_result["countries"].get(country_code, {}).get("directions", {}).get(timeframe_code, {})
+                
+                # LLM結果をメインとして使用
+                direction_result = {
+                    "score": llm_direction.get("score", 0),
+                    "direction_label": llm_direction.get("direction_label", "中立"),
+                    "summary": llm_direction.get("summary", ""),
+                    "key_factors": llm_direction.get("key_factors", []),
+                    "risks": llm_direction.get("risks", []),
+                    "turning_points": llm_direction.get("turning_points", []),
+                    # 後方互換性のため
+                    "label": llm_direction.get("direction_label", "中立"),
+                    "has_risk": len(llm_direction.get("risks", [])) > 0,
+                    # ルールベース結果も保持（思考ログ用）
+                    "rule_based_components": rule_based_direction.get("components", {})
+                }
+                
+                country_result["directions"][timeframe_code] = direction_result
+                
+                # 分析文章（後方互換性のため）
+                country_result["analysis"][timeframe_code] = {
+                    "結論": llm_direction.get("summary", ""),
+                    "前提": "、".join(llm_direction.get("key_factors", [])),
+                    "最大リスク": "、".join(llm_direction.get("risks", [])),
+                    "転換シグナル": "、".join(llm_direction.get("turning_points", []))
+                }
+                
+                # Overview用にスコアを記録
+                if country_code not in analysis_result["overview"]:
+                    analysis_result["overview"][country_code] = {}
+                analysis_result["overview"][country_code][timeframe_code] = {
+                    "score": direction_result["score"],
+                    "has_risk": direction_result["has_risk"]
+                }
+                
+                logger.info(f"LLM分析完了: {country_code} - {timeframe_code} (スコア: {direction_result['score']})")
+            
+            analysis_result["countries"][country_code] = country_result
         
         # セクター分析生成
         logger.info("セクター分析生成")

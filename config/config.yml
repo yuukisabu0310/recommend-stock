@@ -113,11 +113,12 @@ event_detection:
 
 # AI設定
 ai:
-  enabled: false  # デフォルトで無効化（テンプレートベースの分析を使用）
-  # enabled: true に設定するとOpenAI APIを使用します（APIキーが必要）
-  model: "gpt-4o-mini"  # OpenAI API使用
-  max_tokens: 1000
-  temperature: 0.7
+  enabled: true  # Groq APIを使用する場合は true に設定
+  # enabled: false に設定するとルールベース分析のみを使用
+  provider: "groq"  # groq または openai
+  model: "llama-3.1-70b-versatile"  # Groq API使用
+  max_tokens: 2000
+  temperature: 0.25  # 0.2-0.3の範囲（固定）
   
   # プロンプトテンプレート
   prompts:
@@ -168,7 +169,11 @@ api:
   yahoo_finance:
     enabled: true
   
-  # OpenAI API
+  # Groq API
+  groq:
+    key: "${GROQ_API_KEY}"
+  
+  # OpenAI API（後方互換性のため残す）
   openai:
     key: "${OPENAI_API_KEY}"
 

@@ -14,16 +14,14 @@
 
 - **Python 3.11+**: データ取得・分析
 - **yfinance**: 株価データ取得（Yahoo Finance、無料）
-- **テンプレートベースの分析**: データから直接レポート生成（デフォルト、APIキー不要）
-- **OpenAI API**: 市場解釈・文章生成（オプション、使用しない場合は不要）
+- **Groq API**: 市場方向感の分析・評価（LLM: `llama-3.1-70b-versatile`）
 - **GitHub Actions**: 定期実行・自動デプロイ
-- **GitHub Pages**: Markdown静的表示
+- **GitHub Pages**: HTML静的表示
 
 **重要なポイント**: 
-- **実行時にLLMを呼び出す必要はありません**
-- データから直接レポートを生成できます
-- デフォルトではAPIキー不要・コストなしで動作します
-- LLM機能はオプションです（`config/config.yml` で `ai.enabled: true` に設定した場合のみ使用）
+- **Groq APIキーが必要です**（`GROQ_API_KEY`環境変数）
+- LLMは市場方向感の総合判断を担当（データ取得・計算はPython側で実施）
+- ルールベース分析も併用（思考ログに表示）
 
 ## セットアップ
 
@@ -40,17 +38,21 @@ cd recommend-stock
 pip install -r requirements.txt
 ```
 
-### 3. 環境変数の設定（オプション）
+### 3. 環境変数の設定
 
-**デフォルトでは環境変数の設定は不要です。** テンプレートベースの分析で動作します。
-
-LLM機能を使用したい場合のみ、`.env` ファイルを作成して以下を設定：
+`.env` ファイルを作成して以下を設定：
 
 ```bash
-OPENAI_API_KEY=your_openai_api_key  # オプション
+GROQ_API_KEY=your_groq_api_key  # 必須（Groq APIキーを取得してください）
 ```
 
-または、GitHub Actions を使用する場合は、リポジトリの Secrets に設定してください。
+または、GitHub Actions を使用する場合は、リポジトリの Secrets に `GROQ_API_KEY` を設定してください。
+
+**Groq APIキーの取得方法**:
+1. [Groq Console](https://console.groq.com/) にアクセス
+2. アカウントを作成（無料）
+3. API Keys セクションでAPIキーを生成
+4. 環境変数またはGitHub Secretsに設定
 
 ### 4. 設定ファイルの確認
 

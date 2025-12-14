@@ -208,7 +208,7 @@ class HTMLGenerator:
             
             direction = directions.get(timeframe_code, {})
             score = direction.get("score", 0)
-            label = direction.get("label", "中立")
+            label = direction.get("direction_label", direction.get("label", "中立"))
             has_risk = direction.get("has_risk", False)
             
             style = self._get_score_style(score)
@@ -226,35 +226,59 @@ class HTMLGenerator:
                 </div>
 """
             
-            if analysis_text.get("結論"):
+            # LLM分析結果を表示
+            direction_data = directions.get(timeframe_code, {})
+            
+            if direction_data.get("summary"):
                 html += f"""
                 <div class="mb-4">
-                    <h4 class="text-lg font-semibold text-gray-800 mb-2">結論</h4>
-                    <p class="text-gray-700 leading-relaxed">{analysis_text['結論']}</p>
+                    <h4 class="text-lg font-semibold text-gray-800 mb-2">市場環境サマリー</h4>
+                    <p class="text-gray-700 leading-relaxed">{direction_data['summary']}</p>
                 </div>
 """
             
-            if analysis_text.get("前提"):
+            if direction_data.get("key_factors"):
                 html += f"""
                 <div class="mb-4">
-                    <h4 class="text-lg font-semibold text-gray-800 mb-2">前提</h4>
-                    <p class="text-gray-700 leading-relaxed">{analysis_text['前提']}</p>
+                    <h4 class="text-lg font-semibold text-gray-800 mb-2">主要要因</h4>
+                    <ul class="list-disc list-inside text-gray-700 space-y-1">
+"""
+                for factor in direction_data["key_factors"]:
+                    html += f"""
+                        <li>{factor}</li>
+"""
+                html += """
+                    </ul>
                 </div>
 """
             
-            if analysis_text.get("最大リスク"):
+            if direction_data.get("risks"):
                 html += f"""
                 <div class="mb-4 p-4 bg-red-50 rounded-lg border-l-4 border-red-300">
-                    <h4 class="text-lg font-semibold text-red-800 mb-2">最大リスク</h4>
-                    <p class="text-red-700 leading-relaxed">{analysis_text['最大リスク']}</p>
+                    <h4 class="text-lg font-semibold text-red-800 mb-2">想定リスク</h4>
+                    <ul class="list-disc list-inside text-red-700 space-y-1">
+"""
+                for risk in direction_data["risks"]:
+                    html += f"""
+                        <li>{risk}</li>
+"""
+                html += """
+                    </ul>
                 </div>
 """
             
-            if analysis_text.get("転換シグナル"):
+            if direction_data.get("turning_points"):
                 html += f"""
                 <div class="mb-4 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-300">
-                    <h4 class="text-lg font-semibold text-blue-800 mb-2">転換シグナル</h4>
-                    <p class="text-blue-700 leading-relaxed">{analysis_text['転換シグナル']}</p>
+                    <h4 class="text-lg font-semibold text-blue-800 mb-2">転換ポイント</h4>
+                    <ul class="list-disc list-inside text-blue-700 space-y-1">
+"""
+                for point in direction_data["turning_points"]:
+                    html += f"""
+                        <li>{point}</li>
+"""
+                html += """
+                    </ul>
                 </div>
 """
             
@@ -495,35 +519,74 @@ class HTMLGenerator:
             </div>
 """
         
-        if analysis_text.get("結論"):
+        # 新しい形式（LLM結果）を優先表示
+        if analysis_text.get("summary") or analysis_text.get("結論"):
+            summary = analysis_text.get("summary", analysis_text.get("結論", ""))
             html += f"""
             <section class="bg-white rounded-2xl shadow-md p-6 mb-6">
-                <h2 class="text-2xl font-bold text-gray-900 mb-4">結論</h2>
-                <p class="text-gray-700 leading-relaxed">{analysis_text['結論']}</p>
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">市場環境サマリー</h2>
+                <p class="text-gray-700 leading-relaxed">{summary}</p>
             </section>
 """
         
-        if analysis_text.get("前提"):
+        # 主要要因
+        key_factors = analysis_text.get("key_factors", [])
+        if not key_factors and analysis_text.get("前提"):
+            # 後方互換性：旧形式の前提を主要要因として表示
+            key_factors = [analysis_text["前提"]]
+        
+        if key_factors:
             html += f"""
             <section class="bg-white rounded-2xl shadow-md p-6 mb-6">
-                <h2 class="text-2xl font-bold text-gray-900 mb-4">前提</h2>
-                <p class="text-gray-700 leading-relaxed">{analysis_text['前提']}</p>
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">主要要因</h2>
+                <ul class="list-disc list-inside text-gray-700 space-y-2">
+"""
+            for factor in key_factors:
+                html += f"""
+                    <li>{factor}</li>
+"""
+            html += """
+                </ul>
             </section>
 """
         
-        if analysis_text.get("最大リスク"):
+        # リスク
+        risks = analysis_text.get("risks", [])
+        if not risks and analysis_text.get("最大リスク"):
+            risks = [analysis_text["最大リスク"]]
+        
+        if risks:
             html += f"""
             <section class="bg-red-50 rounded-2xl shadow-md p-6 mb-6 border-l-4 border-red-300">
-                <h2 class="text-2xl font-bold text-red-800 mb-4">最大リスク</h2>
-                <p class="text-red-700 leading-relaxed">{analysis_text['最大リスク']}</p>
+                <h2 class="text-2xl font-bold text-red-800 mb-4">想定リスク</h2>
+                <ul class="list-disc list-inside text-red-700 space-y-2">
+"""
+            for risk in risks:
+                html += f"""
+                    <li>{risk}</li>
+"""
+            html += """
+                </ul>
             </section>
 """
         
-        if analysis_text.get("転換シグナル"):
+        # 転換ポイント
+        turning_points = analysis_text.get("turning_points", [])
+        if not turning_points and analysis_text.get("転換シグナル"):
+            turning_points = [analysis_text["転換シグナル"]]
+        
+        if turning_points:
             html += f"""
             <section class="bg-blue-50 rounded-2xl shadow-md p-6 mb-6 border-l-4 border-blue-300">
-                <h2 class="text-2xl font-bold text-blue-800 mb-4">転換シグナル</h2>
-                <p class="text-blue-700 leading-relaxed">{analysis_text['転換シグナル']}</p>
+                <h2 class="text-2xl font-bold text-blue-800 mb-4">転換ポイント</h2>
+                <ul class="list-disc list-inside text-blue-700 space-y-2">
+"""
+            for point in turning_points:
+                html += f"""
+                    <li>{point}</li>
+"""
+            html += """
+                </ul>
             </section>
 """
         
@@ -573,27 +636,71 @@ class HTMLGenerator:
                 <div class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-300">
                     <h3 class="text-lg font-semibold text-blue-800 mb-3">判断理由</h3>
                     <p class="text-blue-700 mb-3">上記のデータと分析結果に基づき、以下の判断を行いました：</p>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div class="bg-white p-3 rounded-lg">
-                            <p class="text-xs text-gray-600 mb-1">マクロ指標</p>
-                            <p class="text-lg font-bold text-gray-900">{analysis.get('components', {}).get('macro', 0):.2f}</p>
+                    
+                    <!-- LLM判断結果 -->
+                    <div class="mb-4">
+                        <p class="text-sm font-medium text-blue-700 mb-2">LLM判断結果:</p>
+                        <div class="bg-white p-3 rounded-lg mb-2">
+                            <p class="text-sm text-gray-600 mb-1">市場環境サマリー</p>
+                            <p class="text-gray-800">{analysis.get('summary', '分析結果なし')}</p>
+                        </div>"""
+        
+        # 主要要因
+        if analysis.get('key_factors'):
+            html += """
+                        <div class="bg-white p-3 rounded-lg mb-2">
+                            <p class="text-sm text-gray-600 mb-1">主要要因</p>
+                            <ul class="list-disc list-inside text-gray-800 text-sm">
+"""
+            for factor in analysis.get('key_factors', []):
+                html += f"""
+                                <li>{factor}</li>
+"""
+            html += """
+                            </ul>
                         </div>
-                        <div class="bg-white p-3 rounded-lg">
-                            <p class="text-xs text-gray-600 mb-1">金融指標</p>
-                            <p class="text-lg font-bold text-gray-900">{analysis.get('components', {}).get('financial', 0):.2f}</p>
-                        </div>
-                        <div class="bg-white p-3 rounded-lg">
-                            <p class="text-xs text-gray-600 mb-1">テクニカル指標</p>
-                            <p class="text-lg font-bold text-gray-900">{analysis.get('components', {}).get('technical', 0):.2f}</p>
-                        </div>
-                        <div class="bg-white p-3 rounded-lg">
-                            <p class="text-xs text-gray-600 mb-1">構造的指標</p>
-                            <p class="text-lg font-bold text-gray-900">{analysis.get('components', {}).get('structural', 0):.2f}</p>
+"""
+        
+        html += """
+                    </div>
+                    
+                    <!-- ルールベース指標（補助情報） -->
+"""
+        
+        # ルールベース指標
+        if analysis.get('rule_based_components'):
+            html += """
+                    <div class="mt-4 pt-4 border-t border-blue-200">
+                        <p class="text-sm font-medium text-blue-700 mb-2">ルールベース指標（参考）:</p>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+"""
+            rule_components = analysis.get('rule_based_components', {})
+            html += f"""
+                            <div class="bg-white p-3 rounded-lg">
+                                <p class="text-xs text-gray-600 mb-1">マクロ指標</p>
+                                <p class="text-lg font-bold text-gray-900">{rule_components.get('macro', 0):.2f}</p>
+                            </div>
+                            <div class="bg-white p-3 rounded-lg">
+                                <p class="text-xs text-gray-600 mb-1">金融指標</p>
+                                <p class="text-lg font-bold text-gray-900">{rule_components.get('financial', 0):.2f}</p>
+                            </div>
+                            <div class="bg-white p-3 rounded-lg">
+                                <p class="text-xs text-gray-600 mb-1">テクニカル指標</p>
+                                <p class="text-lg font-bold text-gray-900">{rule_components.get('technical', 0):.2f}</p>
+                            </div>
+                            <div class="bg-white p-3 rounded-lg">
+                                <p class="text-xs text-gray-600 mb-1">構造的指標</p>
+                                <p class="text-lg font-bold text-gray-900">{rule_components.get('structural', 0):.2f}</p>
+                            </div>
                         </div>
                     </div>
+"""
+        
+        direction_label = analysis.get('direction_label', analysis.get('label', '中立'))
+        html += f"""
                     <div class="mt-4 pt-4 border-t border-blue-200">
-                        <p class="text-sm text-blue-600 mb-1">最終スコア</p>
-                        <p class="text-2xl font-bold text-blue-800">{analysis.get('score', 0)} ({analysis.get('label', '中立')})</p>
+                        <p class="text-sm text-blue-600 mb-1">最終スコア（LLM判断）</p>
+                        <p class="text-2xl font-bold text-blue-800">{analysis.get('score', 0)} ({direction_label})</p>
                     </div>
                 </div>
             </section>
