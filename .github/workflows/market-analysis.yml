@@ -2,8 +2,8 @@ name: Market Analysis Report
 
 on:
   schedule:
-    # 毎日 日本時間 18:00 (UTC 9:00) に実行
-    - cron: '0 9 * * *'
+    # 毎日 日本時間 8:00 (UTC 23:00) に実行
+    - cron: '0 23 * * *'
   workflow_dispatch:  # 手動実行も可能
   push:
     branches:
@@ -15,10 +15,14 @@ on:
 jobs:
   analyze:
     runs-on: ubuntu-latest
+    env:
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+      PYTHONIOENCODING: utf-8
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -38,29 +42,36 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ALPHA_VANTAGE_KEY: ${{ secrets.ALPHA_VANTAGE_KEY }}
+          LANG: C.UTF-8
+          LC_ALL: C.UTF-8
+          PYTHONIOENCODING: utf-8
         run: |
           python src/main.py
       
       - name: Setup Pages
-        uses: actions/configure-pages@v3
+        uses: actions/configure-pages@v4
         if: github.ref == 'refs/heads/main'
       
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v2
+        uses: actions/upload-pages-artifact@v3
         if: github.ref == 'refs/heads/main'
         with:
           path: docs
       
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v2
+        uses: actions/deploy-pages@v4
         if: github.ref == 'refs/heads/main'
 
       - name: Commit and push results
         if: success()
+        env:
+          LANG: C.UTF-8
+          LC_ALL: C.UTF-8
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
+          git config --local core.quotepath false
           git add docs/
           git diff --staged --quiet || git commit -m "Update market analysis: $(date +'%Y-%m-%d %H:%M')"
           git push
