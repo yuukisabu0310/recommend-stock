@@ -305,13 +305,20 @@ class DataFetcher:
             else:
                 pmi = 48.0
         
-        return {
+        result = {
             "country_code": country_code,
             "PMI": pmi,
             "CPI": cpi,
             "employment_rate": employment_rate,
             "date": datetime.now().isoformat()
         }
+        # 返り値をログ出力（nullチェック）
+        logger.info(f"get_macro_indicators返り値 ({country_code}): PMI={pmi}, CPI={cpi}, employment_rate={employment_rate}")
+        if cpi is None:
+            logger.warning(f"CPIがnullです ({country_code})")
+        if employment_rate is None:
+            logger.warning(f"雇用率がnullです ({country_code})")
+        return result
     
     def _get_japan_cpi(self) -> Optional[float]:
         """日本のCPIを取得（総務省統計局API）"""
@@ -442,13 +449,20 @@ class DataFetcher:
                 credit_spread = base_spread + volatility_factor
                 credit_spread = max(0.5, min(5.0, credit_spread))
         
-        return {
+        result = {
             "country_code": country_code,
             "policy_rate": policy_rate,
             "long_term_rate": long_term_rate,
             "credit_spread": credit_spread,
             "date": datetime.now().isoformat()
         }
+        # 返り値をログ出力（nullチェック）
+        logger.info(f"get_financial_indicators返り値 ({country_code}): policy_rate={policy_rate}, long_term_rate={long_term_rate}, credit_spread={credit_spread}")
+        if policy_rate is None:
+            logger.warning(f"政策金利がnullです ({country_code})")
+        if long_term_rate is None:
+            logger.warning(f"長期金利がnullです ({country_code})")
+        return result
     
     def _get_japan_policy_rate(self) -> Optional[float]:
         """日本の政策金利を取得（日本銀行統計データAPI）"""
