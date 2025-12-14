@@ -20,14 +20,6 @@ countries:
       - "TOPIX Core30"
       - "TOPIX Large70"
       - "TOPIX Mid400"
-  
-  - name: "中国"
-    code: "CN"
-    indices:
-      - "SSE"   # 上海総合
-      - "HSI"   # ハンセン指数
-    universe:
-      - "CSI300"
 
 # 投資期間
 timeframes:
@@ -172,6 +164,14 @@ api:
   # Groq API
   groq:
     key: "${GROQ_API_KEY}"
+  
+  # FRED API（米国経済データ取得用）
+  fred:
+    key: "${FRED_API_KEY}"  # 無料で取得可能: https://fred.stlouisfed.org/docs/api/api_key.html
+  
+  # e-Stat API（日本の統計データ取得用）
+  estat:
+    app_id: "${ESTAT_APP_ID}"  # 無料で取得可能（ユーザー登録が必要）: https://www.e-stat.go.jp/api/api-dev/how_to_use
   
   # OpenAI API（後方互換性のため残す）
   openai:

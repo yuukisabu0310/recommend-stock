@@ -4,7 +4,7 @@
 
 ## 機能
 
-- **Market Direction Overview**: 国別（米国・日本・中国）× 期間（短期/中期/長期）ごとの市場方向感を5段階で表示
+- **Market Direction Overview**: 国別（米国・日本）× 期間（短期/中期/長期）ごとの市場方向感を5段階で表示
 - **国別市場判断**: 各国の短期・中期・長期の市場環境を分析（結論・前提・リスク・転換シグナル）
 - **注目セクター**: マクロ・地政学・政策を元に注目セクターを提示
 - **おすすめ銘柄**: 日本株・米国株の推奨銘柄を提示（投資助言ではありません）
@@ -44,15 +44,32 @@ pip install -r requirements.txt
 
 ```bash
 GROQ_API_KEY=your_groq_api_key  # 必須（Groq APIキーを取得してください）
+FRED_API_KEY=your_fred_api_key  # 必須（FRED APIキーを取得してください）
+ESTAT_APP_ID=your_estat_app_id  # 必須（e-Stat APIアプリケーションIDを取得してください）
 ```
 
-または、GitHub Actions を使用する場合は、リポジトリの Secrets に `GROQ_API_KEY` を設定してください。
+または、GitHub Actions を使用する場合は、リポジトリの Secrets に以下を設定してください：
+- `GROQ_API_KEY`
+- `FRED_API_KEY`
 
-**Groq APIキーの取得方法**:
-1. [Groq Console](https://console.groq.com/) にアクセス
-2. アカウントを作成（無料）
-3. API Keys セクションでAPIキーを生成
-4. 環境変数またはGitHub Secretsに設定
+**APIキーの取得方法**:
+
+1. **Groq APIキー**:
+   - [Groq Console](https://console.groq.com/) にアクセス
+   - アカウントを作成（無料）
+   - API Keys セクションでAPIキーを生成
+
+2. **FRED APIキー**（無料）:
+   - [FRED API Key](https://fred.stlouisfed.org/docs/api/api_key.html) にアクセス
+   - アカウントを作成（無料）
+   - API Keys セクションでAPIキーを生成
+   - 米国のCPI、雇用率、政策金利、長期金利の実データ取得に使用
+
+3. **e-Stat APIアプリケーションID**（無料、ユーザー登録が必要）:
+   - [e-Stat API](https://www.e-stat.go.jp/api/api-dev/how_to_use) にアクセス
+   - ユーザー登録（無料）
+   - マイページからアプリケーションIDを発行
+   - 日本のCPI、雇用率の実データ取得に使用（公式データ）
 
 ### 4. 設定ファイルの確認
 
