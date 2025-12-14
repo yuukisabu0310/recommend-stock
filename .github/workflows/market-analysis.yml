@@ -16,7 +16,7 @@ jobs:
   analyze:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       pages: write
       id-token: write
     env:
@@ -54,8 +54,6 @@ jobs:
       
       - name: Setup Pages
         uses: actions/configure-pages@v4
-        with:
-          enablement: true
         if: github.ref == 'refs/heads/main'
       
       - name: Upload artifact
