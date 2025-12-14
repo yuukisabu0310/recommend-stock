@@ -52,16 +52,21 @@ class DataFetcher:
         # FRED API設定
         self.fred_api_key = os.getenv('FRED_API_KEY')
         self.fred_client = None
-        if FRED_AVAILABLE and self.fred_api_key:
+        if not FRED_AVAILABLE:
+            logger.error("fredapiライブラリがインストールされていません。FRED API機能は無効化されます。pip install fredapi を実行してください。")
+        elif not self.fred_api_key:
+            logger.error("FRED_API_KEYが設定されていません。FRED API機能は無効化されます。環境変数またはGitHub SecretsにFRED_API_KEYを設定してください。")
+        else:
             try:
                 self.fred_client = Fred(api_key=self.fred_api_key)
+                logger.info("FRED APIクライアントを初期化しました")
             except Exception as e:
-                logger.warning(f"FRED API初期化エラー: {e}")
+                logger.error(f"FRED API初期化エラー: {e}")
         
         # e-Stat API設定
         self.estat_app_id = os.getenv('ESTAT_APP_ID')
         if not self.estat_app_id:
-            logger.warning("ESTAT_APP_IDが設定されていません。e-Stat API機能は無効化されます。")
+            logger.error("ESTAT_APP_IDが設定されていません。e-Stat API機能は無効化されます。環境変数またはGitHub SecretsにESTAT_APP_IDを設定してください。")
     
     def get_index_data(self, index_code: str, country_code: str, days: int = 365) -> Optional[Dict]:
         """

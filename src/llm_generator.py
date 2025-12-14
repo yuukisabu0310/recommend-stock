@@ -38,8 +38,9 @@ class LLMGenerator:
             api_key = os.getenv('GROQ_API_KEY')
             if api_key:
                 self.client = Groq(api_key=api_key)
+                logger.info("Groq APIクライアントを初期化しました")
             else:
-                logger.warning("GROQ_API_KEYが設定されていません。LLM機能は無効化されます。")
+                logger.error("GROQ_API_KEYが設定されていません。LLM機能は無効化されます。環境変数またはGitHub SecretsにGROQ_API_KEYを設定してください。")
                 self.enabled = False
     
     def _call_llm(self, system_prompt: str, user_prompt: str, max_tokens: int = 2000, response_format: Optional[Dict] = None) -> Optional[str]:

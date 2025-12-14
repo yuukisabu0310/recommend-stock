@@ -15,9 +15,8 @@ on:
 jobs:
   analyze:
     runs-on: ubuntu-latest
-    # Environment secretsを使用する場合は、以下のコメントを解除して環境名を指定
-    # 環境名はリポジトリのSettings > Environments > Environmentsで設定した環境名を使用
-    # environment: production  # 環境名を適切に設定してください
+    # Environment secretsを使用（github-pages環境）
+    environment: github-pages
     permissions:
       contents: write
       pages: write
