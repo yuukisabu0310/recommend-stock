@@ -110,11 +110,28 @@ class LLMGenerator:
         system_prompt = """あなたは株式市場分析を行うAIアシスタントです。
 このシステムは投資判断や売買助言を目的としません。
 
+【絶対条件】
+・投資判断はユーザーの自己責任
+・過去の実績は将来を保証しない
+・売買を断定する表現は禁止
+・常に「前提・リスク・転換シグナル」を明示する
+・結論を出さず、判断材料のみを提示する
+
+【禁止表現】
+「買い」「売り」「今がチャンス」「必ず上がる」「儲かる」「推奨」「おすすめ」「目標株価」「期待リターン」「利益率」
+
+【許可表現】
+「〜の傾向が見られる」
+「〜という前提が成り立っている」
+「条件が崩れた場合は注意が必要」
+「参考情報として〜」
+
 以下の制約を必ず守ってください：
 - 売買・推奨・目標価格の提示は禁止
-- 断定表現は禁止（「〜と考えられる」「〜の可能性」）
+- 断定表現は禁止（「〜と考えられる」「〜の可能性がある」を使用）
 - 与えられたデータ以外を想像しない
-- 出力は必ずJSONのみ"""
+- 出力は必ずJSONのみ
+- 前提・リスク・転換シグナルを必ず含める"""
         
         # データを整形
         macro_data = country_data.get("macro", {})
@@ -127,11 +144,16 @@ class LLMGenerator:
         if indices:
             first_index = list(indices.values())[0]
             technical_data = {
+                "price_vs_ma20": first_index.get("price_vs_ma20", 0),
+                "price_vs_ma75": first_index.get("price_vs_ma75", 0),
                 "price_vs_ma200": first_index.get("price_vs_ma200", 0),
+                "ma20": first_index.get("ma20", 0),
+                "ma75": first_index.get("ma75", 0),
+                "ma200": first_index.get("ma200", 0),
+                "trend_score": first_index.get("trend_score", 0),
                 "volatility": first_index.get("volatility", 0),
                 "volume_ratio": first_index.get("volume_ratio", 1.0),
-                "latest_price": first_index.get("latest_price", 0),
-                "ma200": first_index.get("ma200", 0)
+                "latest_price": first_index.get("latest_price", 0)
             }
             structural_data = {
                 "top_stocks_concentration": first_index.get("top_stocks_concentration", 0)
@@ -182,20 +204,26 @@ Time Horizon: {timeframe_name}
 {{
   "score": number,
   "direction_label": "超強気 | やや強気 | 中立 | やや弱気 | 超弱気",
-  "summary": "市場環境を1〜2文で要約",
+  "summary": "市場環境を1〜2文で要約（判断材料のみ、断定表現禁止）",
+  "premise": "現在の判断の前提条件（なぜそう判断したか、再現可能な条件）",
   "key_factors": [
     "判断に最も影響した要因1",
     "判断に最も影響した要因2",
     "判断に最も影響した要因3"
   ],
   "risks": [
-    "想定される最大リスク1",
+    "想定される最大リスク1（必ず記載）",
     "想定される最大リスク2"
   ],
   "turning_points": [
-    "方向感が変わる可能性のある条件・イベント"
+    "方向感が変わる可能性のある条件・イベント（具体的な数値で示す、必ず記載）"
   ]
-}}"""
+}}
+
+重要：
+- premise、risks、turning_pointsは必ず含めてください
+- turning_pointsは具体的な数値で示してください（例：「終値ベースで200日移動平均を3日連続で下回った場合」）
+- 断定表現は使用せず、「〜と考えられる」「〜の可能性がある」を使用してください"""
         
         # Groq API呼び出し（JSON形式を要求）
         result_text = self._call_llm(
@@ -232,6 +260,14 @@ Time Horizon: {timeframe_name}
                         -2: "超弱気"
                     }
                     result["direction_label"] = label_map.get(score, "中立")
+                
+                # 前提・リスク・転換シグナルが存在しない場合はデフォルト値を設定
+                if "premise" not in result or not result["premise"]:
+                    result["premise"] = "データに基づく判断材料を提示しています。"
+                if "risks" not in result or not result["risks"]:
+                    result["risks"] = ["市場環境の変化により、前提条件が崩れる可能性があります。"]
+                if "turning_points" not in result or not result["turning_points"]:
+                    result["turning_points"] = ["マクロ環境やテクニカル指標の変化により、方向性が転換する可能性があります。"]
                 
                 return result
                 
@@ -342,6 +378,7 @@ Time Horizon: {timeframe_name}
             "score": score,
             "direction_label": label_map.get(score, "中立"),
             "summary": summary,
+            "premise": "データに基づく判断材料を提示しています。テクニカル指標とマクロ環境の現状を反映しています。",
             "key_factors": key_factors if key_factors else ["データが不足しているため、中立と判断"],
             "risks": risks if risks else ["方向性が明確でないため、外部要因に敏感に反応する可能性"],
             "turning_points": turning_points if turning_points else ["明確な方向性を示すマクロデータやテクニカルブレイク"]
@@ -504,40 +541,126 @@ Time Horizon: {timeframe_name}
     
     def generate_stock_recommendations(self, stocks_data: List[Dict], country_code: str) -> List[Dict]:
         """
-        銘柄推奨を生成
+        銘柄評価を生成（推奨ではなく、判断材料の提示）
         
         Args:
             stocks_data: 銘柄データリスト
             country_code: 国コード
         
         Returns:
-            推奨銘柄のリスト
+            評価銘柄のリスト
         """
         if not self.enabled:
-            # フォールバック：データベースから簡易推奨
+            # フォールバック：データベースから簡易評価
             return self._generate_fallback_stock_recommendations(stocks_data, country_code)
         
         data_summary = {
             "銘柄データ": stocks_data[:20]  # 最大20銘柄
         }
         
-        prompt_template = self.ai_config['prompts'].get('stock_recommendation', '')
-        if not prompt_template:
-            # デフォルトのプロンプト
-            prompt_template = "以下の銘柄データを分析し、推奨銘柄を5つ選定してください。\n\n{data}"
+        system_prompt = """あなたは株式市場分析を行うAIアシスタントです。
+このシステムは投資判断や売買助言を目的としません。
+
+【絶対条件】
+・投資判断はユーザーの自己責任
+・過去の実績は将来を保証しない
+・売買を断定する表現は禁止
+・常に「前提・リスク・転換シグナル」を明示する
+・結論を出さず、判断材料のみを提示する
+
+【禁止表現】
+「買い」「売り」「今がチャンス」「必ず上がる」「儲かる」「推奨」「おすすめ」「目標株価」「期待リターン」「利益率」
+
+【許可表現】
+「〜の傾向が見られる」
+「〜という前提が成り立っている」
+「条件が崩れた場合は注意が必要」
+「参考情報として〜」
+
+銘柄データを分析し、判断材料を提示してください。"""
         
-        user_prompt = prompt_template.format(data=json.dumps(data_summary, ensure_ascii=False, indent=2))
-        system_prompt = "あなたは株式市場分析を行うAIアシスタントです。銘柄データを分析し、推奨銘柄を選定してください。"
+        user_prompt = f"""以下の銘柄データを分析し、各銘柄について判断材料を提示してください。
+
+各銘柄について以下を含めてください：
+- 銘柄名・ティッカー
+- セクター
+- 事業概要（簡潔）
+- ファンダメンタル指標の評価（売上成長率、営業利益率、ROE、時価総額区分）
+- テクニカル指標の評価（移動平均によるトレンド、出来高傾向）
+- 市場環境との相性評価
+- 条件合致度評価（◯ / △ / ×）
+- 前提条件（必ず記載）
+- リスク（必ず記載）
+- 転換シグナル（必ず記載）
+
+出力は以下のJSON形式で返してください：
+{{
+  "stocks": [
+    {{
+      "rank": 1,
+      "ticker": "銘柄コード",
+      "name": "銘柄名",
+      "sector": "セクター",
+      "business_summary": "事業概要（簡潔）",
+      "fundamental_evaluation": {{
+        "revenue_growth": "◯ | △ | ×",
+        "operating_margin": "◯ | △ | ×",
+        "roe": "◯ | △ | ×",
+        "market_cap_category": "時価総額区分"
+      }},
+      "technical_evaluation": {{
+        "trend": "◯ | △ | ×",
+        "volume": "◯ | △ | ×"
+      }},
+      "market_compatibility": "市場環境との相性評価（文章）",
+      "overall_evaluation": "◯ | △ | ×",
+      "premise": "前提条件（必ず記載）",
+      "risks": ["リスク1", "リスク2"],
+      "turning_points": ["転換シグナル1", "転換シグナル2"]
+    }}
+  ]
+}}
+
+データ:
+{json.dumps(data_summary, ensure_ascii=False, indent=2)}"""
         
-        result_text = self._call_llm(system_prompt, user_prompt, max_tokens=2000)
+        result_text = self._call_llm(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            max_tokens=3000,
+            response_format={"type": "json_object"}
+        )
         
         if result_text:
-            return self._parse_stock_recommendations(result_text, stocks_data)
+            try:
+                result = json.loads(result_text)
+                stocks = result.get("stocks", [])
+                # フォーマットを統一
+                formatted_stocks = []
+                for stock in stocks[:5]:  # 最大5銘柄
+                    formatted_stocks.append({
+                        "rank": stock.get("rank", 0),
+                        "ticker": stock.get("ticker", ""),
+                        "name": stock.get("name", ""),
+                        "sector": stock.get("sector", ""),
+                        "business_summary": stock.get("business_summary", ""),
+                        "fundamental_evaluation": stock.get("fundamental_evaluation", {}),
+                        "technical_evaluation": stock.get("technical_evaluation", {}),
+                        "market_compatibility": stock.get("market_compatibility", ""),
+                        "overall_evaluation": stock.get("overall_evaluation", "△"),
+                        "premise": stock.get("premise", "データに基づく判断材料を提示しています。"),
+                        "risks": stock.get("risks", ["市場環境の変化により、前提条件が崩れる可能性があります。"]),
+                        "turning_points": stock.get("turning_points", ["マクロ環境やテクニカル指標の変化により、方向性が転換する可能性があります。"])
+                    })
+                return formatted_stocks
+            except json.JSONDecodeError as e:
+                logger.error(f"JSONパースエラー: {e}, レスポンス: {result_text[:200]}")
+                return self._generate_fallback_stock_recommendations(stocks_data, country_code)
         else:
             return self._generate_fallback_stock_recommendations(stocks_data, country_code)
     
     def _parse_stock_recommendations(self, text: str, stocks_data: List[Dict]) -> List[Dict]:
-        """銘柄推奨結果をパース（簡易実装）"""
+        """銘柄評価結果をパース（簡易実装）"""
         # 実際の実装では、より堅牢なパースが必要
         recommendations = []
         
@@ -549,20 +672,49 @@ Time Horizon: {timeframe_name}
         )[:5]
         
         for i, stock in enumerate(sorted_stocks, 1):
+            # ファンダメンタル評価
+            revenue_growth = stock.get("revenue_growth")
+            operating_margin = stock.get("operating_margin")
+            roe = stock.get("roe")
+            
+            # 簡易評価ロジック
+            revenue_eval = "◯" if revenue_growth and revenue_growth > 10 else ("△" if revenue_growth and revenue_growth > 0 else "×")
+            margin_eval = "◯" if operating_margin and operating_margin > 10 else ("△" if operating_margin and operating_margin > 5 else "×")
+            roe_eval = "◯" if roe and roe > 15 else ("△" if roe and roe > 10 else "×")
+            
+            # テクニカル評価
+            price_vs_ma200 = stock.get("price_vs_ma200", 0)
+            trend_eval = "◯" if price_vs_ma200 > 5 else ("△" if price_vs_ma200 > -5 else "×")
+            volume_trend = stock.get("volume_trend", "横ばい")
+            volume_eval = "◯" if volume_trend == "増加" else ("△" if volume_trend == "横ばい" else "×")
+            
             recommendations.append({
                 "rank": i,
                 "ticker": stock.get("ticker", ""),
                 "name": stock.get("name", stock.get("ticker", "")),
-                "timeframe": "中期",
-                "value_rating": "やや割安" if stock.get("price_vs_ma200", 0) < 0 else "適正",
-                "reason": f"テクニカル指標が良好で、{stock.get('sector', '')}セクターの成長が見込まれます。",
-                "precondition": "マクロ環境が悪化しないこと、セクター全体のトレンドが継続すること。"
+                "sector": stock.get("sector", ""),
+                "business_summary": stock.get("business_summary", ""),
+                "fundamental_evaluation": {
+                    "revenue_growth": revenue_eval,
+                    "operating_margin": margin_eval,
+                    "roe": roe_eval,
+                    "market_cap_category": stock.get("market_cap_category", "")
+                },
+                "technical_evaluation": {
+                    "trend": trend_eval,
+                    "volume": volume_eval
+                },
+                "market_compatibility": f"{stock.get('sector', '')}セクターの成長傾向が見られます。",
+                "overall_evaluation": "△",
+                "premise": "マクロ環境が悪化しないこと、セクター全体のトレンドが継続すること。",
+                "risks": ["市場環境の変化により、前提条件が崩れる可能性があります。"],
+                "turning_points": ["マクロ環境やテクニカル指標の変化により、方向性が転換する可能性があります。"]
             })
         
         return recommendations
     
     def _generate_fallback_stock_recommendations(self, stocks_data: List[Dict], country_code: str) -> List[Dict]:
-        """フォールバック銘柄推奨"""
+        """フォールバック銘柄評価"""
         recommendations = []
         
         # データから上位を選出
@@ -573,14 +725,43 @@ Time Horizon: {timeframe_name}
         )[:5]
         
         for i, stock in enumerate(sorted_stocks, 1):
+            # ファンダメンタル評価
+            revenue_growth = stock.get("revenue_growth")
+            operating_margin = stock.get("operating_margin")
+            roe = stock.get("roe")
+            
+            # 簡易評価ロジック
+            revenue_eval = "◯" if revenue_growth and revenue_growth > 10 else ("△" if revenue_growth and revenue_growth > 0 else "×")
+            margin_eval = "◯" if operating_margin and operating_margin > 10 else ("△" if operating_margin and operating_margin > 5 else "×")
+            roe_eval = "◯" if roe and roe > 15 else ("△" if roe and roe > 10 else "×")
+            
+            # テクニカル評価
+            price_vs_ma200 = stock.get("price_vs_ma200", 0)
+            trend_eval = "◯" if price_vs_ma200 > 5 else ("△" if price_vs_ma200 > -5 else "×")
+            volume_trend = stock.get("volume_trend", "横ばい")
+            volume_eval = "◯" if volume_trend == "増加" else ("△" if volume_trend == "横ばい" else "×")
+            
             recommendations.append({
                 "rank": i,
                 "ticker": stock.get("ticker", ""),
                 "name": stock.get("name", stock.get("ticker", "")),
-                "timeframe": "中期",
-                "value_rating": "やや割安" if stock.get("price_vs_ma200", 0) < 0 else "適正",
-                "reason": f"テクニカル指標が良好です。MA200に対する相対位置が{stock.get('price_vs_ma200', 0):.1f}%です。",
-                "precondition": "マクロ環境が悪化しないこと、セクター全体のトレンドが継続すること。"
+                "sector": stock.get("sector", ""),
+                "business_summary": stock.get("business_summary", ""),
+                "fundamental_evaluation": {
+                    "revenue_growth": revenue_eval,
+                    "operating_margin": margin_eval,
+                    "roe": roe_eval,
+                    "market_cap_category": stock.get("market_cap_category", "")
+                },
+                "technical_evaluation": {
+                    "trend": trend_eval,
+                    "volume": volume_eval
+                },
+                "market_compatibility": f"テクニカル指標が良好です。MA200に対する相対位置が{price_vs_ma200:.1f}%です。",
+                "overall_evaluation": "△",
+                "premise": "マクロ環境が悪化しないこと、セクター全体のトレンドが継続すること。",
+                "risks": ["市場環境の変化により、前提条件が崩れる可能性があります。"],
+                "turning_points": ["マクロ環境やテクニカル指標の変化により、方向性が転換する可能性があります。"]
             })
         
         return recommendations

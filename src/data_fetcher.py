@@ -144,9 +144,30 @@ class DataFetcher:
                 logger.warning(f"データが空です ({index_code})")
                 return self._load_fallback_data(f"{country_code}_{index_code}")
             
-            # 最新価格とMA200の計算
+            # 最新価格と移動平均の計算（20日、75日、200日）
             latest_price = float(hist['Close'].iloc[-1])
+            
+            # 移動平均の計算
+            ma20 = float(hist['Close'].tail(20).mean()) if len(hist) >= 20 else latest_price
+            ma75 = float(hist['Close'].tail(75).mean()) if len(hist) >= 75 else latest_price
             ma200 = float(hist['Close'].tail(200).mean()) if len(hist) >= 200 else latest_price
+            
+            # トレンド判定（移動平均の順序で判定）
+            # 上昇トレンド: 価格 > MA20 > MA75 > MA200
+            # 下降トレンド: 価格 < MA20 < MA75 < MA200
+            trend_score = 0  # -2 (超弱気) ～ +2 (超強気)
+            if latest_price > ma20 > ma75 > ma200:
+                trend_score = 2  # 強気
+            elif latest_price > ma20 > ma75:
+                trend_score = 1  # やや強気
+            elif ma20 > ma75 > ma200:
+                trend_score = 1  # やや強気
+            elif latest_price < ma20 < ma75 < ma200:
+                trend_score = -2  # 弱気
+            elif latest_price < ma20 < ma75:
+                trend_score = -1  # やや弱気
+            elif ma20 < ma75 < ma200:
+                trend_score = -1  # やや弱気
             
             # ボラティリティ計算（過去30日）
             recent_returns = hist['Close'].pct_change().tail(30)
@@ -160,8 +181,13 @@ class DataFetcher:
                 "index_code": index_code,
                 "country_code": country_code,
                 "latest_price": latest_price,
+                "ma20": ma20,
+                "ma75": ma75,
                 "ma200": ma200,
-                "price_vs_ma200": (latest_price / ma200 - 1) * 100,  # パーセンテージ
+                "price_vs_ma20": (latest_price / ma20 - 1) * 100,  # パーセンテージ
+                "price_vs_ma75": (latest_price / ma75 - 1) * 100,
+                "price_vs_ma200": (latest_price / ma200 - 1) * 100,
+                "trend_score": trend_score,  # トレンドスコア
                 "volatility": volatility,
                 "volume_ratio": latest_volume / avg_volume_30 if avg_volume_30 > 0 else 1.0,
                 "date": datetime.now().isoformat(),
@@ -565,18 +591,56 @@ class DataFetcher:
                 return None
             
             latest_price = float(hist['Close'].iloc[-1])
+            
+            # 移動平均の計算（20日、75日、200日）
+            ma20 = float(hist['Close'].tail(20).mean()) if len(hist) >= 20 else latest_price
+            ma75 = float(hist['Close'].tail(75).mean()) if len(hist) >= 75 else latest_price
             ma200 = float(hist['Close'].tail(200).mean()) if len(hist) >= 200 else latest_price
+            
+            # 出来高データ
+            avg_volume_30 = float(hist['Volume'].tail(30).mean()) if len(hist) >= 30 else 0
+            latest_volume = float(hist['Volume'].iloc[-1])
+            volume_trend = "増加" if latest_volume > avg_volume_30 * 1.2 else ("減少" if latest_volume < avg_volume_30 * 0.8 else "横ばい")
+            
+            # ファンダメンタル指標の取得
+            revenue_growth = info.get("revenueGrowth")  # 売上成長率（年率）
+            operating_margin = info.get("operatingMargins")  # 営業利益率
+            roe = info.get("returnOnEquity")  # ROE
+            market_cap = info.get("marketCap")
+            
+            # 時価総額区分
+            market_cap_category = None
+            if market_cap:
+                if market_cap >= 10_000_000_000_000:  # 10兆円以上
+                    market_cap_category = "超大規模"
+                elif market_cap >= 1_000_000_000_000:  # 1兆円以上
+                    market_cap_category = "大規模"
+                elif market_cap >= 100_000_000_000:  # 1000億円以上
+                    market_cap_category = "中規模"
+                else:
+                    market_cap_category = "小規模"
             
             data = {
                 "ticker": ticker,
                 "name": info.get("longName", ticker),
                 "latest_price": latest_price,
+                "ma20": ma20,
+                "ma75": ma75,
                 "ma200": ma200,
+                "price_vs_ma20": (latest_price / ma20 - 1) * 100,
+                "price_vs_ma75": (latest_price / ma75 - 1) * 100,
                 "price_vs_ma200": (latest_price / ma200 - 1) * 100,
-                "market_cap": info.get("marketCap"),
+                "market_cap": market_cap,
+                "market_cap_category": market_cap_category,
                 "pe_ratio": info.get("trailingPE"),
+                "revenue_growth": revenue_growth * 100 if revenue_growth else None,  # パーセンテージに変換
+                "operating_margin": operating_margin * 100 if operating_margin else None,  # パーセンテージに変換
+                "roe": roe * 100 if roe else None,  # パーセンテージに変換
                 "sector": info.get("sector"),
                 "industry": info.get("industry"),
+                "business_summary": info.get("longBusinessSummary", "")[:200] if info.get("longBusinessSummary") else "",  # 事業概要（簡潔）
+                "volume_trend": volume_trend,
+                "volume_ratio": latest_volume / avg_volume_30 if avg_volume_30 > 0 else 1.0,
                 "date": datetime.now().isoformat()
             }
             

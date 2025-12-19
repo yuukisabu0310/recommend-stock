@@ -100,6 +100,7 @@ def main():
                     "score": llm_direction.get("score", 0),
                     "direction_label": llm_direction.get("direction_label", "中立"),
                     "summary": llm_direction.get("summary", ""),
+                    "premise": llm_direction.get("premise", ""),  # 前提条件を追加
                     "key_factors": llm_direction.get("key_factors", []),
                     "risks": llm_direction.get("risks", []),
                     "turning_points": llm_direction.get("turning_points", []),
@@ -115,7 +116,7 @@ def main():
                 # 分析文章（後方互換性のため）
                 country_result["analysis"][timeframe_code] = {
                     "結論": llm_direction.get("summary", ""),
-                    "前提": "、".join(llm_direction.get("key_factors", [])),
+                    "前提": llm_direction.get("premise", "") or "、".join(llm_direction.get("key_factors", [])),
                     "最大リスク": "、".join(llm_direction.get("risks", [])),
                     "転換シグナル": "、".join(llm_direction.get("turning_points", []))
                 }
