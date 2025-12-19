@@ -48,7 +48,7 @@ class HTMLGenerator:
             return "🟡"  # 中立
     
     def _generate_header(self, title: str = "株式市場分析レポート") -> str:
-        """HTMLヘッダーを生成"""
+        """HTMLヘッダーを生成（初心者向けUI）"""
         date_str = datetime.now().strftime("%Y年%m月%d日 %H:%M")
         return f"""<!DOCTYPE html>
 <html lang="ja">
@@ -57,7 +57,6 @@ class HTMLGenerator:
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{title}</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -72,20 +71,29 @@ class HTMLGenerator:
             transform: translateY(-2px);
             box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
         }}
+        .accordion-content {{
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }}
+        .accordion-content.open {{
+            max-height: 2000px;
+            transition: max-height 0.3s ease-in;
+        }}
     </style>
 </head>
 <body class="bg-gray-50">
     <div class="min-h-screen">
-        <!-- ヘッダー -->
-        <header class="bg-white shadow-md">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                <h1 class="text-3xl font-bold text-gray-900">{title}</h1>
-                <p class="mt-2 text-sm text-gray-600">更新日時: {date_str}</p>
+        <!-- ヘッダー（シンプル） -->
+        <header class="bg-white shadow-sm">
+            <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">{title}</h1>
+                <p class="mt-1 text-xs sm:text-sm text-gray-500">最終更新: {date_str}</p>
             </div>
         </header>
         
         <!-- メインコンテンツ -->
-        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
 """
     
     def _generate_footer(self) -> str:
@@ -93,54 +101,301 @@ class HTMLGenerator:
         return """        </main>
         
         <!-- フッター -->
-        <footer class="bg-white border-t mt-12">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <footer class="bg-white border-t mt-8">
+            <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
                 <div class="space-y-4">
+                    <!-- 免責事項（短縮版） -->
                     <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg">
-                        <p class="text-sm text-yellow-800">
-                            <strong>免責事項</strong>: 本レポートは研究用途であり、投資助言や売買指示を目的としたものではありません。投資判断は自己責任で行ってください。過去の実績は将来を保証するものではありません。
+                        <p class="text-sm text-yellow-800 mb-2">
+                            <strong>免責事項</strong>: この情報は参考としてお使いください。投資判断は自己責任で行ってください。
                         </p>
+                        <button onclick="toggleDetail('disclaimer-detail')" class="text-xs text-yellow-700 hover:text-yellow-900 underline">
+                            詳細を見る <span id="disclaimer-detail-icon">▼</span>
+                        </button>
+                        <div id="disclaimer-detail" class="accordion-content mt-2">
+                            <div class="text-xs text-yellow-800 space-y-1">
+                                <p>・投資判断は、必ずご自身で行ってください</p>
+                                <p>・過去の実績は、将来を保証するものではありません</p>
+                                <p>・この情報は、あくまで参考としてお使いください</p>
+                                <p class="mt-2">投資にはリスクが伴います。ご自身の判断で、慎重に検討してください。</p>
+                            </div>
+                        </div>
                     </div>
-                    <div class="text-sm text-gray-600 space-y-2">
-                        <p><strong>データ取得元:</strong> Yahoo Finance (yfinance), FRED API, e-Stat API</p>
-                        <p><strong>更新頻度:</strong> 毎日（GitHub Actions自動実行）</p>
-                        <p><strong>指標計算方法:</strong></p>
-                        <ul class="list-disc list-inside ml-4 space-y-1">
-                            <li>移動平均: 単純移動平均（20日、75日、200日）</li>
-                            <li>ボラティリティ: 過去30日の日次リターンの標準偏差を年率換算</li>
-                            <li>出来高比率: 最新出来高 / 過去30日の平均出来高</li>
-                            <li>トレンド判定: 価格と移動平均の順序関係から判定</li>
-                        </ul>
+                    
+                    <!-- データ取得元（簡潔） -->
+                    <div class="text-xs sm:text-sm text-gray-600 space-y-1">
+                        <p><strong>データ取得元:</strong> Yahoo Finance, FRED API, e-Stat API</p>
+                        <p><strong>更新頻度:</strong> 毎日、日本時間の18時に自動更新</p>
+                        <button onclick="toggleDetail('data-detail')" class="text-gray-600 hover:text-gray-800 underline">
+                            データの詳細を見る <span id="data-detail-icon">▼</span>
+                        </button>
+                        <div id="data-detail" class="accordion-content mt-2">
+                            <div class="text-xs sm:text-sm text-gray-600 space-y-1">
+                                <p><strong>指標計算方法:</strong></p>
+                                <ul class="list-disc list-inside ml-4 space-y-1">
+                                    <li>移動平均: 過去の株価の平均値（20日、75日、200日）</li>
+                                    <li>ボラティリティ: 株価の変動の大きさ（過去30日）</li>
+                                    <li>出来高比率: 最新の取引量と平均の比較</li>
+                                </ul>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </footer>
     </div>
+    
+    <script>
+    // アコーディオン展開/折りたたみ
+    function toggleDetail(id) {{
+        const content = document.getElementById(id);
+        const icon = document.getElementById(id + '-icon');
+        if (content && icon) {{
+            content.classList.toggle('open');
+            icon.textContent = content.classList.contains('open') ? '▲' : '▼';
+        }}
+    }}
+    
+    // 銘柄詳細モーダル
+    function showStockDetail(stockId) {{
+        const modal = document.getElementById(stockId);
+        if (modal) {{
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }}
+    }}
+    
+    function hideStockDetail(stockId) {{
+        const modal = document.getElementById(stockId);
+        if (modal) {{
+            modal.classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }}
+    }}
+    
+    // モーダル外側クリックで閉じる
+    document.addEventListener('click', function(e) {{
+        if (e.target.classList.contains('bg-black')) {{
+            e.target.classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }}
+    }});
+    </script>
 </body>
 </html>"""
     
+    def generate_first_view_card(self, analysis_result: Dict) -> str:
+        """ファーストビュー：市場の今の状態メインカード（初心者向け）"""
+        # 最新の分析結果から主要な情報を取得（日本株の中期をデフォルト）
+        countries = self.config['countries']
+        overview = analysis_result.get("overview", {})
+        
+        # 日本株の中期データを取得（なければ最初の国・期間）
+        main_country_code = "JP"
+        main_timeframe_code = "medium"
+        
+        if main_country_code not in overview or main_timeframe_code not in overview[main_country_code]:
+            # フォールバック：最初の利用可能なデータ
+            if overview:
+                main_country_code = list(overview.keys())[0]
+                if overview[main_country_code]:
+                    main_timeframe_code = list(overview[main_country_code].keys())[0]
+        
+        main_direction = overview.get(main_country_code, {}).get(main_timeframe_code, {})
+        score = main_direction.get("score", 0)
+        has_risk = main_direction.get("has_risk", False)
+        
+        # 国別データから詳細情報を取得
+        country_result = analysis_result.get("countries", {}).get(main_country_code, {})
+        direction_data = country_result.get("directions", {}).get(main_timeframe_code, {})
+        
+        summary = direction_data.get("summary", "データを分析中です。")
+        stance = self._get_market_stance(score)
+        stance_label = direction_data.get("direction_label", self.score_labels.get(str(score), "中立"))
+        
+        # リスクレベルの判定
+        risk_level = "中"
+        risk_icon = "⚠️"
+        if has_risk:
+            risk_level = "高"
+            risk_icon = "🚨"
+        elif score == 0 and not has_risk:
+            risk_level = "低"
+            risk_icon = "✅"
+        
+        # 色の設定
+        if score >= 1:
+            bg_color = "bg-green-50"
+            text_color = "text-green-800"
+            border_color = "border-green-300"
+        elif score <= -1:
+            bg_color = "bg-red-50"
+            text_color = "text-red-800"
+            border_color = "border-red-300"
+        else:
+            bg_color = "bg-gray-50"
+            text_color = "text-gray-800"
+            border_color = "border-gray-300"
+        
+        html = f"""
+        <!-- ファーストビュー：市場の今の状態 -->
+        <section class="mb-8">
+            <div class="bg-white rounded-2xl shadow-lg p-6 sm:p-8 mb-4">
+                <h2 class="text-xl sm:text-2xl font-bold text-gray-900 mb-6 flex items-center">
+                    <span class="text-2xl sm:text-3xl mr-2">📊</span>
+                    市場の今の状態
+                </h2>
+                
+                <div class="{bg_color} rounded-xl p-6 sm:p-8 border-l-4 {border_color}">
+                    <div class="text-center mb-6">
+                        <div class="text-4xl sm:text-5xl mb-3">{stance}</div>
+                        <div class="text-2xl sm:text-3xl font-bold {text_color} mb-4">{stance_label}</div>
+                        <div class="flex items-center justify-center space-x-2 text-sm sm:text-base">
+                            <span>リスクレベル:</span>
+                            <span class="text-xl">{risk_icon}</span>
+                            <span class="font-semibold">{risk_level}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="border-t {border_color} pt-6 mt-6">
+                        <p class="text-base sm:text-lg {text_color} leading-relaxed text-center">
+                            {summary}
+                        </p>
+                    </div>
+                    
+                    <div class="mt-6 text-center">
+                        <button onclick="toggleDetail('main-detail')" class="inline-flex items-center px-4 py-2 bg-white {text_color} border-2 {border_color} rounded-lg font-medium hover:bg-opacity-90 transition">
+                            <span>詳しく見る</span>
+                            <span id="main-detail-icon" class="ml-2">▼</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 詳細情報（アコーディオン） -->
+            <div id="main-detail" class="accordion-content">
+                <div class="bg-white rounded-2xl shadow-md p-6 space-y-6">
+"""
+        
+        # なぜそう判断したか
+        key_factors = direction_data.get("key_factors", [])
+        premise = direction_data.get("premise", "")
+        
+        html += f"""
+                    <!-- なぜそう判断したか -->
+                    <div class="border-l-4 border-blue-400 pl-4">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-3">なぜそう判断したか</h3>
+                        <div class="space-y-3 text-sm sm:text-base text-gray-700">
+"""
+        
+        if premise:
+            html += f"""
+                            <p class="mb-3">{premise}</p>
+"""
+        
+        if key_factors:
+            html += """
+                            <p class="mb-2">以下の観点から判断しています：</p>
+                            <ol class="list-decimal list-inside space-y-2 ml-2">
+"""
+            for i, factor in enumerate(key_factors[:3], 1):
+                html += f"""
+                                <li>{factor}</li>
+"""
+            html += """
+                            </ol>
+"""
+        else:
+            html += """
+                            <p>データを分析した結果、現在の市場環境を判断しています。</p>
+"""
+        
+        html += """
+                        </div>
+                    </div>
+"""
+        
+        # 注意しておきたい点
+        risks = direction_data.get("risks", [])
+        if risks:
+            html += f"""
+                    <!-- 注意しておきたい点 -->
+                    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg">
+                        <h3 class="text-lg font-semibold text-yellow-900 mb-3 flex items-center">
+                            <span class="mr-2">⚠️</span>
+                            注意しておきたい点
+                        </h3>
+                        <ul class="list-disc list-inside space-y-2 text-sm sm:text-base text-yellow-800">
+"""
+            for risk in risks:
+                html += f"""
+                            <li>{risk}</li>
+"""
+            html += """
+                        </ul>
+                    </div>
+"""
+        
+        # 判断を見直すタイミング
+        turning_points = direction_data.get("turning_points", [])
+        if turning_points:
+            html += f"""
+                    <!-- 判断を見直すタイミング -->
+                    <div class="border-l-4 border-blue-400 pl-4">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-3">判断を見直すタイミング</h3>
+                        <p class="text-sm sm:text-base text-gray-700 mb-3">
+                            以下のような変化が見られたら、市場の状態が変わり始めている可能性があります：
+                        </p>
+                        <ul class="list-disc list-inside space-y-2 text-sm sm:text-base text-gray-700 ml-2">
+"""
+            for point in turning_points:
+                html += f"""
+                            <li>{point}</li>
+"""
+            html += """
+                        </ul>
+                        <p class="text-xs sm:text-sm text-gray-600 mt-3 italic">
+                            ※ これらの条件は「目安」です。必ずしもこの通りになるとは限りませんが、参考として知っておくと役立ちます。
+                        </p>
+                    </div>
+"""
+        
+        html += """
+                </div>
+            </div>
+        </section>
+"""
+        
+        return html
+    
     def generate_overview_cards(self, analysis_result: Dict) -> str:
-        """Overviewカードを生成"""
+        """国別・期間別の状態カード（コンパクト、クリックで展開）"""
         countries = self.config['countries']
         timeframes = self.config['timeframes']
         overview = analysis_result.get("overview", {})
         
         html = """
-        <!-- Market Direction Overview -->
-        <section class="mb-12">
-            <h2 class="text-2xl font-bold text-gray-900 mb-6">Market Direction Overview</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- 国別・期間別の状態 -->
+        <section class="mb-8">
+            <h2 class="text-xl sm:text-2xl font-bold text-gray-900 mb-4">国別・期間別の状態</h2>
+            <div class="space-y-4">
 """
         
         for country_config in countries:
             country_code = country_config['code']
             country_name = country_config['name']
             directions = overview.get(country_code, {})
+            country_result = analysis_result.get("countries", {}).get(country_code, {})
             
             html += f"""
-                <div class="bg-white rounded-2xl shadow-md p-6 card">
-                    <h3 class="text-xl font-semibold text-gray-900 mb-4">{country_name}</h3>
-                    <div class="space-y-3">
+                <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                    <button onclick="toggleDetail('{country_code}-detail')" class="w-full p-4 sm:p-6 text-left flex items-center justify-between hover:bg-gray-50 transition">
+                        <h3 class="text-lg sm:text-xl font-semibold text-gray-900">{country_name}</h3>
+                        <span id="{country_code}-detail-icon" class="text-gray-400">▼</span>
+                    </button>
+                    
+                    <div id="{country_code}-detail" class="accordion-content">
+                        <div class="px-4 sm:px-6 pb-4 sm:pb-6 space-y-4">
 """
             
             for timeframe in timeframes:
@@ -154,21 +409,40 @@ class HTMLGenerator:
                 
                 style = self._get_score_style(score)
                 stance = self._get_market_stance(score)
-                risk_icon = "⚠️" if has_risk else ""
+                
+                # リスクアイコン
+                if has_risk:
+                    risk_icon = "🚨"
+                    risk_text = "高"
+                elif score == 0:
+                    risk_icon = "✅"
+                    risk_text = "低"
+                else:
+                    risk_icon = "⚠️"
+                    risk_text = "中"
+                
+                direction_data = country_result.get("directions", {}).get(timeframe_code, {})
+                summary = direction_data.get("summary", "")
                 
                 html += f"""
-                        <div class="border-l-4 {style['border']} pl-3 py-2">
-                            <div class="flex items-center justify-between">
-                                <span class="text-sm font-medium text-gray-600">{timeframe_name}</span>
-                                <a href="./details/{country_code}-{timeframe_code}.html" 
-                                   class="inline-flex items-center px-3 py-1 rounded-lg {style['bg']} {style['text']} text-sm font-medium hover:opacity-80 transition">
-                                    {stance} {label} {risk_icon}
+                            <div class="border-l-4 {style['border']} pl-4 py-3 bg-gray-50 rounded-r-lg">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-sm sm:text-base font-medium text-gray-700">{timeframe_name}</span>
+                                    <div class="flex items-center space-x-2">
+                                        <span class="text-xl">{stance}</span>
+                                        <span class="text-sm sm:text-base font-semibold {style['text']}">{label}</span>
+                                        <span class="text-sm">{risk_icon}</span>
+                                    </div>
+                                </div>
+                                <p class="text-xs sm:text-sm text-gray-600">{summary[:80]}{'...' if len(summary) > 80 else ''}</p>
+                                <a href="./details/{country_code}-{timeframe_code}.html" class="text-xs sm:text-sm text-blue-600 hover:text-blue-800 mt-2 inline-block">
+                                    詳細を見る →
                                 </a>
                             </div>
-                        </div>
 """
             
             html += """
+                        </div>
                     </div>
                 </div>
 """
@@ -180,52 +454,14 @@ class HTMLGenerator:
         return html
     
     def generate_summary_section(self, analysis_result: Dict) -> str:
-        """全体サマリーセクションを生成"""
-        date_str = datetime.now().strftime("%Y年%m月%d日")
-        overview = analysis_result.get("overview", {})
-        
-        html = f"""
-        <!-- 全体サマリー -->
-        <section class="mb-12">
-            <h2 class="text-2xl font-bold text-gray-900 mb-6">全体サマリー</h2>
-            <div class="bg-white rounded-2xl shadow-md p-6">
-                <p class="text-gray-700 mb-4">{date_str}の市場環境を要約します。</p>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-"""
-        
-        for country_code, directions in overview.items():
-            country_result = analysis_result["countries"].get(country_code, {})
-            country_name = country_result.get("name", country_code)
-            
-            medium_score = directions.get("medium", {}).get("score", 0)
-            label = self.score_labels.get(str(medium_score), "中立")
-            style = self._get_score_style(medium_score)
-            
-            html += f"""
-                    <div class="flex items-center space-x-3 p-3 rounded-lg {style['bg']}">
-                        <span class="font-semibold {style['text']}">{country_name}</span>
-                        <span class="text-sm {style['text']}">{label}</span>
-                    </div>
-"""
-        
-        html += """
-                </div>
-            </div>
-        </section>
-"""
-        return html
+        """全体サマリーセクションを生成（非表示：ファーストビューに統合）"""
+        # 初心者向けUIでは、サマリーはファーストビューに統合されているため空を返す
+        return ""
     
     def generate_country_analysis(self, country_result: Dict, analysis_result: Dict) -> str:
-        """国別分析セクションを生成"""
-        country_name = country_result["name"]
-        country_code = country_result["code"]
-        directions = country_result["directions"]
-        
-        html = f"""
-        <!-- {country_name} 市場判断 -->
-        <section class="mb-12">
-            <h2 class="text-2xl font-bold text-gray-900 mb-6">{country_name} 市場判断</h2>
-"""
+        """国別分析セクションを生成（非表示：詳細ページに移動）"""
+        # 初心者向けUIでは、詳細分析は詳細ページに移動
+        return ""
         
         for timeframe in self.config['timeframes']:
             timeframe_code = timeframe['code']
@@ -336,34 +572,35 @@ class HTMLGenerator:
         return html
     
     def generate_sector_analysis(self, sectors: List[Dict]) -> str:
-        """セクター分析セクションを生成"""
+        """セクター分析セクションを生成（初心者向け）"""
         if not sectors:
             return ""
         
         html = """
-        <!-- 注目セクター -->
-        <section class="mb-12">
-            <h2 class="text-2xl font-bold text-gray-900 mb-6">注目セクター</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- 注目セクター -->
+                    <div>
+                        <h3 class="text-lg sm:text-xl font-bold text-gray-900 mb-4">注目セクター</h3>
+                        <p class="text-sm text-gray-600 mb-4">現在、注目されている業界や分野の情報です。参考としてご覧ください。</p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 """
         
         for i, sector in enumerate(sectors[:3], 1):
             html += f"""
-                <div class="bg-white rounded-2xl shadow-md p-6 card">
-                    <div class="flex items-center mb-4">
-                        <span class="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-600 font-bold mr-3">
-                            {i}
-                        </span>
-                        <h3 class="text-lg font-semibold text-gray-900">{sector.get('name', 'セクター')}</h3>
-                    </div>
+                            <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-200">
+                                <div class="flex items-center mb-3">
+                                    <span class="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-600 font-bold text-sm mr-2">
+                                        {i}
+                                    </span>
+                                    <h4 class="text-base font-semibold text-gray-900">{sector.get('name', 'セクター')}</h4>
+                                </div>
 """
             
             if sector.get('reason'):
                 html += f"""
-                    <div class="mb-3">
-                        <p class="text-sm font-medium text-gray-600 mb-1">注目される理由</p>
-                        <p class="text-gray-700 text-sm">{sector['reason']}</p>
-                    </div>
+                                <div class="mb-2">
+                                    <p class="text-xs text-gray-600 mb-1">なぜ注目されているか</p>
+                                    <p class="text-sm text-gray-700">{sector['reason']}</p>
+                                </div>
 """
             
             if sector.get('related_fields'):
@@ -371,61 +608,60 @@ class HTMLGenerator:
                 if isinstance(fields, str):
                     fields = [fields]
                 html += f"""
-                    <div class="mb-3">
-                        <p class="text-sm font-medium text-gray-600 mb-1">波及する分野</p>
-                        <div class="flex flex-wrap gap-2">
+                                <div class="mb-2">
+                                    <p class="text-xs text-gray-600 mb-1">関連する分野</p>
+                                    <div class="flex flex-wrap gap-1">
 """
-                for field in fields:
+                for field in fields[:3]:  # 最大3つまで
                     html += f"""
-                            <span class="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded-lg">{field}</span>
+                                        <span class="px-2 py-0.5 bg-orange-50 text-orange-700 text-xs rounded">{field}</span>
 """
                 html += """
-                        </div>
-                    </div>
+                                    </div>
+                                </div>
 """
             
             if sector.get('timeframe'):
                 html += f"""
-                    <div>
-                        <span class="inline-flex items-center px-3 py-1 bg-gray-100 text-gray-700 text-xs rounded-lg">
-                            期間: {sector['timeframe']}
-                        </span>
-                    </div>
+                                <div class="mt-2">
+                                    <span class="text-xs text-gray-500">期間: {sector['timeframe']}</span>
+                                </div>
 """
             
             html += """
-                </div>
+                            </div>
 """
         
         html += """
-            </div>
-        </section>
+                        </div>
+                    </div>
 """
         return html
     
     def generate_stock_recommendations(self, recommendations: Dict) -> str:
-        """銘柄評価セクションを生成（推奨ではなく、判断材料の提示）"""
+        """銘柄評価セクションを生成（初心者向け、推奨ではなく参考情報）"""
         if not recommendations:
             return ""
         
         html = """
-        <!-- 参考銘柄情報 -->
-        <section class="mb-12">
-            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 rounded-lg">
-                <p class="text-sm text-yellow-800">
-                    <strong>重要:</strong> 以下は参考情報であり、投資助言や売買指示ではありません。投資判断は自己責任で行ってください。
-                </p>
-            </div>
-            <h2 class="text-2xl font-bold text-gray-900 mb-6">参考銘柄情報</h2>
+                    <!-- 参考銘柄情報 -->
+                    <div class="mt-6">
+                        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-3 mb-4 rounded-lg">
+                            <p class="text-xs sm:text-sm text-yellow-800">
+                                <strong>重要:</strong> 以下は参考情報です。投資助言ではありません。投資判断は自己責任で行ってください。
+                            </p>
+                        </div>
+                        <h3 class="text-lg sm:text-xl font-bold text-gray-900 mb-4">参考銘柄情報</h3>
+                        <p class="text-sm text-gray-600 mb-4">現在の市場環境と照らし合わせて、参考になりそうな銘柄の情報です。</p>
 """
         
         # 日本株
         jp_stocks = recommendations.get("JP", [])
         if jp_stocks:
             html += """
-            <div class="mb-8">
-                <h3 class="text-xl font-semibold text-gray-900 mb-4">日本株</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="mb-6">
+                            <h4 class="text-base sm:text-lg font-semibold text-gray-900 mb-3">日本株</h4>
+                            <div class="space-y-4">
 """
             for stock in jp_stocks:
                 stock_id = f"stock-{stock.get('ticker', '').replace('.', '-')}"
@@ -442,44 +678,24 @@ class HTMLGenerator:
                 eval_color = eval_colors.get(overall, "text-gray-600")
                 
                 html += f"""
-                    <div class="bg-white rounded-2xl shadow-md p-6 card cursor-pointer" onclick="showStockDetail('{stock_id}')">
-                        <div class="flex items-center justify-between mb-3">
-                            <h4 class="text-lg font-semibold text-gray-900">
-                                {stock.get('rank', '')}位: {stock.get('name', '')}
-                            </h4>
-                            <span class="px-3 py-1 bg-blue-100 text-blue-700 text-sm font-medium rounded-lg">
-                                {stock.get('ticker', '')}
-                            </span>
-                        </div>
-                        <div class="space-y-2 text-sm">
-                            <div>
-                                <span class="font-medium text-gray-600">セクター:</span>
-                                <span class="text-gray-700 ml-2">{stock.get('sector', '')}</span>
-                            </div>
-                            <div>
-                                <span class="font-medium text-gray-600">事業概要:</span>
-                                <p class="text-gray-700 mt-1 text-xs">{stock.get('business_summary', '')[:100]}...</p>
-                            </div>
-                            <div class="pt-2 border-t">
-                                <span class="font-medium text-gray-600">総合評価:</span>
-                                <span class="ml-2 text-lg font-bold {eval_color}">{overall}</span>
-                            </div>
-                            <div class="flex items-center space-x-4 text-xs">
-                                <div>
-                                    <span class="text-gray-600">売上成長:</span>
-                                    <span class="ml-1 {eval_colors.get(fundamental.get('revenue_growth', '△'), 'text-gray-600')}">{fundamental.get('revenue_growth', '△')}</span>
+                                <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-200 cursor-pointer hover:shadow-md transition" onclick="showStockDetail('{stock_id}')">
+                                    <div class="flex items-start justify-between mb-2">
+                                        <div class="flex-1">
+                                            <h5 class="text-base font-semibold text-gray-900 mb-1">
+                                                {stock.get('name', '')}
+                                            </h5>
+                                            <span class="text-xs text-gray-500">{stock.get('ticker', '')}</span>
+                                        </div>
+                                        <span class="text-lg font-bold {eval_color} ml-2">{overall}</span>
+                                    </div>
+                                    <div class="text-xs text-gray-600 mb-2">
+                                        <span>{stock.get('sector', '')}</span>
+                                    </div>
+                                    <p class="text-xs text-gray-600 line-clamp-2">{stock.get('business_summary', '')[:80]}...</p>
+                                    <button class="text-xs text-blue-600 hover:text-blue-800 mt-2">
+                                        詳細を見る →
+                                    </button>
                                 </div>
-                                <div>
-                                    <span class="text-gray-600">営業利益率:</span>
-                                    <span class="ml-1 {eval_colors.get(fundamental.get('operating_margin', '△'), 'text-gray-600')}">{fundamental.get('operating_margin', '△')}</span>
-                                </div>
-                                <div>
-                                    <span class="text-gray-600">ROE:</span>
-                                    <span class="ml-1 {eval_colors.get(fundamental.get('roe', '△'), 'text-gray-600')}">{fundamental.get('roe', '△')}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                     
                     <!-- 詳細パネル（モーダル） -->
                     <div id="{stock_id}" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
@@ -574,17 +790,17 @@ class HTMLGenerator:
                     </div>
 """
             html += """
-                </div>
-            </div>
+                            </div>
+                        </div>
 """
         
         # 米国株
         us_stocks = recommendations.get("US", [])
         if us_stocks:
             html += """
-            <div>
-                <h3 class="text-xl font-semibold text-gray-900 mb-4">米国株</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="mt-6">
+                            <h4 class="text-base sm:text-lg font-semibold text-gray-900 mb-3">米国株</h4>
+                            <div class="space-y-4">
 """
             for stock in us_stocks:
                 stock_id = f"stock-{stock.get('ticker', '').replace('.', '-')}"
@@ -601,44 +817,24 @@ class HTMLGenerator:
                 eval_color = eval_colors.get(overall, "text-gray-600")
                 
                 html += f"""
-                    <div class="bg-white rounded-2xl shadow-md p-6 card cursor-pointer" onclick="showStockDetail('{stock_id}')">
-                        <div class="flex items-center justify-between mb-3">
-                            <h4 class="text-lg font-semibold text-gray-900">
-                                {stock.get('rank', '')}位: {stock.get('name', '')}
-                            </h4>
-                            <span class="px-3 py-1 bg-blue-100 text-blue-700 text-sm font-medium rounded-lg">
-                                {stock.get('ticker', '')}
-                            </span>
-                        </div>
-                        <div class="space-y-2 text-sm">
-                            <div>
-                                <span class="font-medium text-gray-600">セクター:</span>
-                                <span class="text-gray-700 ml-2">{stock.get('sector', '')}</span>
-                            </div>
-                            <div>
-                                <span class="font-medium text-gray-600">事業概要:</span>
-                                <p class="text-gray-700 mt-1 text-xs">{stock.get('business_summary', '')[:100]}...</p>
-                            </div>
-                            <div class="pt-2 border-t">
-                                <span class="font-medium text-gray-600">総合評価:</span>
-                                <span class="ml-2 text-lg font-bold {eval_color}">{overall}</span>
-                            </div>
-                            <div class="flex items-center space-x-4 text-xs">
-                                <div>
-                                    <span class="text-gray-600">売上成長:</span>
-                                    <span class="ml-1 {eval_colors.get(fundamental.get('revenue_growth', '△'), 'text-gray-600')}">{fundamental.get('revenue_growth', '△')}</span>
+                                <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-200 cursor-pointer hover:shadow-md transition" onclick="showStockDetail('{stock_id}')">
+                                    <div class="flex items-start justify-between mb-2">
+                                        <div class="flex-1">
+                                            <h5 class="text-base font-semibold text-gray-900 mb-1">
+                                                {stock.get('name', '')}
+                                            </h5>
+                                            <span class="text-xs text-gray-500">{stock.get('ticker', '')}</span>
+                                        </div>
+                                        <span class="text-lg font-bold {eval_color} ml-2">{overall}</span>
+                                    </div>
+                                    <div class="text-xs text-gray-600 mb-2">
+                                        <span>{stock.get('sector', '')}</span>
+                                    </div>
+                                    <p class="text-xs text-gray-600 line-clamp-2">{stock.get('business_summary', '')[:80]}...</p>
+                                    <button class="text-xs text-blue-600 hover:text-blue-800 mt-2">
+                                        詳細を見る →
+                                    </button>
                                 </div>
-                                <div>
-                                    <span class="text-gray-600">営業利益率:</span>
-                                    <span class="ml-1 {eval_colors.get(fundamental.get('operating_margin', '△'), 'text-gray-600')}">{fundamental.get('operating_margin', '△')}</span>
-                                </div>
-                                <div>
-                                    <span class="text-gray-600">ROE:</span>
-                                    <span class="ml-1 {eval_colors.get(fundamental.get('roe', '△'), 'text-gray-600')}">{fundamental.get('roe', '△')}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                     
                     <!-- 詳細パネル（モーダル） -->
                     <div id="{stock_id}" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
@@ -733,45 +929,52 @@ class HTMLGenerator:
                     </div>
 """
             html += """
-                </div>
-            </div>
+                            </div>
+                        </div>
 """
         
         html += """
-        </section>
-        
-        <script>
-        function showStockDetail(stockId) {
-            document.getElementById(stockId).classList.remove('hidden');
-        }
-        function hideStockDetail(stockId) {
-            document.getElementById(stockId).classList.add('hidden');
-        }
-        </script>
+                    </div>
 """
         return html
     
     def generate_full_page(self, analysis_result: Dict, sectors: List[Dict], recommendations: Dict) -> str:
-        """フルページを生成"""
+        """フルページを生成（初心者向けUI）"""
         html = self._generate_header()
         
-        # Overview
+        # ファーストビュー：市場の今の状態
+        html += self.generate_first_view_card(analysis_result)
+        
+        # 国別・期間別の状態（コンパクトカード、展開式）
         html += self.generate_overview_cards(analysis_result)
         
-        # サマリー
-        html += self.generate_summary_section(analysis_result)
-        
-        # 国別分析
-        for country_code, country_result in analysis_result["countries"].items():
-            html += self.generate_country_analysis(country_result, analysis_result)
-        
-        # セクター分析
-        if sectors:
-            html += self.generate_sector_analysis(sectors)
-        
-        # 銘柄推奨
-        if recommendations:
-            html += self.generate_stock_recommendations(recommendations)
+        # 参考情報（折りたたみ）
+        if sectors or recommendations:
+            html += """
+        <!-- 参考情報（折りたたみ） -->
+        <section class="mb-8">
+            <button onclick="toggleDetail('reference-info')" class="w-full p-4 bg-white rounded-xl shadow-md text-left flex items-center justify-between hover:bg-gray-50 transition">
+                <h2 class="text-xl sm:text-2xl font-bold text-gray-900">参考情報</h2>
+                <span id="reference-info-icon" class="text-gray-400">▼</span>
+            </button>
+            
+            <div id="reference-info" class="accordion-content">
+                <div class="mt-4 space-y-6">
+"""
+            
+            # セクター分析
+            if sectors:
+                html += self.generate_sector_analysis(sectors)
+            
+            # 銘柄推奨
+            if recommendations:
+                html += self.generate_stock_recommendations(recommendations)
+            
+            html += """
+                </div>
+            </div>
+        </section>
+"""
         
         html += self._generate_footer()
         
