@@ -28,7 +28,7 @@
         <header class="bg-white shadow-md">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
                 <h1 class="text-3xl font-bold text-gray-900">米国 市場分析 - 中期</h1>
-                <p class="mt-2 text-sm text-gray-600">更新日時: 2025年12月18日 23:22</p>
+                <p class="mt-2 text-sm text-gray-600">更新日時: 2025年12月19日 08:46</p>
             </div>
         </header>
         
@@ -41,25 +41,21 @@
                 </a>
             </div>
 
-            <section class="bg-white rounded-2xl shadow-md p-6 mb-6">
-                <h2 class="text-2xl font-bold text-gray-900 mb-4">市場環境サマリー</h2>
-                <p class="text-gray-700 leading-relaxed">米国市場は中期的に見るとやや強気の方向感にある。PMIが50を超えていること、雇用率が高いこと、長期金利が相対的に低いことなどが要因となっている。</p>
+            <section class="bg-green-50 rounded-2xl shadow-md p-6 mb-6 border-l-4 border-green-300">
+                <h2 class="text-2xl font-bold text-green-800 mb-4">前提条件</h2>
+                <p class="text-green-700 leading-relaxed">現在の判断は、PMIが50を超えて景気の拡大が続いていること、CPIが上昇しているものの金融政策が緩和していること、テクニカル指標では株価が長期的な上昇トレンドにあることなどを前提としている。</p>
             </section>
 
             <section class="bg-white rounded-2xl shadow-md p-6 mb-6">
-                <h2 class="text-2xl font-bold text-gray-900 mb-4">主要要因</h2>
-                <ul class="list-disc list-inside text-gray-700 space-y-2">
-
-                    <li>PMIが50を超えていること、雇用率が高いこと、長期金利が相対的に低いこと</li>
-
-                </ul>
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">市場環境サマリー</h2>
+                <p class="text-gray-700 leading-relaxed">米国市場は中期的にはやや強気の方向感が見られ、景気の回復と金融政策の緩和が要因として考えられる。ただし、インフレ率の上昇と雇用率の変動は注意が必要である。</p>
             </section>
 
             <section class="bg-red-50 rounded-2xl shadow-md p-6 mb-6 border-l-4 border-red-300">
                 <h2 class="text-2xl font-bold text-red-800 mb-4">想定リスク</h2>
                 <ul class="list-disc list-inside text-red-700 space-y-2">
 
-                    <li>インフレ率の上昇、金融政策の変更</li>
+                    <li>インフレ率の上昇が金融政策の転換を引き起こす可能性、雇用率の変動が景気の回復に悪影響を及ぼす可能性</li>
 
                 </ul>
             </section>
@@ -68,7 +64,7 @@
                 <h2 class="text-2xl font-bold text-blue-800 mb-4">転換ポイント</h2>
                 <ul class="list-disc list-inside text-blue-700 space-y-2">
 
-                    <li>PMIの低下、金利の大幅な変動、雇用率の低下</li>
+                    <li>終値ベースで200日移動平均を5日連続で下回った場合、CPIが12%を超えた場合、政策金利が2%以上上昇した場合</li>
 
                 </ul>
             </section>
@@ -77,9 +73,24 @@
         <!-- フッター -->
         <footer class="bg-white border-t mt-12">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                <p class="text-sm text-gray-600">
-                    <strong>免責事項</strong>: 本レポートは研究用途であり、投資助言や売買指示を目的としたものではありません。投資判断は自己責任で行ってください。
-                </p>
+                <div class="space-y-4">
+                    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg">
+                        <p class="text-sm text-yellow-800">
+                            <strong>免責事項</strong>: 本レポートは研究用途であり、投資助言や売買指示を目的としたものではありません。投資判断は自己責任で行ってください。過去の実績は将来を保証するものではありません。
+                        </p>
+                    </div>
+                    <div class="text-sm text-gray-600 space-y-2">
+                        <p><strong>データ取得元:</strong> Yahoo Finance (yfinance), FRED API, e-Stat API</p>
+                        <p><strong>更新頻度:</strong> 毎日（GitHub Actions自動実行）</p>
+                        <p><strong>指標計算方法:</strong></p>
+                        <ul class="list-disc list-inside ml-4 space-y-1">
+                            <li>移動平均: 単純移動平均（20日、75日、200日）</li>
+                            <li>ボラティリティ: 過去30日の日次リターンの標準偏差を年率換算</li>
+                            <li>出来高比率: 最新出来高 / 過去30日の平均出来高</li>
+                            <li>トレンド判定: 価格と移動平均の順序関係から判定</li>
+                        </ul>
+                    </div>
+                </div>
             </div>
         </footer>
     </div>
