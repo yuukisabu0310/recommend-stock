@@ -5,43 +5,64 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>米国 市場分析 - 中期</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background: linear-gradient(to bottom, #f8fafc 0%, #f1f5f9 100%);
         }
         .card {
             transition: transform 0.2s, box-shadow 0.2s;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
         }
         .card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
         }
-        .accordion-content {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease-out;
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
-        .accordion-content.open {
-            max-height: 2000px;
-            transition: max-height 0.3s ease-in;
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+        .arrow-up {
+            color: #059669;
+            font-size: 1.5rem;
+        }
+        .arrow-down {
+            color: #dc2626;
+            font-size: 1.5rem;
+        }
+        .arrow-neutral {
+            color: #6b7280;
+            font-size: 1.5rem;
         }
     </style>
 </head>
-<body class="bg-gray-50">
+<body>
     <div class="min-h-screen">
-        <!-- ヘッダー（シンプル） -->
-        <header class="bg-white shadow-sm">
-            <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">米国 市場分析 - 中期</h1>
-                <p class="mt-1 text-xs sm:text-sm text-gray-500">最終更新: 2025年12月19日 23:22</p>
+        <!-- ヘッダー -->
+        <header class="bg-gradient-to-r from-blue-600 to-blue-700 shadow-lg">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <h1 class="text-4xl font-bold text-white mb-2">米国 市場分析 - 中期</h1>
+                <p class="text-blue-100 text-sm">更新日時: 2025年12月20日 06:34</p>
+                <p class="text-blue-50 text-xs mt-2 opacity-90">本レポートは市場環境の整理を目的としており、投資助言ではありません</p>
             </div>
         </header>
         
         <!-- メインコンテンツ -->
-        <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
             <div class="mb-6">
                 <a href="../index.html" class="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium">
@@ -51,19 +72,19 @@
 
             <section class="bg-green-50 rounded-2xl shadow-md p-6 mb-6 border-l-4 border-green-300">
                 <h2 class="text-2xl font-bold text-green-800 mb-4">前提条件</h2>
-                <p class="text-green-700 leading-relaxed">現在の判断の前提条件として、PMIが50を超えていること、CPIが10%台で推移していること、政策金利が低水準にあること、長期金利が4%台で推移していることなどが挙げられる。さらに、株価が短期・中期の移動平均を上回っていること、ボラティリティが相対的に低いことなども考慮されている。</p>
+                <p class="text-green-700 leading-relaxed">現在の判断の前提条件として、PMIが50を上回っており、景気の拡張が続いていることが挙げられる。また、金融政策として政策金利が低水準にあることが、景気への支えとなっている。さらに、業績環境として、企業の収益性が改善していることが要因と考えられる</p>
             </section>
 
             <section class="bg-white rounded-2xl shadow-md p-6 mb-6">
                 <h2 class="text-2xl font-bold text-gray-900 mb-4">市場環境サマリー</h2>
-                <p class="text-gray-700 leading-relaxed">米国市場は中期的に見てやや強気の方向感が見られ、景気・金融政策・業績環境が好調な傾向にあると考えられる。ただし、リスク要素も存在する可能性がある。</p>
+                <p class="text-gray-700 leading-relaxed">米国株式市場は中期的にはやや強気の方向感が見られる。景気・金融政策・業績環境が好調なことが要因と考えられる</p>
             </section>
 
             <section class="bg-red-50 rounded-2xl shadow-md p-6 mb-6 border-l-4 border-red-300">
                 <h2 class="text-2xl font-bold text-red-800 mb-4">想定リスク</h2>
                 <ul class="list-disc list-inside text-red-700 space-y-2">
 
-                    <li>インフレ率の上昇が予想より高水準で推移し、金融政策の転換を促す可能性がある、景気の先行指標の悪化により、株価に下押し圧力がかかる可能性がある</li>
+                    <li>インフレ率の上昇が続き、金融政策の転換が起こる可能性がある、世界的な経済情勢の変化が米国株式市場に与える影響</li>
 
                 </ul>
             </section>
@@ -72,92 +93,124 @@
                 <h2 class="text-2xl font-bold text-blue-800 mb-4">転換ポイント</h2>
                 <ul class="list-disc list-inside text-blue-700 space-y-2">
 
-                    <li>終値ベースで200日移動平均を3日連続で下回った場合、PMIが45を下回った場合、CPIが12%を超えた場合</li>
+                    <li>終値ベースで200日移動平均を3日連続で下回った場合、PMIが45を下回った場合、政策金利が2%以上上昇した場合</li>
 
                 </ul>
             </section>
         </main>
         
         <!-- フッター -->
-        <footer class="bg-white border-t mt-8">
-            <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                <div class="space-y-4">
-                    <!-- 免責事項（短縮版） -->
-                    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg">
-                        <p class="text-sm text-yellow-800 mb-2">
-                            <strong>免責事項</strong>: この情報は参考としてお使いください。投資判断は自己責任で行ってください。
+        <footer class="bg-gradient-to-b from-gray-50 to-gray-100 border-t-2 border-gray-200 mt-16">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+                <div class="space-y-8">
+                    <!-- 免責事項 -->
+                    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-5 rounded-lg shadow-sm">
+                        <h3 class="font-bold text-yellow-900 mb-2 flex items-center">
+                            <span class="mr-2">⚠️</span>
+                            免責事項
+                        </h3>
+                        <p class="text-sm text-yellow-800 leading-relaxed">
+                            本レポートは市場環境の整理を目的とした研究用途の資料であり、投資助言や売買指示を目的としたものではありません。
+                            投資判断は自己責任で行ってください。過去の実績は将来を保証するものではありません。
+                            本レポートの内容は「可能性」「傾向」を述べたものであり、断定表現は避けています。
                         </p>
-                        <button onclick="toggleDetail('disclaimer-detail')" class="text-xs text-yellow-700 hover:text-yellow-900 underline">
-                            詳細を見る <span id="disclaimer-detail-icon">▼</span>
-                        </button>
-                        <div id="disclaimer-detail" class="accordion-content mt-2">
-                            <div class="text-xs text-yellow-800 space-y-1">
-                                <p>・投資判断は、必ずご自身で行ってください</p>
-                                <p>・過去の実績は、将来を保証するものではありません</p>
-                                <p>・この情報は、あくまで参考としてお使いください</p>
-                                <p class="mt-2">投資にはリスクが伴います。ご自身の判断で、慎重に検討してください。</p>
-                            </div>
-                        </div>
                     </div>
                     
-                    <!-- データ取得元（簡潔） -->
-                    <div class="text-xs sm:text-sm text-gray-600 space-y-1">
-                        <p><strong>データ取得元:</strong> Yahoo Finance, FRED API, e-Stat API</p>
-                        <p><strong>更新頻度:</strong> 毎日、日本時間の18時に自動更新</p>
-                        <button onclick="toggleDetail('data-detail')" class="text-gray-600 hover:text-gray-800 underline">
-                            データの詳細を見る <span id="data-detail-icon">▼</span>
-                        </button>
-                        <div id="data-detail" class="accordion-content mt-2">
-                            <div class="text-xs sm:text-sm text-gray-600 space-y-1">
-                                <p><strong>指標計算方法:</strong></p>
-                                <ul class="list-disc list-inside ml-4 space-y-1">
-                                    <li>移動平均: 過去の株価の平均値（20日、75日、200日）</li>
-                                    <li>ボラティリティ: 株価の変動の大きさ（過去30日）</li>
-                                    <li>出来高比率: 最新の取引量と平均の比較</li>
+                    <!-- データソース・取得方法 -->
+                    <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200">
+                        <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                            <span class="mr-2">📊</span>
+                            データソース・取得方法
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <h4 class="font-semibold text-gray-800 mb-3">マクロ指標</h4>
+                                <ul class="space-y-2 text-sm text-gray-700">
+                                    <li class="flex items-start">
+                                        <span class="font-medium mr-2">• PMI:</span>
+                                        <span>S&P Global（実データ取得可能な場合はAPI経由、それ以外は推測値）</span>
+                                    </li>
+                                    <li class="flex items-start">
+                                        <span class="font-medium mr-2">• CPI:</span>
+                                        <span>FRED API（US Bureau of Labor Statistics / 各国統計機関）</span>
+                                    </li>
+                                    <li class="flex items-start">
+                                        <span class="font-medium mr-2">• 雇用率:</span>
+                                        <span>FRED API（US Bureau of Labor Statistics / 各国統計機関）</span>
+                                    </li>
+                                </ul>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-gray-800 mb-3">金融指標</h4>
+                                <ul class="space-y-2 text-sm text-gray-700">
+                                    <li class="flex items-start">
+                                        <span class="font-medium mr-2">• 政策金利:</span>
+                                        <span>FRED API（各国中央銀行データ）</span>
+                                    </li>
+                                    <li class="flex items-start">
+                                        <span class="font-medium mr-2">• 長期金利:</span>
+                                        <span>FRED API（10年物国債利回り）</span>
+                                    </li>
+                                </ul>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-gray-800 mb-3">株価指数</h4>
+                                <ul class="space-y-2 text-sm text-gray-700">
+                                    <li class="flex items-start">
+                                        <span class="font-medium mr-2">• 価格・出来高:</span>
+                                        <span>Yahoo Finance (yfinanceライブラリ)</span>
+                                    </li>
+                                    <li class="flex items-start">
+                                        <span class="font-medium mr-2">• 更新頻度:</span>
+                                        <span>日次（市場取引日）</span>
+                                    </li>
+                                </ul>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-gray-800 mb-3">指標計算方法</h4>
+                                <ul class="space-y-2 text-sm text-gray-700">
+                                    <li class="flex items-start">
+                                        <span class="font-medium mr-2">• 移動平均:</span>
+                                        <span>単純移動平均（SMA）- 20日、75日、200日</span>
+                                    </li>
+                                    <li class="flex items-start">
+                                        <span class="font-medium mr-2">• ボラティリティ:</span>
+                                        <span>過去30日の日次リターンの標準偏差を年率換算（√252倍）</span>
+                                    </li>
+                                    <li class="flex items-start">
+                                        <span class="font-medium mr-2">• 出来高比率:</span>
+                                        <span>最新出来高 ÷ 過去30日の平均出来高</span>
+                                    </li>
+                                    <li class="flex items-start">
+                                        <span class="font-medium mr-2">• トレンド判定:</span>
+                                        <span>価格と移動平均の順序関係から判定（上昇/下降/中立）</span>
+                                    </li>
                                 </ul>
                             </div>
                         </div>
+                        
+                        <div class="mt-6 pt-6 border-t border-gray-200">
+                            <p class="text-sm text-gray-600">
+                                <strong>更新頻度:</strong> 毎日自動実行（GitHub Actions経由、日本時間18:00頃）
+                            </p>
+                            <p class="text-sm text-gray-600 mt-2">
+                                <strong>データ遅延:</strong> マクロ指標は通常1-2ヶ月の遅延があります。最新のデータは各データソースの公式サイトをご確認ください。
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <!-- 分析手法について -->
+                    <div class="bg-blue-50 p-5 rounded-lg border-l-4 border-blue-400">
+                        <h3 class="font-bold text-blue-900 mb-2">分析手法について</h3>
+                        <p class="text-sm text-blue-800 leading-relaxed">
+                            本レポートは、ルールベース分析とLLM（大規模言語モデル）による分析を組み合わせています。
+                            各期間（短期・中期・長期）では異なる指標の重み付けを使用しており、期間が長くなるほど構造的・マクロ的な要因が重視されます。
+                            詳細な判断ロジックは各ページの「思考ログ」セクションで確認できます。
+                        </p>
                     </div>
                 </div>
             </div>
         </footer>
     </div>
-    
-    <script>
-    // アコーディオン展開/折りたたみ
-    function toggleDetail(id) {{
-        const content = document.getElementById(id);
-        const icon = document.getElementById(id + '-icon');
-        if (content && icon) {{
-            content.classList.toggle('open');
-            icon.textContent = content.classList.contains('open') ? '▲' : '▼';
-        }}
-    }}
-    
-    // 銘柄詳細モーダル
-    function showStockDetail(stockId) {{
-        const modal = document.getElementById(stockId);
-        if (modal) {{
-            modal.classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
-        }}
-    }}
-    
-    function hideStockDetail(stockId) {{
-        const modal = document.getElementById(stockId);
-        if (modal) {{
-            modal.classList.add('hidden');
-            document.body.style.overflow = 'auto';
-        }}
-    }}
-    
-    // モーダル外側クリックで閉じる
-    document.addEventListener('click', function(e) {{
-        if (e.target.classList.contains('bg-black')) {{
-            e.target.classList.add('hidden');
-            document.body.style.overflow = 'auto';
-        }}
-    }});
-    </script>
 </body>
 </html>
