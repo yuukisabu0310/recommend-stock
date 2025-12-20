@@ -588,7 +588,6 @@ class HTMLGenerator:
         for timeframe in self.config['timeframes']:
             timeframe_code = timeframe['code']
             timeframe_name = timeframe['name']
-            accordion_id = f"accordion-{country_code}-{timeframe_code}"
             
             direction = directions.get(timeframe_code, {})
             score = direction.get("score", 0)
@@ -620,7 +619,7 @@ class HTMLGenerator:
             html += f"""
             <div id="country-{country_code}-{timeframe_code}" class="bg-white rounded-xl shadow-md border border-gray-200 mb-4 overflow-hidden">
                 <!-- レベル1：常時表示 -->
-                <div class="p-4 border-b border-gray-100">
+                <div class="p-4">
                     <div class="flex items-center justify-between mb-2">
                         <div class="flex items-center space-x-3">
                             <span class="text-sm font-medium text-gray-600">{timeframe_name}</span>
@@ -630,10 +629,10 @@ class HTMLGenerator:
                                 {risk_badge}
                             </span>
                         </div>
-                        <button onclick="toggleAccordion('{accordion_id}')" 
-                                class="text-sm text-blue-600 hover:text-blue-800 font-medium">
-                            <span id="{accordion_id}-icon">▼</span> 詳細
-                        </button>
+                        <a href="./details/{country_code}-{timeframe_code}.html" 
+                           class="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                            詳細 →
+                        </a>
                     </div>
                     <p class="text-sm text-gray-700 mt-2 line-clamp-2">{one_line}</p>
 """
@@ -655,116 +654,11 @@ class HTMLGenerator:
             
             html += """
                 </div>
-                
-                <!-- レベル2：クリックで展開 -->
-                <div id="{accordion_id}" class="hidden">
-                    <div class="p-4 bg-gray-50 space-y-4">
-"""
-            
-            # 判断理由（箇条書き、最大5行）
-            key_factors = direction_data.get("key_factors", [])
-            if key_factors:
-                html += """
-                        <div>
-                            <h4 class="text-sm font-semibold text-gray-800 mb-2">判断理由</h4>
-                            <ul class="text-xs text-gray-700 space-y-1 list-disc list-inside">
-"""
-                for factor in key_factors[:5]:  # 最大5つ
-                    # 1行に収まるように短縮
-                    short_factor = factor[:80] + "..." if len(factor) > 80 else factor
-                    html += f"""
-                                <li>{short_factor}</li>
-"""
-                html += """
-                            </ul>
-                        </div>
-"""
-            
-            # 要点（マクロ/金融/テクニカル/構造）
-            html += """
-                        <div class="grid grid-cols-2 gap-3">
-"""
-            
-            # マクロ要点
-            macro_summary = []
-            if macro.get("PMI") is not None:
-                macro_summary.append(f"PMI: {macro['PMI']:.1f}")
-            if macro.get("CPI") is not None:
-                macro_summary.append(f"CPI: {macro['CPI']:.1f}%")
-            
-            if macro_summary:
-                html += f"""
-                            <div class="bg-white p-3 rounded border border-gray-200">
-                                <p class="text-xs font-semibold text-gray-600 mb-1">マクロ</p>
-                                <p class="text-xs text-gray-700">{', '.join(macro_summary)}</p>
-                            </div>
-"""
-            
-            # 金融要点
-            financial = country_data.get("financial", {})
-            financial_summary = []
-            if financial.get("policy_rate") is not None:
-                financial_summary.append(f"政策金利: {financial['policy_rate']:.2f}%")
-            if financial.get("long_term_rate") is not None:
-                financial_summary.append(f"長期金利: {financial['long_term_rate']:.2f}%")
-            
-            if financial_summary:
-                html += f"""
-                            <div class="bg-white p-3 rounded border border-gray-200">
-                                <p class="text-xs font-semibold text-gray-600 mb-1">金融</p>
-                                <p class="text-xs text-gray-700">{', '.join(financial_summary)}</p>
-                            </div>
-"""
-            
-            # テクニカル要点
-            indices = country_data.get("indices", {})
-            if indices:
-                first_index = list(indices.values())[0]
-                technical_summary = []
-                if first_index.get("price_vs_ma200"):
-                    technical_summary.append(f"MA200乖離: {first_index['price_vs_ma200']:+.1f}%")
-                if first_index.get("volatility"):
-                    technical_summary.append(f"ボラ: {first_index['volatility']:.1f}%")
-                
-                if technical_summary:
-                    html += f"""
-                            <div class="bg-white p-3 rounded border border-gray-200">
-                                <p class="text-xs font-semibold text-gray-600 mb-1">テクニカル</p>
-                                <p class="text-xs text-gray-700">{', '.join(technical_summary)}</p>
-                            </div>
-"""
-            
-            html += """
-                        </div>
-                        
-                        <!-- レベル3：別ページリンク -->
-                        <div class="pt-3 border-t border-gray-200">
-                            <a href="./logs/{country_code}-{timeframe_code}.html" 
-                               class="inline-flex items-center text-xs text-blue-600 hover:text-blue-800 font-medium">
-                                📝 詳細な思考ログを見る →
-                            </a>
-                        </div>
-                    </div>
-                </div>
             </div>
 """
         
         html += """
         </section>
-        
-        <script>
-        function toggleAccordion(id) {
-            const element = document.getElementById(id);
-            const icon = document.getElementById(id + '-icon');
-            if (element.classList.contains('hidden')) {
-                element.classList.remove('hidden');
-                icon.textContent = '▲';
-            } else {
-                element.classList.add('hidden');
-                icon.textContent = '▼';
-            }
-        }
-        </script>
 """
         return html
     
@@ -940,8 +834,8 @@ class HTMLGenerator:
                     </div>
                     
                     <!-- 詳細パネル（モーダル） -->
-                    <div id="{stock_id}" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-                        <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
+                    <div id="{stock_id}" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" onclick="if(event.target === this) hideStockDetail('{stock_id}')">
+                        <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6" onclick="event.stopPropagation()">
                             <div class="flex items-center justify-between mb-4">
                                 <h3 class="text-2xl font-bold text-gray-900">{stock.get('name', '')} ({stock.get('ticker', '')})</h3>
                                 <button onclick="hideStockDetail('{stock_id}')" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
@@ -1099,8 +993,8 @@ class HTMLGenerator:
                     </div>
                     
                     <!-- 詳細パネル（モーダル） -->
-                    <div id="{stock_id}" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-                        <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
+                    <div id="{stock_id}" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" onclick="if(event.target === this) hideStockDetail('{stock_id}')">
+                        <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6" onclick="event.stopPropagation()">
                             <div class="flex items-center justify-between mb-4">
                                 <h3 class="text-2xl font-bold text-gray-900">{stock.get('name', '')} ({stock.get('ticker', '')})</h3>
                                 <button onclick="hideStockDetail('{stock_id}')" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
