@@ -47,7 +47,7 @@ class HTMLGenerator:
         else:
             return "🟡"  # 中立
     
-    def _generate_conclusion_block(self, country_name: str, timeframe_name: str, direction_label: str, summary: str) -> str:
+    def _generate_conclusion_block(self, country_name: str, timeframe_name: str, direction_label: str, summary) -> str:
         """
         結論ブロックを生成（2行固定）
         
@@ -55,11 +55,19 @@ class HTMLGenerator:
             country_name: 国名
             timeframe_name: 期間名
             direction_label: 方向ラベル
-            summary: LLM生成のsummary（2文形式、結論ブロック専用）
+            summary: LLM生成のsummary（2文形式、結論ブロック専用。文字列またはリスト）
         
         Returns:
             結論ブロックのHTML
         """
+        # summaryがリストの場合は文字列に変換
+        if isinstance(summary, list):
+            summary = ' '.join(str(s) for s in summary if s)
+        elif summary is None:
+            summary = ""
+        else:
+            summary = str(summary)
+        
         # summaryから2文を抽出（改行または句点で分割）
         # summaryは「【結論】◯◯市場は（期間）で（方向ラベル）」と「主要因を1つだけ短文で補足」の2文形式を想定
         summary_lines = summary.replace('\n', '。').split('。')
