@@ -100,21 +100,31 @@ class HTMLGenerator:
             color: #6b7280;
             font-size: 1.5rem;
         }}
+        .line-clamp-2 {{
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }}
     </style>
 </head>
 <body>
     <div class="min-h-screen">
-        <!-- ヘッダー -->
-        <header class="bg-gradient-to-r from-blue-600 to-blue-700 shadow-lg">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <h1 class="text-4xl font-bold text-white mb-2">{title}</h1>
-                <p class="text-blue-100 text-sm">更新日時: {date_str}</p>
-                <p class="text-blue-50 text-xs mt-2 opacity-90">本レポートは市場環境の整理を目的としており、投資助言ではありません</p>
+        <!-- ヘッダー（コンパクト） -->
+        <header class="bg-gradient-to-r from-blue-600 to-blue-700 shadow-md sticky top-0 z-20">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-2xl font-bold text-white">{title}</h1>
+                        <p class="text-blue-100 text-xs mt-1">更新: {date_str}</p>
+                    </div>
+                    <p class="text-blue-50 text-xs opacity-90 hidden md:block">市場環境の整理を目的としており、投資助言ではありません</p>
+                </div>
             </div>
         </header>
         
         <!-- メインコンテンツ -->
-        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 """
     
     def _generate_footer(self) -> str:
@@ -250,98 +260,52 @@ class HTMLGenerator:
         else:
             return '<span class="arrow-neutral">→</span>'
     
+    def _get_one_line_summary(self, direction_data: Dict, timeframe_code: str) -> str:
+        """1行要約を生成"""
+        summary = direction_data.get("summary", "")
+        if summary:
+            # 最初の1文を抽出（最大50文字）
+            sentences = summary.split('。')
+            if sentences:
+                first_sentence = sentences[0].strip()
+                if len(first_sentence) > 50:
+                    first_sentence = first_sentence[:47] + "..."
+                return first_sentence
+        return "データ分析中"
+    
     def generate_overview_cards(self, analysis_result: Dict) -> str:
-        """Overviewカードを生成（改善版：サマリービュー）"""
+        """Overviewカードを生成（ダッシュボード型：ファーストビュー）"""
         countries = self.config['countries']
         timeframes = self.config['timeframes']
         overview = analysis_result.get("overview", {})
         
         html = """
-        <!-- 市場方向サマリー（ファーストビュー） -->
-        <section class="mb-12 fade-in">
-            <div class="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl p-8 mb-8 border border-gray-100">
-                <h2 class="text-3xl font-bold text-gray-900 mb-6 flex items-center">
-                    <span class="mr-3">📊</span>
-                    市場方向サマリー
+        <!-- 市場方向ダッシュボード（ファーストビュー） -->
+        <section class="mb-8 fade-in">
+            <div class="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-gray-200 py-4 mb-6">
+                <h2 class="text-2xl font-bold text-gray-900 flex items-center">
+                    <span class="mr-2">📊</span>
+                    市場方向ダッシュボード
                 </h2>
-                <p class="text-gray-600 mb-6 text-sm">各国・各期間における市場環境の方向性をまとめています。詳細は各カードをクリックしてください。</p>
-                
-                <!-- テーブル形式のサマリー -->
-                <div class="overflow-x-auto">
-                    <table class="w-full">
-                        <thead>
-                            <tr class="border-b-2 border-gray-200">
-                                <th class="text-left py-4 px-4 font-semibold text-gray-700">国</th>
-"""
-        
-        for timeframe in timeframes:
-            timeframe_name = timeframe['name']
-            html += f'<th class="text-center py-4 px-4 font-semibold text-gray-700">{timeframe_name}</th>'
-        
-        html += """
-                            </tr>
-                        </thead>
-                        <tbody>
-"""
-        
-        for country_config in countries:
-            country_code = country_config['code']
-            country_name = country_config['name']
-            directions = overview.get(country_code, {})
-            
-            html += f"""
-                            <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
-                                <td class="py-4 px-4 font-semibold text-gray-900">{country_name}</td>
-"""
-            
-            for timeframe in timeframes:
-                timeframe_code = timeframe['code']
-                direction = directions.get(timeframe_code, {})
-                score = direction.get("score", 0)
-                has_risk = direction.get("has_risk", False)
-                label = self.score_labels.get(str(score), "→ 中立")
-                
-                style = self._get_score_style(score)
-                arrow_icon = self._get_arrow_icon(score)
-                risk_badge = '<span class="ml-1 text-red-600 text-xs">⚠️</span>' if has_risk else ''
-                
-                html += f"""
-                                <td class="py-4 px-4 text-center">
-                                    <a href="./details/{country_code}-{timeframe_code}.html" 
-                                       class="inline-flex flex-col items-center px-4 py-2 rounded-xl {style['bg']} {style['text']} hover:opacity-90 transition cursor-pointer">
-                                        <span class="text-2xl mb-1">{arrow_icon}</span>
-                                        <span class="text-xs font-medium">{label}</span>
-                                        {risk_badge}
-                                    </a>
-                                </td>
-"""
-            
-            html += """
-                            </tr>
-"""
-        
-        html += """
-                        </tbody>
-                    </table>
-                </div>
+                <p class="text-xs text-gray-500 mt-1">各国・各期間の市場環境を一目で把握</p>
             </div>
-        </section>
-        
-        <!-- 国別カード詳細 -->
-        <section class="mb-12 fade-in">
-            <h2 class="text-2xl font-bold text-gray-900 mb-6">各国詳細</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            <!-- 国別カード（コンパクト） -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 """
         
         for country_config in countries:
             country_code = country_config['code']
             country_name = country_config['name']
             directions = overview.get(country_code, {})
+            country_result = analysis_result.get("countries", {}).get(country_code, {})
             
             html += f"""
-                <div class="bg-white rounded-2xl shadow-md p-6 card">
-                    <h3 class="text-xl font-semibold text-gray-900 mb-4">{country_name}</h3>
-                    <div class="space-y-3">
+                <div class="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+                    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-3 border-b border-gray-200">
+                        <h3 class="text-lg font-bold text-gray-900">{country_name}</h3>
+                    </div>
+                    <div class="p-4 space-y-3">
 """
             
             for timeframe in timeframes:
@@ -353,19 +317,30 @@ class HTMLGenerator:
                 has_risk = direction.get("has_risk", False)
                 label = self.score_labels.get(str(score), "→ 中立")
                 
+                # 1行要約を取得
+                country_directions = country_result.get("directions", {})
+                direction_data = country_directions.get(timeframe_code, {})
+                one_line = self._get_one_line_summary(direction_data, timeframe_code)
+                
                 style = self._get_score_style(score)
                 arrow_icon = self._get_arrow_icon(score)
-                risk_icon = "⚠️" if has_risk else ""
+                risk_badge = '<span class="ml-1 text-red-600">⚠️</span>' if has_risk else ''
                 
                 html += f"""
-                        <div class="border-l-4 {style['border']} pl-3 py-2">
-                            <div class="flex items-center justify-between">
-                                <span class="text-sm font-medium text-gray-600">{timeframe_name}</span>
-                                <a href="./details/{country_code}-{timeframe_code}.html" 
-                                   class="inline-flex items-center px-3 py-1 rounded-lg {style['bg']} {style['text']} text-sm font-medium hover:opacity-80 transition">
-                                    <span class="mr-1">{arrow_icon}</span> {label} {risk_icon}
-                                </a>
+                        <div class="border-l-4 {style['border']} pl-3 py-2 bg-gray-50 rounded-r">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-xs font-medium text-gray-600">{timeframe_name}</span>
+                                <span class="inline-flex items-center text-sm font-semibold {style['text']}">
+                                    <span class="mr-1">{arrow_icon}</span>
+                                    {label}
+                                    {risk_badge}
+                                </span>
                             </div>
+                            <p class="text-xs text-gray-700 mt-1 line-clamp-2">{one_line}</p>
+                            <a href="#country-{country_code}-{timeframe_code}" 
+                               class="text-xs text-blue-600 hover:text-blue-800 mt-1 inline-block">
+                                詳細を見る →
+                            </a>
                         </div>
 """
             
@@ -381,63 +356,9 @@ class HTMLGenerator:
         return html
     
     def generate_summary_section(self, analysis_result: Dict) -> str:
-        """全体サマリーセクションを生成（改善版）"""
-        date_str = datetime.now().strftime("%Y年%m月%d日")
-        overview = analysis_result.get("overview", {})
-        
-        html = f"""
-        <!-- 全体サマリー -->
-        <section class="mb-12 fade-in">
-            <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-3xl shadow-xl p-8 border border-blue-100">
-                <h2 class="text-3xl font-bold text-gray-900 mb-4 flex items-center">
-                    <span class="mr-3">📊</span>
-                    市場環境の全体像
-                </h2>
-                <p class="text-gray-700 mb-6 text-sm leading-relaxed">
-                    {date_str}時点での各国市場環境を中期視点でまとめています。短期・長期の詳細については、各国詳細セクションを参照してください。
-                </p>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-"""
-        
-        for country_code, directions in overview.items():
-            country_result = analysis_result["countries"].get(country_code, {})
-            country_name = country_result.get("name", country_code)
-            
-            medium_score = directions.get("medium", {}).get("score", 0)
-            label = self.score_labels.get(str(medium_score), "中立")
-            style = self._get_score_style(medium_score)
-            arrow_icon = self._get_arrow_icon(medium_score)
-            has_risk = directions.get("medium", {}).get("has_risk", False)
-            risk_badge = '<span class="ml-2 text-red-600 text-sm">⚠️</span>' if has_risk else ''
-            
-            html += f"""
-                    <div class="bg-white/80 backdrop-blur-sm rounded-xl p-5 shadow-md border border-gray-200 hover:shadow-lg transition">
-                        <div class="flex items-center justify-between mb-2">
-                            <h3 class="text-lg font-semibold text-gray-900">{country_name}</h3>
-                            {risk_badge}
-                        </div>
-                        <div class="flex items-center space-x-3 mt-3">
-                            <span class="text-3xl">{arrow_icon}</span>
-                            <div>
-                                <p class="text-xl font-bold {style['text']}">{label}</p>
-                                <p class="text-xs text-gray-500 mt-1">中期視点</p>
-                            </div>
-                        </div>
-                    </div>
-"""
-        
-        html += """
-                </div>
-                <div class="mt-6 p-4 bg-white/60 rounded-lg border border-blue-200">
-                    <p class="text-xs text-gray-600 leading-relaxed">
-                        <strong>注記:</strong> 各市場の評価は、マクロ指標・金融指標・テクニカル指標・構造的指標を総合的に考慮して算出されています。
-                        市場環境は常に変化するため、定期的に最新情報を確認することをお勧めします。
-                    </p>
-                </div>
-            </div>
-        </section>
-"""
-        return html
+        """全体サマリーセクションを生成（ダッシュボード型：削除または最小化）"""
+        # ダッシュボード型では、overview_cardsで既に表示しているため、このセクションは削除
+        return ""
     
     def _format_number(self, value, decimals: int = 2, suffix: str = "") -> str:
         """数値をフォーマット"""
@@ -634,25 +555,40 @@ class HTMLGenerator:
         
         return html
     
+    def _get_top_risks(self, risks: List[str], concrete_risks: List[str], max_count: int = 2) -> List[str]:
+        """重要リスクを最大2つまで取得"""
+        top_risks = []
+        # LLM生成リスクを優先
+        for risk in risks[:max_count]:
+            if len(risk) <= 100:  # 短文のみ
+                top_risks.append(risk)
+        # 足りない場合は指標ベースリスクから追加
+        if len(top_risks) < max_count:
+            for risk in concrete_risks[:max_count - len(top_risks)]:
+                if len(risk) <= 100:
+                    top_risks.append(risk)
+        return top_risks
+    
     def generate_country_analysis(self, country_result: Dict, analysis_result: Dict) -> str:
-        """国別分析セクションを生成（改善版）"""
+        """国別分析セクションを生成（ダッシュボード型：コンパクト）"""
         country_name = country_result["name"]
         country_code = country_result["code"]
         directions = country_result["directions"]
         country_data = country_result.get("data", {})
         
         html = f"""
-        <!-- {country_name} 市場判断 -->
-        <section class="mb-12 fade-in">
-            <h2 class="text-3xl font-bold text-gray-900 mb-6 flex items-center">
-                <span class="mr-3">🌍</span>
-                {country_name} 市場判断
+        <!-- {country_name} 市場判断（ダッシュボード型） -->
+        <section class="mb-8 fade-in">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center">
+                <span class="mr-2">🌍</span>
+                {country_name}
             </h2>
 """
         
         for timeframe in self.config['timeframes']:
             timeframe_code = timeframe['code']
             timeframe_name = timeframe['name']
+            accordion_id = f"accordion-{country_code}-{timeframe_code}"
             
             direction = directions.get(timeframe_code, {})
             score = direction.get("score", 0)
@@ -661,290 +597,267 @@ class HTMLGenerator:
             
             style = self._get_score_style(score)
             arrow_icon = self._get_arrow_icon(score)
-            risk_badge = '<span class="ml-2 text-red-600 font-medium">⚠️ リスクあり</span>' if has_risk else ''
+            risk_badge = '<span class="ml-2 text-red-600">⚠️</span>' if has_risk else ''
             
             direction_data = directions.get(timeframe_code, {})
             
+            # 1行要約
+            one_line = self._get_one_line_summary(direction_data, timeframe_code)
+            
+            # 重要リスク（最大2つ）
+            risks = direction_data.get("risks", [])
+            concrete_risks = []
+            
+            # 簡易的なリスク抽出（詳細は折りたたみ内に）
+            macro = country_data.get("macro", {})
+            if macro.get("PMI") is not None and macro["PMI"] < 50:
+                concrete_risks.append(f"PMI {macro['PMI']:.1f}（50未満）")
+            if macro.get("CPI") is not None and macro["CPI"] > 5.0:
+                concrete_risks.append(f"CPI {macro['CPI']:.1f}%（高水準）")
+            
+            top_risks = self._get_top_risks(risks, concrete_risks, max_count=2)
+            
             html += f"""
-            <div class="bg-white rounded-2xl shadow-lg p-8 mb-8 card border border-gray-100">
-                <div class="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
-                    <h3 class="text-2xl font-semibold text-gray-900">{timeframe_name}の市場環境</h3>
-                    <div class="flex items-center">
-                        <span class="inline-flex items-center px-5 py-2.5 rounded-xl {style['bg']} {style['text']} font-semibold text-lg">
-                            <span class="mr-2">{arrow_icon}</span>
-                            {label}
-                        </span>
-                        {risk_badge}
-                    </div>
-                </div>
-"""
-            
-            # 定量的データセクション
-            html += self._generate_quantitative_data_section(country_data, country_code)
-            
-            # 市場環境サマリー
-            if direction_data.get("summary"):
-                html += f"""
-                <div class="mb-6">
-                    <h4 class="text-lg font-semibold text-gray-800 mb-3 flex items-center">
-                        <span class="mr-2">📋</span>
-                        市場環境サマリー
-                    </h4>
-                    <div class="bg-blue-50 border-l-4 border-blue-400 p-5 rounded-lg">
-                        <p class="text-gray-800 leading-relaxed">{direction_data['summary']}</p>
-                    </div>
-                </div>
-"""
-            
-            # 前提条件
-            premise = direction_data.get("premise", "")
-            if premise:
-                html += f"""
-                <div class="mb-6 p-5 bg-green-50 rounded-xl border-l-4 border-green-400">
-                    <h4 class="text-lg font-semibold text-green-800 mb-2 flex items-center">
-                        <span class="mr-2">✓</span>
-                        前提条件
-                    </h4>
-                    <p class="text-green-700 leading-relaxed">{premise}</p>
-                    <p class="text-xs text-green-600 mt-2 opacity-75">この判断が成り立つための条件を明示しています</p>
-                </div>
-"""
-            
-            # 主要要因
-            if direction_data.get("key_factors"):
-                html += f"""
-                <div class="mb-6">
-                    <h4 class="text-lg font-semibold text-gray-800 mb-3 flex items-center">
-                        <span class="mr-2">🔍</span>
-                        判断の根拠
-                    </h4>
-                    <div class="space-y-2">
-"""
-                for factor in direction_data["key_factors"]:
-                    html += f"""
-                        <div class="flex items-start p-3 bg-gray-50 rounded-lg">
-                            <span class="text-blue-600 mr-3 mt-1">•</span>
-                            <p class="text-gray-700 flex-1">{factor}</p>
+            <div id="country-{country_code}-{timeframe_code}" class="bg-white rounded-xl shadow-md border border-gray-200 mb-4 overflow-hidden">
+                <!-- レベル1：常時表示 -->
+                <div class="p-4 border-b border-gray-100">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center space-x-3">
+                            <span class="text-sm font-medium text-gray-600">{timeframe_name}</span>
+                            <span class="inline-flex items-center px-3 py-1 rounded-lg {style['bg']} {style['text']} text-sm font-semibold">
+                                <span class="mr-1">{arrow_icon}</span>
+                                {label}
+                                {risk_badge}
+                            </span>
                         </div>
+                        <button onclick="toggleAccordion('{accordion_id}')" 
+                                class="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                            <span id="{accordion_id}-icon">▼</span> 詳細
+                        </button>
+                    </div>
+                    <p class="text-sm text-gray-700 mt-2 line-clamp-2">{one_line}</p>
+"""
+            
+            # 重要リスク（最大2つ、常時表示）
+            if top_risks:
+                html += """
+                    <div class="mt-3 flex flex-wrap gap-2">
+"""
+                for risk in top_risks:
+                    html += f"""
+                        <span class="inline-flex items-center px-2 py-1 bg-red-50 text-red-700 text-xs rounded border border-red-200">
+                            ⚠️ {risk[:40]}{'...' if len(risk) > 40 else ''}
+                        </span>
 """
                 html += """
                     </div>
-                </div>
 """
             
-            # リスク（具体化）
-            risks = direction_data.get("risks", [])
+            html += """
+                </div>
+                
+                <!-- レベル2：クリックで展開 -->
+                <div id="{accordion_id}" class="hidden">
+                    <div class="p-4 bg-gray-50 space-y-4">
+"""
             
-            # データに基づく具体的なリスク指標を生成
-            concrete_risks = []
+            # 判断理由（箇条書き、最大5行）
+            key_factors = direction_data.get("key_factors", [])
+            if key_factors:
+                html += """
+                        <div>
+                            <h4 class="text-sm font-semibold text-gray-800 mb-2">判断理由</h4>
+                            <ul class="text-xs text-gray-700 space-y-1 list-disc list-inside">
+"""
+                for factor in key_factors[:5]:  # 最大5つ
+                    # 1行に収まるように短縮
+                    short_factor = factor[:80] + "..." if len(factor) > 80 else factor
+                    html += f"""
+                                <li>{short_factor}</li>
+"""
+                html += """
+                            </ul>
+                        </div>
+"""
             
-            # マクロ指標リスク
-            macro = country_data.get("macro", {})
+            # 要点（マクロ/金融/テクニカル/構造）
+            html += """
+                        <div class="grid grid-cols-2 gap-3">
+"""
+            
+            # マクロ要点
+            macro_summary = []
             if macro.get("PMI") is not None:
-                pmi = macro["PMI"]
-                if pmi < 45:
-                    concrete_risks.append(f"PMIが{pmi:.1f}と低水準（50未満）で、景気後退の可能性が高まっています")
-                elif pmi < 50:
-                    concrete_risks.append(f"PMIが{pmi:.1f}と50未満で、製造業の活動が縮小傾向にあります")
-            
+                macro_summary.append(f"PMI: {macro['PMI']:.1f}")
             if macro.get("CPI") is not None:
-                cpi = macro["CPI"]
-                if cpi > 5.0:
-                    concrete_risks.append(f"CPIが{cpi:.2f}%と高水準で、インフレ懸念が高まっています。金融引き締めの可能性があります")
-                elif cpi < 0:
-                    concrete_risks.append(f"CPIが{cpi:.2f}%とマイナスで、デフレ懸念があります")
+                macro_summary.append(f"CPI: {macro['CPI']:.1f}%")
             
-            # 金融指標リスク
+            if macro_summary:
+                html += f"""
+                            <div class="bg-white p-3 rounded border border-gray-200">
+                                <p class="text-xs font-semibold text-gray-600 mb-1">マクロ</p>
+                                <p class="text-xs text-gray-700">{', '.join(macro_summary)}</p>
+                            </div>
+"""
+            
+            # 金融要点
             financial = country_data.get("financial", {})
-            policy_rate = financial.get("policy_rate")
-            long_term_rate = financial.get("long_term_rate")
-            if policy_rate is not None and long_term_rate is not None:
-                if long_term_rate < policy_rate:
-                    concrete_risks.append(f"長期金利（{long_term_rate:.2f}%）が政策金利（{policy_rate:.2f}%）を下回っており、景気後退懸念が反映されている可能性があります")
+            financial_summary = []
+            if financial.get("policy_rate") is not None:
+                financial_summary.append(f"政策金利: {financial['policy_rate']:.2f}%")
+            if financial.get("long_term_rate") is not None:
+                financial_summary.append(f"長期金利: {financial['long_term_rate']:.2f}%")
             
-            # テクニカル指標リスク
+            if financial_summary:
+                html += f"""
+                            <div class="bg-white p-3 rounded border border-gray-200">
+                                <p class="text-xs font-semibold text-gray-600 mb-1">金融</p>
+                                <p class="text-xs text-gray-700">{', '.join(financial_summary)}</p>
+                            </div>
+"""
+            
+            # テクニカル要点
             indices = country_data.get("indices", {})
             if indices:
                 first_index = list(indices.values())[0]
-                volatility = first_index.get("volatility")
-                price_vs_ma200 = first_index.get("price_vs_ma200", 0)
-                top_stocks_concentration = first_index.get("top_stocks_concentration", 0)
+                technical_summary = []
+                if first_index.get("price_vs_ma200"):
+                    technical_summary.append(f"MA200乖離: {first_index['price_vs_ma200']:+.1f}%")
+                if first_index.get("volatility"):
+                    technical_summary.append(f"ボラ: {first_index['volatility']:.1f}%")
                 
-                if volatility and volatility > 30:
-                    concrete_risks.append(f"ボラティリティが{volatility:.2f}%と高水準で、市場の不安定さが高まっています")
-                
-                if price_vs_ma200 and price_vs_ma200 < -10:
-                    concrete_risks.append(f"株価が200日移動平均を{abs(price_vs_ma200):.2f}%下回っており、長期下降トレンドの可能性があります")
-                
-                if top_stocks_concentration and top_stocks_concentration > 0.35:
-                    concrete_risks.append(f"上位銘柄の集中度が{top_stocks_concentration*100:.1f}%と高く、分散投資の効果が限定的な可能性があります")
-            
-            # リスクセクション表示
-            if risks or concrete_risks:
-                html += f"""
-                <div class="mb-6 p-5 bg-red-50 rounded-xl border-l-4 border-red-400">
-                    <h4 class="text-lg font-semibold text-red-800 mb-3 flex items-center">
-                        <span class="mr-2">⚠️</span>
-                        主なリスクと注意点
-                    </h4>
-"""
-                
-                # LLM生成リスク
-                if risks:
-                    html += """
-                    <div class="mb-4">
-                        <p class="text-sm font-medium text-red-900 mb-2">市場環境リスク:</p>
-                        <ul class="list-disc list-inside text-red-700 space-y-2 ml-2">
-"""
-                    for risk in risks:
-                        html += f"""
-                            <li class="leading-relaxed">{risk}</li>
-"""
-                    html += """
-                        </ul>
-                    </div>
-"""
-                
-                # データに基づく具体的リスク
-                if concrete_risks:
-                    html += """
-                    <div class="bg-white/60 p-4 rounded-lg border border-red-200">
-                        <p class="text-sm font-medium text-red-900 mb-2">指標ベースのリスク:</p>
-                        <ul class="list-disc list-inside text-red-800 space-y-2 ml-2">
-"""
-                    for risk in concrete_risks:
-                        html += f"""
-                            <li class="leading-relaxed text-sm">{risk}</li>
-"""
-                    html += """
-                        </ul>
-                        <p class="text-xs text-red-600 mt-3 opacity-75">
-                            ※ 上記は現在の指標値から導出されるリスク要因です。指標が改善/悪化した場合、リスクの評価も変わります。
-                        </p>
-                    </div>
-"""
-                
-                html += """
-                    <p class="text-xs text-red-600 mt-3 opacity-75">
-                        上記リスクが顕在化した場合、市場環境の見直しが必要となる可能性があります。
-                    </p>
-                </div>
-"""
-            
-            # 転換シグナル
-            turning_points = direction_data.get("turning_points", [])
-            if turning_points:
-                html += f"""
-                <div class="mb-6 p-5 bg-blue-50 rounded-xl border-l-4 border-blue-400">
-                    <h4 class="text-lg font-semibold text-blue-800 mb-3 flex items-center">
-                        <span class="mr-2">🔄</span>
-                        転換シグナル（今後注目すべき指標）
-                    </h4>
-                    <ul class="list-disc list-inside text-blue-700 space-y-2">
-"""
-                for point in turning_points:
+                if technical_summary:
                     html += f"""
-                        <li class="leading-relaxed">{point}</li>
-"""
-                html += """
-                    </ul>
-                    <p class="text-xs text-blue-600 mt-3 opacity-75">上記シグナルが観測された場合、市場環境の見直しを検討することをお勧めします</p>
-                </div>
+                            <div class="bg-white p-3 rounded border border-gray-200">
+                                <p class="text-xs font-semibold text-gray-600 mb-1">テクニカル</p>
+                                <p class="text-xs text-gray-700">{', '.join(technical_summary)}</p>
+                            </div>
 """
             
-            # 他期間との違いの説明
-            html += f"""
-                <div class="mb-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
-                    <h5 class="text-sm font-semibold text-purple-800 mb-2">期間別の判断の違いについて</h5>
-                    <p class="text-sm text-purple-700">
-                        {timeframe_name}の判断は、期間に応じて異なる指標の重み付けで評価されています。
-                        {timeframe_name}では特に{'テクニカル指標' if timeframe_code == 'short' else 'マクロ指標' if timeframe_code == 'medium' else '構造的指標'}が重視されます。
-                        詳細は<a href="./logs/{country_code}-{timeframe_code}.html" class="underline font-medium">思考ログ</a>を参照してください。
-                    </p>
-                </div>
-"""
-            
-            html += f"""
-                <div class="mt-6 pt-4 border-t border-gray-200">
-                    <a href="./logs/{country_code}-{timeframe_code}.html" 
-                       class="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 font-medium">
-                        <span class="mr-2">📝</span>
-                        詳細な思考ログを見る →
-                    </a>
+            html += """
+                        </div>
+                        
+                        <!-- レベル3：別ページリンク -->
+                        <div class="pt-3 border-t border-gray-200">
+                            <a href="./logs/{country_code}-{timeframe_code}.html" 
+                               class="inline-flex items-center text-xs text-blue-600 hover:text-blue-800 font-medium">
+                                📝 詳細な思考ログを見る →
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </div>
 """
         
         html += """
         </section>
+        
+        <script>
+        function toggleAccordion(id) {
+            const element = document.getElementById(id);
+            const icon = document.getElementById(id + '-icon');
+            if (element.classList.contains('hidden')) {
+                element.classList.remove('hidden');
+                icon.textContent = '▲';
+            } else {
+                element.classList.add('hidden');
+                icon.textContent = '▼';
+            }
+        }
+        </script>
 """
         return html
     
     def generate_sector_analysis(self, sectors: List[Dict]) -> str:
-        """セクター分析セクションを生成"""
+        """セクター分析セクションを生成（ダッシュボード型：コンパクト）"""
         if not sectors:
             return ""
         
         html = """
-        <!-- 注目セクター -->
-        <section class="mb-12">
-            <h2 class="text-2xl font-bold text-gray-900 mb-6">注目セクター</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- 注目セクター（ダッシュボード型） -->
+        <section class="mb-8 fade-in">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center">
+                <span class="mr-2">📈</span>
+                注目セクター
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 """
         
         for i, sector in enumerate(sectors[:3], 1):
+            sector_id = f"sector-{i}"
+            reason = sector.get('reason', '')
+            short_reason = reason[:60] + "..." if len(reason) > 60 else reason
+            
             html += f"""
-                <div class="bg-white rounded-2xl shadow-md p-6 card">
-                    <div class="flex items-center mb-4">
-                        <span class="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-600 font-bold mr-3">
-                            {i}
-                        </span>
-                        <h3 class="text-lg font-semibold text-gray-900">{sector.get('name', 'セクター')}</h3>
+                <div class="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+                    <div class="p-4">
+                        <div class="flex items-center mb-2">
+                            <span class="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-600 font-bold text-sm mr-2">
+                                {i}
+                            </span>
+                            <h3 class="text-base font-semibold text-gray-900">{sector.get('name', 'セクター')}</h3>
+                        </div>
+                        <p class="text-xs text-gray-700 line-clamp-2 mb-3">{short_reason}</p>
+                        <button onclick="toggleSectorDetail('{sector_id}')" 
+                                class="text-xs text-blue-600 hover:text-blue-800 font-medium">
+                            <span id="{sector_id}-icon">▼</span> 詳細
+                        </button>
                     </div>
+                    <div id="{sector_id}" class="hidden p-4 bg-gray-50 border-t border-gray-200">
 """
             
-            if sector.get('reason'):
+            if sector.get('reason') and len(sector['reason']) > 60:
                 html += f"""
-                    <div class="mb-3">
-                        <p class="text-sm font-medium text-gray-600 mb-1">注目される理由</p>
-                        <p class="text-gray-700 text-sm">{sector['reason']}</p>
-                    </div>
+                        <p class="text-xs text-gray-700 mb-3">{sector['reason']}</p>
 """
             
             if sector.get('related_fields'):
                 fields = sector['related_fields']
                 if isinstance(fields, str):
                     fields = [fields]
-                html += f"""
-                    <div class="mb-3">
-                        <p class="text-sm font-medium text-gray-600 mb-1">波及する分野</p>
-                        <div class="flex flex-wrap gap-2">
+                html += """
+                        <div class="mb-2">
+                            <p class="text-xs font-medium text-gray-600 mb-1">波及分野</p>
+                            <div class="flex flex-wrap gap-1">
 """
                 for field in fields:
                     html += f"""
-                            <span class="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded-lg">{field}</span>
+                                <span class="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs rounded">{field}</span>
 """
                 html += """
+                            </div>
                         </div>
-                    </div>
 """
             
             if sector.get('timeframe'):
                 html += f"""
-                    <div>
-                        <span class="inline-flex items-center px-3 py-1 bg-gray-100 text-gray-700 text-xs rounded-lg">
-                            期間: {sector['timeframe']}
-                        </span>
-                    </div>
+                        <p class="text-xs text-gray-600">
+                            <span class="font-medium">期間:</span> {sector['timeframe']}
+                        </p>
 """
             
             html += """
+                    </div>
                 </div>
 """
         
         html += """
             </div>
         </section>
+        
+        <script>
+        function toggleSectorDetail(id) {
+            const element = document.getElementById(id);
+            const icon = document.getElementById(id + '-icon');
+            if (element.classList.contains('hidden')) {
+                element.classList.remove('hidden');
+                icon.textContent = '▲';
+            } else {
+                element.classList.add('hidden');
+                icon.textContent = '▼';
+            }
+        }
+        </script>
 """
         return html
     
@@ -1297,24 +1210,21 @@ class HTMLGenerator:
         return html
     
     def generate_full_page(self, analysis_result: Dict, sectors: List[Dict], recommendations: Dict) -> str:
-        """フルページを生成"""
+        """フルページを生成（ダッシュボード型）"""
         html = self._generate_header()
         
-        # Overview
+        # レベル1：ファーストビュー（市場方向サマリー）
         html += self.generate_overview_cards(analysis_result)
         
-        # サマリー
-        html += self.generate_summary_section(analysis_result)
-        
-        # 国別分析
-        for country_code, country_result in analysis_result["countries"].items():
-            html += self.generate_country_analysis(country_result, analysis_result)
-        
-        # セクター分析
+        # レベル1：注目セクター（あれば）
         if sectors:
             html += self.generate_sector_analysis(sectors)
         
-        # 銘柄推奨
+        # レベル2：国別分析（詳細は折りたたみ）
+        for country_code, country_result in analysis_result["countries"].items():
+            html += self.generate_country_analysis(country_result, analysis_result)
+        
+        # レベル3：銘柄情報（別セクション、必要に応じて）
         if recommendations:
             html += self.generate_stock_recommendations(recommendations)
         
