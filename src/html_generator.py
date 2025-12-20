@@ -191,11 +191,12 @@ class HTMLGenerator:
         """
         Overviewカードを生成（クリック可能、logsページへリンク）
         
-        市場判断の文章は表示せず、方向感のみを表示
+        市場判断の文章は表示せず、方向感・要因タグ・超短文要約のみを表示
         """
         countries = self.config['countries']
         timeframes = self.config['timeframes']
         overview = analysis_result.get("overview", {})
+        countries_data = analysis_result.get("countries", {})
         
         html = """
         <!-- Market Direction Overview -->
@@ -207,6 +208,7 @@ class HTMLGenerator:
             country_code = country_config['code']
             country_name = country_config['name']
             directions = overview.get(country_code, {})
+            country_result = countries_data.get(country_code, {})
             
             html += f"""
                 <div class="bg-white rounded-2xl shadow-md overflow-hidden card">
@@ -224,6 +226,55 @@ class HTMLGenerator:
                 has_risk = direction.get("has_risk", False)
                 label = self.score_labels.get(str(score), "→ 中立")
                 
+                # 詳細データから要因タグと要約を取得
+                direction_data = country_result.get("directions", {}).get(timeframe_code, {})
+                rule_components = direction_data.get("rule_based_components", {})
+                summary = direction_data.get("summary", "")
+                
+                # 要因タグを取得（既存分類から）
+                factor_tags = []
+                if rule_components:
+                    factor_map = {
+                        "macro": "マクロ",
+                        "financial": "金融",
+                        "technical": "テクニカル",
+                        "structural": "構造"
+                    }
+                    # スコアの絶対値が大きい順に最大2つ
+                    factor_scores = {}
+                    for factor, data in rule_components.items():
+                        if isinstance(data, dict):
+                            factor_scores[factor] = abs(data.get("score", 0))
+                        else:
+                            factor_scores[factor] = abs(data) if isinstance(data, (int, float)) else 0
+                    
+                    sorted_factors = sorted(factor_scores.items(), key=lambda x: x[1], reverse=True)
+                    factor_tags = [factor_map.get(f, f) for f, _ in sorted_factors[:2] if _ > 0]
+                
+                # 超短文要約を生成（10-15文字、意味を変えない）
+                short_summary = ""
+                if summary:
+                    # summaryから最初の文を取得し、10-15文字に短縮
+                    summary_lines = str(summary).replace('\n', '。').split('。')
+                    if summary_lines and summary_lines[0]:
+                        first_line = summary_lines[0].strip()
+                        # 意味を変えない範囲で短縮
+                        if len(first_line) > 15:
+                            # 句点や読点で区切って短縮
+                            if '、' in first_line:
+                                parts = first_line.split('、')
+                                short_summary = parts[0][:15] if len(parts[0]) <= 15 else parts[0][:12] + "..."
+                            else:
+                                short_summary = first_line[:12] + "..."
+                        else:
+                            short_summary = first_line
+                else:
+                    # 要因タグから簡易要約を生成
+                    if factor_tags:
+                        short_summary = f"{factor_tags[0]}が主因"
+                    else:
+                        short_summary = "データに基づく判断"
+                
                 style = self._get_score_style(score)
                 stance = self._get_market_stance(score)
                 risk_icon = "⚠️" if has_risk else ""
@@ -232,12 +283,34 @@ class HTMLGenerator:
                 html += f"""
                             <a href="./logs/{country_code}-{timeframe_code}.html" 
                                class="block border-l-4 {style['border']} pl-3 py-3 rounded-r-lg hover:bg-gray-50 transition cursor-pointer">
-                                <div class="flex items-center justify-between">
+                                <div class="flex items-center justify-between mb-2">
                                     <span class="text-sm font-medium text-gray-700">{timeframe_name}</span>
                                     <span class="inline-flex items-center px-3 py-1 rounded-lg {style['bg']} {style['text']} text-sm font-medium">
                                         {stance} {label} {risk_icon}
                                     </span>
                                 </div>
+"""
+                
+                # 要因タグを表示
+                if factor_tags:
+                    html += f"""
+                                <div class="flex flex-wrap gap-1 mb-2">
+"""
+                    for tag in factor_tags:
+                        html += f"""
+                                    <span class="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded">{tag}</span>
+"""
+                    html += """
+                                </div>
+"""
+                
+                # 超短文要約を表示
+                if short_summary:
+                    html += f"""
+                                <p class="text-xs text-gray-600">{short_summary}</p>
+"""
+                
+                html += """
                             </a>
 """
             
@@ -1278,10 +1351,12 @@ class HTMLGenerator:
             ma200 = first_index.get("ma200")
             if latest_price and ma200:
                 deviation = ((latest_price - ma200) / ma200) * 100
+                comment = "上回り" if deviation > 0 else "下回り"
                 html += f"""
-                    <div class="bg-gray-50 p-3 rounded-lg">
+                    <div class="bg-gray-50 p-3 rounded-lg border-l-4 border-gray-300">
                         <p class="text-xs text-gray-600 mb-1">MA200乖離</p>
                         <p class="text-lg font-bold text-gray-900">{deviation:+.2f}%</p>
+                        <p class="text-xs text-gray-500 mt-1">価格がMA200を{comment}ています</p>
                     </div>
 """
         
@@ -1290,19 +1365,24 @@ class HTMLGenerator:
         if macro.get("CPI") is not None:
             cpi = macro.get("CPI")
             cpi_change = macro.get("CPI_change", 0)
+            prev_cpi = cpi - cpi_change if cpi_change else None
+            comment = "前回比で上昇" if cpi_change > 0 else ("前回比で低下" if cpi_change < 0 else "前回と同水準")
             html += f"""
-                    <div class="bg-gray-50 p-3 rounded-lg">
+                    <div class="bg-gray-50 p-3 rounded-lg border-l-4 border-gray-300">
                         <p class="text-xs text-gray-600 mb-1">CPI</p>
-                        <p class="text-lg font-bold text-gray-900">{cpi:.2f}% (前回: {cpi + cpi_change:.2f}%)</p>
+                        <p class="text-lg font-bold text-gray-900">{cpi:.2f}%</p>
+                        <p class="text-xs text-gray-500 mt-1">{comment if prev_cpi else '前年同月比'}</p>
                     </div>
 """
         
         if macro.get("PMI") is not None:
             pmi = macro.get("PMI")
+            comment = "景気拡大を示す" if pmi > 50 else "景気後退を示す"
             html += f"""
-                    <div class="bg-gray-50 p-3 rounded-lg">
+                    <div class="bg-gray-50 p-3 rounded-lg border-l-4 border-gray-300">
                         <p class="text-xs text-gray-600 mb-1">PMI</p>
                         <p class="text-lg font-bold text-gray-900">{pmi:.1f}</p>
+                        <p class="text-xs text-gray-500 mt-1">{comment}</p>
                     </div>
 """
         
@@ -1310,19 +1390,23 @@ class HTMLGenerator:
         financial = data.get("financial", {})
         if financial.get("long_term_rate") is not None:
             rate = financial.get("long_term_rate")
+            comment = "高水準" if rate > 4.0 else ("低水準" if rate < 2.0 else "中程度")
             html += f"""
-                    <div class="bg-gray-50 p-3 rounded-lg">
+                    <div class="bg-gray-50 p-3 rounded-lg border-l-4 border-gray-300">
                         <p class="text-xs text-gray-600 mb-1">10年金利</p>
                         <p class="text-lg font-bold text-gray-900">{rate:.2f}%</p>
+                        <p class="text-xs text-gray-500 mt-1">{comment}の水準</p>
                     </div>
 """
         
         if financial.get("policy_rate") is not None:
             policy_rate = financial.get("policy_rate")
+            comment = "高水準" if policy_rate > 3.0 else ("低水準" if policy_rate < 1.0 else "中程度")
             html += f"""
-                    <div class="bg-gray-50 p-3 rounded-lg">
+                    <div class="bg-gray-50 p-3 rounded-lg border-l-4 border-gray-300">
                         <p class="text-xs text-gray-600 mb-1">政策金利</p>
                         <p class="text-lg font-bold text-gray-900">{policy_rate:.2f}%</p>
+                        <p class="text-xs text-gray-500 mt-1">{comment}の水準</p>
                     </div>
 """
         
@@ -1487,25 +1571,40 @@ class HTMLGenerator:
                 </div>
                 
                 <!-- ④ 見方が変わる条件（転換シグナル） -->
-                <div class="mb-8 p-6 bg-red-50 rounded-lg border-l-4 border-red-400">
+                <div class="mb-8 p-6 bg-orange-50 rounded-lg border-l-4 border-orange-400">
                     <h3 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                        <span class="bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3 text-sm font-bold">④</span>
+                        <span class="bg-orange-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3 text-sm font-bold">④</span>
                         見方が変わる条件（転換シグナル）
                     </h3>
-                    <p class="text-sm text-gray-600 mb-4">判断が変わる具体的なトリガーを数値で示しています。曖昧な表現は使用していません。</p>
+                    <p class="text-sm text-gray-600 mb-4">判断が変わる可能性のある条件を数値で示しています。発生時期を断定するものではありません。</p>
                     <div class="bg-white p-4 rounded-lg">
-                        <ul class="list-disc list-inside text-gray-800 space-y-2">
+                        <div class="space-y-3">
 """
         
-        # 転換シグナルを表示
+        # 転換シグナルを表示（カード形式、断定禁止）
         turning_points = analysis.get('turning_points', [])
         if turning_points:
             for point in turning_points:
+                # 断定表現を避けるため、「可能性」「注視」表現を確認
+                point_text = str(point)
+                # 「場合」「時」などの条件表現を強調
+                if '場合' in point_text or '時' in point_text:
+                    icon = "🚩"
+                    bg_color = "bg-orange-50"
+                    border_color = "border-orange-200"
+                else:
+                    icon = "⚠️"
+                    bg_color = "bg-yellow-50"
+                    border_color = "border-yellow-200"
+                
                 html += f"""
-                            <li>{point}</li>
+                            <div class="flex items-start p-3 {bg_color} border-l-4 {border_color} rounded-r-lg">
+                                <span class="mr-2 text-lg">{icon}</span>
+                                <p class="text-sm text-gray-800 flex-1">{point_text}</p>
+                            </div>
 """
         else:
-            # データから転換シグナルを生成
+            # データから転換シグナルを生成（断定禁止）
             indices = data.get("indices", {})
             if indices:
                 first_index = list(indices.values())[0]
@@ -1517,36 +1616,54 @@ class HTMLGenerator:
                 if ma200 and latest_price:
                     if latest_price > ma200:
                         html += f"""
-                            <li>終値ベースで200日移動平均（{ma200:.2f}）を3日連続で下回った場合</li>
+                            <div class="flex items-start p-3 bg-orange-50 border-l-4 border-orange-200 rounded-r-lg">
+                                <span class="mr-2 text-lg">🚩</span>
+                                <p class="text-sm text-gray-800 flex-1">終値ベースで200日移動平均（{ma200:.2f}）を3日連続で下回った場合、方向転換の可能性があります</p>
+                            </div>
 """
                     else:
                         html += f"""
-                            <li>終値ベースで200日移動平均（{ma200:.2f}）を3日連続で上回った場合</li>
+                            <div class="flex items-start p-3 bg-orange-50 border-l-4 border-orange-200 rounded-r-lg">
+                                <span class="mr-2 text-lg">🚩</span>
+                                <p class="text-sm text-gray-800 flex-1">終値ベースで200日移動平均（{ma200:.2f}）を3日連続で上回った場合、方向転換の可能性があります</p>
+                            </div>
 """
                 
                 if ma75:
                     html += f"""
-                            <li>出来高を伴って75日移動平均（{ma75:.2f}）を割り込んだ（または突破した）場合</li>
+                            <div class="flex items-start p-3 bg-yellow-50 border-l-4 border-yellow-200 rounded-r-lg">
+                                <span class="mr-2 text-lg">⚠️</span>
+                                <p class="text-sm text-gray-800 flex-1">出来高を伴って75日移動平均（{ma75:.2f}）を割り込んだ（または突破した）場合、注視が必要です</p>
+                            </div>
 """
                 
                 if ma20:
                     html += f"""
-                            <li>20日移動平均（{ma20:.2f}）と75日移動平均（{ma75:.2f if ma75 else 'N/A'}）の順序が逆転した場合</li>
+                            <div class="flex items-start p-3 bg-yellow-50 border-l-4 border-yellow-200 rounded-r-lg">
+                                <span class="mr-2 text-lg">⚠️</span>
+                                <p class="text-sm text-gray-800 flex-1">20日移動平均（{ma20:.2f}）と75日移動平均（{ma75:.2f if ma75 else 'N/A'}）の順序が逆転した場合、注視が必要です</p>
+                            </div>
 """
             
-            # マクロ指標の転換シグナル
+            # マクロ指標の転換シグナル（断定禁止）
             macro = data.get("macro", {})
             if macro.get("PMI"):
                 html += f"""
-                            <li>PMIが50を下回った（または上回った）場合</li>
+                            <div class="flex items-start p-3 bg-orange-50 border-l-4 border-orange-200 rounded-r-lg">
+                                <span class="mr-2 text-lg">🚩</span>
+                                <p class="text-sm text-gray-800 flex-1">PMIが50を下回った（または上回った）場合、方向転換の可能性があります</p>
+                            </div>
 """
             if macro.get("CPI"):
                 html += f"""
-                            <li>CPI前年同月比が前回値から±1%ポイント以上変化した場合</li>
+                            <div class="flex items-start p-3 bg-orange-50 border-l-4 border-orange-200 rounded-r-lg">
+                                <span class="mr-2 text-lg">🚩</span>
+                                <p class="text-sm text-gray-800 flex-1">CPI前年同月比が前回値から±1%ポイント以上変化した場合、方向転換の可能性があります</p>
+                            </div>
 """
         
         html += """
-                        </ul>
+                        </div>
                     </div>
                 </div>
                 

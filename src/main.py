@@ -122,12 +122,15 @@ def main():
                     "転換シグナル": "、".join(llm_direction.get("turning_points", []))
                 }
                 
-                # Overview用にスコアを記録
+                # Overview用にスコアを記録（要因情報も含める）
                 if country_code not in analysis_result["overview"]:
                     analysis_result["overview"][country_code] = {}
                 analysis_result["overview"][country_code][timeframe_code] = {
                     "score": direction_result["score"],
-                    "has_risk": direction_result["has_risk"]
+                    "has_risk": direction_result["has_risk"],
+                    # 要因タグ用の情報（既存データから取得）
+                    "rule_based_components": direction_result.get("rule_based_components", {}),
+                    "summary": direction_result.get("summary", "")
                 }
                 
                 logger.info(f"説明文生成完了: {country_code} - {timeframe_code} (スコア: {direction_result['score']})")
