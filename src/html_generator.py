@@ -100,9 +100,16 @@ class HTMLGenerator:
             </div>
 """
     
-    def _generate_header(self, title: str = "株式市場分析レポート") -> str:
-        """HTMLヘッダーを生成"""
+    def _generate_header(self, title: str = "株式市場分析レポート", include_charts: bool = False) -> str:
+        """
+        HTMLヘッダーを生成
+        
+        Args:
+            title: ページタイトル
+            include_charts: Chart.jsを読み込むかどうか（logsページのみTrue）
+        """
         date_str = datetime.now().strftime("%Y年%m月%d日 %H:%M")
+        chart_js = '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>' if include_charts else ''
         return f"""<!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -110,7 +117,7 @@ class HTMLGenerator:
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{title}</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    {chart_js}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -1043,6 +1050,298 @@ class HTMLGenerator:
         
         return facts
     
+    def _generate_charts_section(self, data: Dict, analysis: Dict, country_code: str, timeframe_code: str) -> str:
+        """
+        チャートセクションを生成（方向感の根拠）
+        
+        Args:
+            data: 国別データ
+            analysis: 分析結果
+            country_code: 国コード
+            timeframe_code: 期間コード
+        
+        Returns:
+            チャートセクションのHTML
+        """
+        html = """
+            <!-- ② 方向感の根拠（チャート） -->
+            <section class="bg-white rounded-2xl shadow-md p-6 mb-6">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">方向感の根拠（チャート）</h2>
+                <p class="text-sm text-gray-600 mb-6">以下のチャートは判断の証拠として表示しています。新たな判断を生まない補助情報です。</p>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+"""
+        
+        # ① 価格トレンドチャート（必須）
+        indices = data.get("indices", {})
+        if indices:
+            first_index = list(indices.values())[0]
+            index_code = list(indices.keys())[0]
+            index_name = {"SPX": "S&P500", "NDX": "NASDAQ100", "N225": "日経225", "TPX": "TOPIX"}.get(index_code, index_code)
+            
+            latest_price = first_index.get("latest_price", 0)
+            ma20 = first_index.get("ma20", 0)
+            ma75 = first_index.get("ma75", 0)
+            ma200 = first_index.get("ma200", 0)
+            
+            # キャプション生成（ルールベース）
+            caption = ""
+            if latest_price > ma200:
+                caption = f"価格は200日移動平均（{ma200:.2f}）を上回って推移しています。"
+            elif latest_price < ma200:
+                caption = f"価格は200日移動平均（{ma200:.2f}）を下回って推移しています。"
+            else:
+                caption = f"価格は200日移動平均（{ma200:.2f}）付近で推移しています。"
+            
+            chart_id = f"priceChart_{country_code}_{timeframe_code}"
+            html += f"""
+                    <!-- 価格トレンドチャート -->
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">{index_name} 価格トレンド</h3>
+                        <canvas id="{chart_id}"></canvas>
+                        <p class="text-xs text-gray-600 mt-2">{caption}</p>
+                    </div>
+"""
+        
+        # ② マクロ指標チャート（期間に応じて）
+        macro = data.get("macro", {})
+        financial = data.get("financial", {})
+        
+        if timeframe_code == "short":
+            # 短期：金利、CPI
+            if financial.get("long_term_rate") is not None:
+                rate = financial.get("long_term_rate")
+                chart_id = f"rateChart_{country_code}_{timeframe_code}"
+                html += f"""
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">長期金利（10年債）</h3>
+                        <canvas id="{chart_id}"></canvas>
+                        <p class="text-xs text-gray-600 mt-2">現在の長期金利は{rate:.2f}%です。</p>
+                    </div>
+"""
+            
+            if macro.get("CPI") is not None:
+                cpi = macro.get("CPI")
+                chart_id = f"cpiChart_{country_code}_{timeframe_code}"
+                html += f"""
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">CPI（消費者物価指数）</h3>
+                        <canvas id="{chart_id}"></canvas>
+                        <p class="text-xs text-gray-600 mt-2">CPI前年同月比は{cpi:.2f}%です。</p>
+                    </div>
+"""
+        
+        elif timeframe_code == "medium":
+            # 中期：PMI、CPI（YoY）
+            if macro.get("PMI") is not None:
+                pmi = macro.get("PMI")
+                caption = "PMIは50を上回っており、景気拡大を示しています。" if pmi > 50 else "PMIは50を下回っており、景気後退を示しています。"
+                chart_id = f"pmiChart_{country_code}_{timeframe_code}"
+                html += f"""
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">PMI（購買担当者景気指数）</h3>
+                        <canvas id="{chart_id}"></canvas>
+                        <p class="text-xs text-gray-600 mt-2">{caption}</p>
+                    </div>
+"""
+        
+        # ③ 構造リスク可視化（簡易）
+        if indices:
+            first_index = list(indices.values())[0]
+            concentration = first_index.get("top_stocks_concentration", 0)
+            if concentration > 0:
+                chart_id = f"concentrationChart_{country_code}_{timeframe_code}"
+                html += f"""
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">トップ銘柄集中度</h3>
+                        <canvas id="{chart_id}"></canvas>
+                        <p class="text-xs text-gray-600 mt-2">上位銘柄の集中度は{concentration*100:.1f}%です。</p>
+                    </div>
+"""
+        
+        html += """
+                </div>
+            </section>
+"""
+        
+        # Chart.jsスクリプトを追加
+        html += self._generate_chart_scripts(data, analysis, country_code, timeframe_code)
+        
+        return html
+    
+    def _generate_chart_scripts(self, data: Dict, analysis: Dict, country_code: str, timeframe_code: str) -> str:
+        """
+        チャート用JavaScriptを生成
+        
+        Args:
+            data: 国別データ
+            analysis: 分析結果
+            country_code: 国コード
+            timeframe_code: 期間コード
+        
+        Returns:
+            Chart.jsスクリプトのHTML
+        """
+        scripts = """
+            <script>
+                // Chart.jsの設定
+                Chart.defaults.font.family = "'Inter', 'Noto Sans JP', sans-serif";
+                Chart.defaults.font.size = 12;
+"""
+        
+        # 価格トレンドチャート
+        indices = data.get("indices", {})
+        if indices:
+            first_index = list(indices.values())[0]
+            latest_price = first_index.get("latest_price", 0)
+            ma20 = first_index.get("ma20", 0)
+            ma75 = first_index.get("ma75", 0)
+            ma200 = first_index.get("ma200", 0)
+            
+            chart_id = f"priceChart_{country_code}_{timeframe_code}"
+            scripts += f"""
+                // 価格トレンドチャート
+                const ctx_{chart_id.replace('-', '_')} = document.getElementById('{chart_id}');
+                if (ctx_{chart_id.replace('-', '_')}) {{
+                    new Chart(ctx_{chart_id.replace('-', '_')}, {{
+                        type: 'line',
+                        data: {{
+                            labels: ['現在'],
+                            datasets: [
+                                {{
+                                    label: '終値',
+                                    data: [{latest_price}],
+                                    borderColor: 'rgb(59, 130, 246)',
+                                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                    tension: 0.1
+                                }},
+                                {{
+                                    label: 'MA20',
+                                    data: [{ma20}],
+                                    borderColor: 'rgb(34, 197, 94)',
+                                    borderDash: [5, 5],
+                                    tension: 0.1
+                                }},
+                                {{
+                                    label: 'MA75',
+                                    data: [{ma75}],
+                                    borderColor: 'rgb(251, 191, 36)',
+                                    borderDash: [5, 5],
+                                    tension: 0.1
+                                }},
+                                {{
+                                    label: 'MA200',
+                                    data: [{ma200}],
+                                    borderColor: 'rgb(239, 68, 68)',
+                                    borderDash: [5, 5],
+                                    tension: 0.1
+                                }}
+                            ]
+                        }},
+                        options: {{
+                            responsive: true,
+                            maintainAspectRatio: true,
+                            plugins: {{
+                                legend: {{
+                                    display: true,
+                                    position: 'top'
+                                }}
+                            }},
+                            scales: {{
+                                y: {{
+                                    beginAtZero: false
+                                }}
+                            }}
+                        }}
+                    }});
+                }}
+"""
+        
+        scripts += """
+            </script>
+"""
+        return scripts
+    
+    def _generate_key_numbers_section(self, data: Dict, analysis: Dict) -> str:
+        """
+        判断に使った数値セクションを生成
+        
+        Args:
+            data: 国別データ
+            analysis: 分析結果
+        
+        Returns:
+            数値セクションのHTML
+        """
+        html = """
+            <!-- ③ 判断に使った数値 -->
+            <section class="bg-white rounded-2xl shadow-md p-6 mb-6">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">判断に使った数値</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+"""
+        
+        # インデックスデータ
+        indices = data.get("indices", {})
+        if indices:
+            first_index = list(indices.values())[0]
+            latest_price = first_index.get("latest_price")
+            ma200 = first_index.get("ma200")
+            if latest_price and ma200:
+                deviation = ((latest_price - ma200) / ma200) * 100
+                html += f"""
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                        <p class="text-xs text-gray-600 mb-1">MA200乖離</p>
+                        <p class="text-lg font-bold text-gray-900">{deviation:+.2f}%</p>
+                    </div>
+"""
+        
+        # マクロ指標
+        macro = data.get("macro", {})
+        if macro.get("CPI") is not None:
+            cpi = macro.get("CPI")
+            cpi_change = macro.get("CPI_change", 0)
+            html += f"""
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                        <p class="text-xs text-gray-600 mb-1">CPI</p>
+                        <p class="text-lg font-bold text-gray-900">{cpi:.2f}% (前回: {cpi + cpi_change:.2f}%)</p>
+                    </div>
+"""
+        
+        if macro.get("PMI") is not None:
+            pmi = macro.get("PMI")
+            html += f"""
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                        <p class="text-xs text-gray-600 mb-1">PMI</p>
+                        <p class="text-lg font-bold text-gray-900">{pmi:.1f}</p>
+                    </div>
+"""
+        
+        # 金融指標
+        financial = data.get("financial", {})
+        if financial.get("long_term_rate") is not None:
+            rate = financial.get("long_term_rate")
+            html += f"""
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                        <p class="text-xs text-gray-600 mb-1">10年金利</p>
+                        <p class="text-lg font-bold text-gray-900">{rate:.2f}%</p>
+                    </div>
+"""
+        
+        if financial.get("policy_rate") is not None:
+            policy_rate = financial.get("policy_rate")
+            html += f"""
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                        <p class="text-xs text-gray-600 mb-1">政策金利</p>
+                        <p class="text-lg font-bold text-gray-900">{policy_rate:.2f}%</p>
+                    </div>
+"""
+        
+        html += """
+                </div>
+            </section>
+"""
+        return html
+    
     def generate_thought_log(self, country_code: str, timeframe_code: str, data: Dict, analysis: Dict) -> str:
         """思考ログを生成（4ブロック構成：観測事実・解釈・前提・転換シグナル）"""
         date_str = datetime.now().strftime("%Y年%m月%d日 %H:%M")
@@ -1053,7 +1352,7 @@ class HTMLGenerator:
             timeframe_code
         )
         
-        html = self._generate_header(f"思考ログ: {country_name} - {timeframe_name}")
+        html = self._generate_header(f"思考ログ: {country_name} - {timeframe_name}", include_charts=True)
         
         html += f"""
             <div class="mb-6">
@@ -1067,6 +1366,12 @@ class HTMLGenerator:
         direction_label = analysis.get("direction_label", analysis.get("label", "中立"))
         summary = analysis.get("summary", "")
         html += self._generate_conclusion_block(country_name, timeframe_name, direction_label, summary)
+        
+        # ② 方向感の根拠（チャート）
+        html += self._generate_charts_section(data, analysis, country_code, timeframe_code)
+        
+        # ③ 判断に使った数値
+        html += self._generate_key_numbers_section(data, analysis)
         
         html += f"""
             <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 rounded-lg">
