@@ -48,21 +48,31 @@
             color: #6b7280;
             font-size: 1.5rem;
         }
+        .line-clamp-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
     </style>
 </head>
 <body>
     <div class="min-h-screen">
-        <!-- ヘッダー -->
-        <header class="bg-gradient-to-r from-blue-600 to-blue-700 shadow-lg">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <h1 class="text-4xl font-bold text-white mb-2">日本 市場分析 - 中期</h1>
-                <p class="text-blue-100 text-sm">更新日時: 2025年12月20日 06:34</p>
-                <p class="text-blue-50 text-xs mt-2 opacity-90">本レポートは市場環境の整理を目的としており、投資助言ではありません</p>
+        <!-- ヘッダー（コンパクト） -->
+        <header class="bg-gradient-to-r from-blue-600 to-blue-700 shadow-md sticky top-0 z-20">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-2xl font-bold text-white">日本 市場分析 - 中期</h1>
+                        <p class="text-blue-100 text-xs mt-1">更新: 2025年12月20日 07:06</p>
+                    </div>
+                    <p class="text-blue-50 text-xs opacity-90 hidden md:block">市場環境の整理を目的としており、投資助言ではありません</p>
+                </div>
             </div>
         </header>
         
         <!-- メインコンテンツ -->
-        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
             <div class="mb-6">
                 <a href="../index.html" class="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium">
@@ -72,19 +82,19 @@
 
             <section class="bg-green-50 rounded-2xl shadow-md p-6 mb-6 border-l-4 border-green-300">
                 <h2 class="text-2xl font-bold text-green-800 mb-4">前提条件</h2>
-                <p class="text-green-700 leading-relaxed">現在の判断は、PMIが50を超えて景気の拡張を示唆していること、CPIが低下していること、金融政策利率が相対的に高い水準にあること、テクニカル指標で株価が長期的な上昇トレンドにあり、ボラティリティが穏やかであることなどに基づいています。</p>
+                <p class="text-green-700 leading-relaxed">現在の判断の前提条件として、PMIの値が50を超えていること、株価が長期的な上昇トレンドにあり、最新の株価が200日移動平均を上回っていることが含まれる。さらに、金融政策の影響や景気の動向が将来的に市場に与える影響を考慮する必要がある。</p>
             </section>
 
             <section class="bg-white rounded-2xl shadow-md p-6 mb-6">
                 <h2 class="text-2xl font-bold text-gray-900 mb-4">市場環境サマリー</h2>
-                <p class="text-gray-700 leading-relaxed">日本の株式市場は中期的に見るとやや強気の方向感が見られます。景気・金融政策・業績環境の複合的な要因がこの判断の根拠となっています。</p>
+                <p class="text-gray-700 leading-relaxed">市場環境はやや強気と考えられる。PMIが50を超えていることや、株価が長期的な上昇トレンドにあり、最新の株価が200日移動平均を上回っていることが要因の1つである。ただし、CPIがマイナスであることや、金融政策の影響が市場に及ぼす可能性があることを考慮する必要がある。</p>
             </section>
 
             <section class="bg-red-50 rounded-2xl shadow-md p-6 mb-6 border-l-4 border-red-300">
                 <h2 class="text-2xl font-bold text-red-800 mb-4">想定リスク</h2>
                 <ul class="list-disc list-inside text-red-700 space-y-2">
 
-                    <li>景気の減速や金融政策の変更による市場の転換、外国為替市場の変動によるリスク</li>
+                    <li>金融政策の変更や景気の悪化による市場の下落の可能性、インフレ率の低下が持続し、景気の低迷につながる可能性</li>
 
                 </ul>
             </section>
@@ -93,7 +103,7 @@
                 <h2 class="text-2xl font-bold text-blue-800 mb-4">転換ポイント</h2>
                 <ul class="list-disc list-inside text-blue-700 space-y-2">
 
-                    <li>PMIが3ヶ月連続で50未満になった場合、政策金利が2%以上引き上げられた場合、株価が200日移動平均を3日連続で下回った場合</li>
+                    <li>PMIが3ヶ月連続で50未満となった場合、株価が200日移動平均を3日連続で下回った場合、政策金利が2%以上変動した場合</li>
 
                 </ul>
             </section>
