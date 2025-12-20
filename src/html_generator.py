@@ -47,6 +47,59 @@ class HTMLGenerator:
         else:
             return "🟡"  # 中立
     
+    def _generate_conclusion_block(self, country_name: str, timeframe_name: str, direction_label: str, summary: str) -> str:
+        """
+        結論ブロックを生成（2行固定）
+        
+        Args:
+            country_name: 国名
+            timeframe_name: 期間名
+            direction_label: 方向ラベル
+            summary: LLM生成のsummary（2文形式、結論ブロック専用）
+        
+        Returns:
+            結論ブロックのHTML
+        """
+        # summaryから2文を抽出（改行または句点で分割）
+        # summaryは「【結論】◯◯市場は（期間）で（方向ラベル）」と「主要因を1つだけ短文で補足」の2文形式を想定
+        summary_lines = summary.replace('\n', '。').split('。')
+        summary_lines = [s.strip() for s in summary_lines if s.strip()]
+        
+        # 1行目：【結論】◯◯市場は（期間）で（方向ラベル）
+        # summaryの1文目に「【結論】」が含まれている場合はそれを使用、なければ生成
+        if summary_lines and len(summary_lines) > 0 and '【結論】' in summary_lines[0]:
+            line1 = summary_lines[0]
+            # 「【結論】」が含まれていない場合は追加
+            if not line1.startswith('【結論】'):
+                line1 = f"【結論】{line1}"
+        else:
+            line1 = f"【結論】{country_name}市場は{timeframe_name}で{direction_label}"
+        
+        # 2行目：主要因を1つだけ短文で補足（summaryの2文目、または1文目から抽出）
+        if summary_lines and len(summary_lines) > 1:
+            # 2文目を使用
+            line2 = summary_lines[1]
+        elif summary_lines and len(summary_lines) > 0:
+            # 1文目から抽出（「【結論】」部分を除く）
+            line2 = summary_lines[0].replace('【結論】', '').strip()
+            if country_name in line2 and timeframe_name in line2 and direction_label in line2:
+                # 1文目が結論形式の場合は、主要因として簡潔な説明を生成
+                line2 = "データに基づく判断材料を提示しています。"
+        else:
+            line2 = "データに基づく判断材料を提示しています。"
+        
+        # 長すぎる場合は短縮（50文字以内）
+        if len(line2) > 50:
+            line2 = line2[:47] + "..."
+        
+        return f"""
+            <!-- 結論ブロック -->
+            <div class="bg-blue-50 border-l-4 border-blue-500 p-6 mb-6 rounded-lg shadow-md">
+                <p class="text-lg font-bold text-blue-900 mb-2">{line1}</p>
+                <p class="text-sm text-blue-800">{line2}</p>
+            </div>
+"""
+    
     def _generate_header(self, title: str = "株式市場分析レポート") -> str:
         """HTMLヘッダーを生成"""
         date_str = datetime.now().strftime("%Y年%m月%d日 %H:%M")
@@ -755,6 +808,29 @@ class HTMLGenerator:
         """フルページを生成"""
         html = self._generate_header()
         
+        # 結論ブロック（全体サマリー）
+        # 最初の国×期間の情報を使用
+        conclusion_added = False
+        for country_code, country_result in analysis_result.get("countries", {}).items():
+            if conclusion_added:
+                break
+            country_name = country_result.get("name", country_code)
+            directions = country_result.get("directions", {})
+            
+            # 短期の情報を優先、なければ最初の期間
+            for timeframe in self.config['timeframes']:
+                timeframe_code = timeframe['code']
+                timeframe_name = timeframe['name']
+                
+                if timeframe_code in directions:
+                    direction_data = directions[timeframe_code]
+                    direction_label = direction_data.get("direction_label", direction_data.get("label", "中立"))
+                    summary = direction_data.get("summary", "")
+                    
+                    html += self._generate_conclusion_block(country_name, timeframe_name, direction_label, summary)
+                    conclusion_added = True
+                    break
+        
         # Overview
         html += self.generate_overview_cards(analysis_result)
         
@@ -985,7 +1061,14 @@ class HTMLGenerator:
                     ← トップページに戻る
                 </a>
             </div>
-            
+"""
+        
+        # 結論ブロック
+        direction_label = analysis.get("direction_label", analysis.get("label", "中立"))
+        summary = analysis.get("summary", "")
+        html += self._generate_conclusion_block(country_name, timeframe_name, direction_label, summary)
+        
+        html += f"""
             <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 rounded-lg">
                 <p class="text-sm text-yellow-800">
                     <strong>重要:</strong> この思考ログは「判断結果」ではなく、「判断材料」です。ユーザーが自分で判断できるための情報を提示しています。
