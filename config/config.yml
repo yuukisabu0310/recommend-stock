@@ -108,7 +108,7 @@ ai:
   enabled: true  # Groq APIを使用する場合は true に設定
   # enabled: false に設定するとルールベース分析のみを使用
   provider: "groq"  # groq または openai
-  model: "llama-3.3-70b-versatile"  # Groq API使用（llama-3.1-70b-versatileの代替）
+  model: "llama-3.1-70b-versatile"  # Groq API使用
   max_tokens: 2000
   temperature: 0.25  # 0.2-0.3の範囲（固定）
   

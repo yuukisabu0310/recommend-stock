@@ -64,181 +64,53 @@ class HTMLGenerator:
     <style>
         body {{
             font-family: 'Inter', 'Noto Sans JP', sans-serif;
-            background: linear-gradient(to bottom, #f8fafc 0%, #f1f5f9 100%);
         }}
         .card {{
             transition: transform 0.2s, box-shadow 0.2s;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
         }}
         .card:hover {{
             transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-        }}
-        @keyframes fadeIn {{
-            from {{
-                opacity: 0;
-                transform: translateY(10px);
-            }}
-            to {{
-                opacity: 1;
-                transform: translateY(0);
-            }}
-        }}
-        .fade-in {{
-            animation: fadeIn 0.5s ease-out;
-        }}
-        .arrow-up {{
-            color: #059669;
-            font-size: 1.5rem;
-        }}
-        .arrow-down {{
-            color: #dc2626;
-            font-size: 1.5rem;
-        }}
-        .arrow-neutral {{
-            color: #6b7280;
-            font-size: 1.5rem;
-        }}
-        .line-clamp-2 {{
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
         }}
     </style>
 </head>
-<body>
+<body class="bg-gray-50">
     <div class="min-h-screen">
-        <!-- ヘッダー（コンパクト） -->
-        <header class="bg-gradient-to-r from-blue-600 to-blue-700 shadow-md sticky top-0 z-20">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h1 class="text-2xl font-bold text-white">{title}</h1>
-                        <p class="text-blue-100 text-xs mt-1">更新: {date_str}</p>
-                    </div>
-                    <p class="text-blue-50 text-xs opacity-90 hidden md:block">市場環境の整理を目的としており、投資助言ではありません</p>
-                </div>
+        <!-- ヘッダー -->
+        <header class="bg-white shadow-md">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                <h1 class="text-3xl font-bold text-gray-900">{title}</h1>
+                <p class="mt-2 text-sm text-gray-600">更新日時: {date_str}</p>
             </div>
         </header>
         
         <!-- メインコンテンツ -->
-        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 """
     
     def _generate_footer(self) -> str:
-        """HTMLフッターを生成（改善版：データソース詳細化）"""
+        """HTMLフッターを生成"""
         return """        </main>
         
         <!-- フッター -->
-        <footer class="bg-gradient-to-b from-gray-50 to-gray-100 border-t-2 border-gray-200 mt-16">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-                <div class="space-y-8">
-                    <!-- 免責事項 -->
-                    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-5 rounded-lg shadow-sm">
-                        <h3 class="font-bold text-yellow-900 mb-2 flex items-center">
-                            <span class="mr-2">⚠️</span>
-                            免責事項
-                        </h3>
-                        <p class="text-sm text-yellow-800 leading-relaxed">
-                            本レポートは市場環境の整理を目的とした研究用途の資料であり、投資助言や売買指示を目的としたものではありません。
-                            投資判断は自己責任で行ってください。過去の実績は将来を保証するものではありません。
-                            本レポートの内容は「可能性」「傾向」を述べたものであり、断定表現は避けています。
+        <footer class="bg-white border-t mt-12">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                <div class="space-y-4">
+                    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg">
+                        <p class="text-sm text-yellow-800">
+                            <strong>免責事項</strong>: 本レポートは研究用途であり、投資助言や売買指示を目的としたものではありません。投資判断は自己責任で行ってください。過去の実績は将来を保証するものではありません。
                         </p>
                     </div>
-                    
-                    <!-- データソース・取得方法 -->
-                    <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200">
-                        <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
-                            <span class="mr-2">📊</span>
-                            データソース・取得方法
-                        </h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <h4 class="font-semibold text-gray-800 mb-3">マクロ指標</h4>
-                                <ul class="space-y-2 text-sm text-gray-700">
-                                    <li class="flex items-start">
-                                        <span class="font-medium mr-2">• PMI:</span>
-                                        <span>S&P Global（実データ取得可能な場合はAPI経由、それ以外は推測値）</span>
-                                    </li>
-                                    <li class="flex items-start">
-                                        <span class="font-medium mr-2">• CPI:</span>
-                                        <span>FRED API（US Bureau of Labor Statistics / 各国統計機関）</span>
-                                    </li>
-                                    <li class="flex items-start">
-                                        <span class="font-medium mr-2">• 雇用率:</span>
-                                        <span>FRED API（US Bureau of Labor Statistics / 各国統計機関）</span>
-                                    </li>
-                                </ul>
-                            </div>
-                            <div>
-                                <h4 class="font-semibold text-gray-800 mb-3">金融指標</h4>
-                                <ul class="space-y-2 text-sm text-gray-700">
-                                    <li class="flex items-start">
-                                        <span class="font-medium mr-2">• 政策金利:</span>
-                                        <span>FRED API（各国中央銀行データ）</span>
-                                    </li>
-                                    <li class="flex items-start">
-                                        <span class="font-medium mr-2">• 長期金利:</span>
-                                        <span>FRED API（10年物国債利回り）</span>
-                                    </li>
-                                </ul>
-                            </div>
-                            <div>
-                                <h4 class="font-semibold text-gray-800 mb-3">株価指数</h4>
-                                <ul class="space-y-2 text-sm text-gray-700">
-                                    <li class="flex items-start">
-                                        <span class="font-medium mr-2">• 価格・出来高:</span>
-                                        <span>Yahoo Finance (yfinanceライブラリ)</span>
-                                    </li>
-                                    <li class="flex items-start">
-                                        <span class="font-medium mr-2">• 更新頻度:</span>
-                                        <span>日次（市場取引日）</span>
-                                    </li>
-                                </ul>
-                            </div>
-                            <div>
-                                <h4 class="font-semibold text-gray-800 mb-3">指標計算方法</h4>
-                                <ul class="space-y-2 text-sm text-gray-700">
-                                    <li class="flex items-start">
-                                        <span class="font-medium mr-2">• 移動平均:</span>
-                                        <span>単純移動平均（SMA）- 20日、75日、200日</span>
-                                    </li>
-                                    <li class="flex items-start">
-                                        <span class="font-medium mr-2">• ボラティリティ:</span>
-                                        <span>過去30日の日次リターンの標準偏差を年率換算（√252倍）</span>
-                                    </li>
-                                    <li class="flex items-start">
-                                        <span class="font-medium mr-2">• 出来高比率:</span>
-                                        <span>最新出来高 ÷ 過去30日の平均出来高</span>
-                                    </li>
-                                    <li class="flex items-start">
-                                        <span class="font-medium mr-2">• トレンド判定:</span>
-                                        <span>価格と移動平均の順序関係から判定（上昇/下降/中立）</span>
-                                    </li>
-                                </ul>
-                            </div>
-                        </div>
-                        
-                        <div class="mt-6 pt-6 border-t border-gray-200">
-                            <p class="text-sm text-gray-600">
-                                <strong>更新頻度:</strong> 毎日自動実行（GitHub Actions経由、日本時間18:00頃）
-                            </p>
-                            <p class="text-sm text-gray-600 mt-2">
-                                <strong>データ遅延:</strong> マクロ指標は通常1-2ヶ月の遅延があります。最新のデータは各データソースの公式サイトをご確認ください。
-                            </p>
-                        </div>
-                    </div>
-                    
-                    <!-- 分析手法について -->
-                    <div class="bg-blue-50 p-5 rounded-lg border-l-4 border-blue-400">
-                        <h3 class="font-bold text-blue-900 mb-2">分析手法について</h3>
-                        <p class="text-sm text-blue-800 leading-relaxed">
-                            本レポートは、ルールベース分析とLLM（大規模言語モデル）による分析を組み合わせています。
-                            各期間（短期・中期・長期）では異なる指標の重み付けを使用しており、期間が長くなるほど構造的・マクロ的な要因が重視されます。
-                            詳細な判断ロジックは各ページの「思考ログ」セクションで確認できます。
-                        </p>
+                    <div class="text-sm text-gray-600 space-y-2">
+                        <p><strong>データ取得元:</strong> Yahoo Finance (yfinance), FRED API, e-Stat API</p>
+                        <p><strong>更新頻度:</strong> 毎日（GitHub Actions自動実行）</p>
+                        <p><strong>指標計算方法:</strong></p>
+                        <ul class="list-disc list-inside ml-4 space-y-1">
+                            <li>移動平均: 単純移動平均（20日、75日、200日）</li>
+                            <li>ボラティリティ: 過去30日の日次リターンの標準偏差を年率換算</li>
+                            <li>出来高比率: 最新出来高 / 過去30日の平均出来高</li>
+                            <li>トレンド判定: 価格と移動平均の順序関係から判定</li>
+                        </ul>
                     </div>
                 </div>
             </div>
@@ -247,65 +119,47 @@ class HTMLGenerator:
 </body>
 </html>"""
     
-    def _get_arrow_icon(self, score: int) -> str:
-        """スコアから矢印アイコンを取得"""
-        if score >= 2:
-            return '<span class="arrow-up">↗↗</span>'
-        elif score == 1:
-            return '<span class="arrow-up">↗</span>'
-        elif score <= -2:
-            return '<span class="arrow-down">↘↘</span>'
-        elif score == -1:
-            return '<span class="arrow-down">↘</span>'
+    def _get_arrow_style(self, score: int) -> Dict[str, str]:
+        """スコアから矢印スタイルを取得"""
+        # 矢印の角度: -2(-90度) 〜 0(0度) 〜 +2(+90度)
+        angle = score * 45  # -90度 〜 +90度
+        
+        # 色
+        if score >= 1:
+            color = "#10b981"  # green
+        elif score <= -1:
+            color = "#ef4444"  # red
         else:
-            return '<span class="arrow-neutral">→</span>'
-    
-    def _get_one_line_summary(self, direction_data: Dict, timeframe_code: str) -> str:
-        """1行要約を生成"""
-        summary = direction_data.get("summary", "")
-        if summary:
-            # 最初の1文を抽出（最大50文字）
-            sentences = summary.split('。')
-            if sentences:
-                first_sentence = sentences[0].strip()
-                if len(first_sentence) > 50:
-                    first_sentence = first_sentence[:47] + "..."
-                return first_sentence
-        return "データ分析中"
+            color = "#6b7280"  # gray
+        
+        return {
+            "angle": angle,
+            "color": color,
+            "transform": f"rotate({angle}deg)"
+        }
     
     def generate_overview_cards(self, analysis_result: Dict) -> str:
-        """Overviewカードを生成（ダッシュボード型：ファーストビュー）"""
+        """Overviewカードを生成（矢印UI付き）"""
         countries = self.config['countries']
         timeframes = self.config['timeframes']
         overview = analysis_result.get("overview", {})
         
         html = """
-        <!-- 市場方向ダッシュボード（ファーストビュー） -->
-        <section class="mb-8 fade-in">
-            <div class="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-gray-200 py-4 mb-6">
-                <h2 class="text-2xl font-bold text-gray-900 flex items-center">
-                    <span class="mr-2">📊</span>
-                    市場方向ダッシュボード
-                </h2>
-                <p class="text-xs text-gray-500 mt-1">各国・各期間の市場環境を一目で把握</p>
-            </div>
-            
-            <!-- 国別カード（コンパクト） -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Market Direction Overview -->
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">Market Direction Overview</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
 """
         
         for country_config in countries:
             country_code = country_config['code']
             country_name = country_config['name']
             directions = overview.get(country_code, {})
-            country_result = analysis_result.get("countries", {}).get(country_code, {})
             
             html += f"""
-                <div class="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
-                    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-3 border-b border-gray-200">
-                        <h3 class="text-lg font-bold text-gray-900">{country_name}</h3>
-                    </div>
-                    <div class="p-4 space-y-3">
+                <div class="bg-white rounded-2xl shadow-md p-6 card">
+                    <h3 class="text-xl font-semibold text-gray-900 mb-4">{country_name}</h3>
+                    <div class="space-y-4">
 """
             
             for timeframe in timeframes:
@@ -316,63 +170,38 @@ class HTMLGenerator:
                 score = direction.get("score", 0)
                 has_risk = direction.get("has_risk", False)
                 label = self.score_labels.get(str(score), "→ 中立")
-                
-                # 1行要約と重要リスクを取得
-                country_directions = country_result.get("directions", {})
-                direction_data = country_directions.get(timeframe_code, {})
-                one_line = self._get_one_line_summary(direction_data, timeframe_code)
-                
-                # 重要リスク（最大2つ）
-                risks = direction_data.get("risks", [])
-                concrete_risks = []
-                country_data = country_result.get("data", {})
-                
-                # 簡易的なリスク抽出
-                macro = country_data.get("macro", {})
-                if macro.get("PMI") is not None and macro["PMI"] < 50:
-                    concrete_risks.append(f"PMI {macro['PMI']:.1f}（50未満）")
-                if macro.get("CPI") is not None and macro["CPI"] > 5.0:
-                    concrete_risks.append(f"CPI {macro['CPI']:.1f}%（高水準）")
-                
-                top_risks = self._get_top_risks(risks, concrete_risks, max_count=2)
+                view = direction.get("view", "neutral")
                 
                 style = self._get_score_style(score)
-                arrow_icon = self._get_arrow_icon(score)
-                risk_badge = '<span class="ml-1 text-red-600">⚠️</span>' if has_risk else ''
+                arrow_style = self._get_arrow_style(score)
+                risk_icon = "⚠️" if has_risk else ""
                 
                 html += f"""
-                        <div class="border-l-4 {style['border']} pl-3 py-2 bg-gray-50 rounded-r">
-                            <div class="flex items-center justify-between mb-1">
-                                <span class="text-xs font-medium text-gray-600">{timeframe_name}</span>
-                                <span class="inline-flex items-center text-sm font-semibold {style['text']}">
-                                    <span class="mr-1">{arrow_icon}</span>
-                                    {label}
-                                    {risk_badge}
-                                </span>
+                        <div class="border-l-4 {style['border']} pl-3 py-3">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-sm font-medium text-gray-600">{timeframe_name}</span>
+                                <a href="./details/{country_code}-{timeframe_code}.html" 
+                                   class="inline-flex items-center px-3 py-1 rounded-lg {style['bg']} {style['text']} text-sm font-medium hover:opacity-80 transition">
+                                    {label} {risk_icon}
+                                </a>
                             </div>
-                            <p class="text-xs text-gray-700 mt-1 line-clamp-2">{one_line}</p>
-"""
-                
-                # 重要リスク（最大2つ、常時表示）
-                if top_risks:
-                    html += """
-                            <div class="mt-2 flex flex-wrap gap-1">
-"""
-                    for risk in top_risks:
-                        html += f"""
-                                <span class="inline-flex items-center px-1.5 py-0.5 bg-red-50 text-red-700 text-xs rounded border border-red-200">
-                                    ⚠️ {risk[:35]}{'...' if len(risk) > 35 else ''}
-                                </span>
-"""
-                    html += """
+                            <!-- 矢印UI -->
+                            <div class="flex items-center justify-center mt-2">
+                                <svg width="60" height="60" viewBox="0 0 60 60" class="arrow-indicator">
+                                    <defs>
+                                        <marker id="arrowhead-{country_code}-{timeframe_code}" markerWidth="10" markerHeight="10" 
+                                                refX="9" refY="3" orient="auto">
+                                            <polygon points="0 0, 10 3, 0 6" fill="{arrow_style['color']}" />
+                                        </marker>
+                                    </defs>
+                                    <line x1="30" y1="30" x2="30" y2="10" 
+                                          stroke="{arrow_style['color']}" 
+                                          stroke-width="3" 
+                                          marker-end="url(#arrowhead-{country_code}-{timeframe_code})"
+                                          transform="rotate({arrow_style['angle']} 30 30)"
+                                          transform-origin="30 30" />
+                                </svg>
                             </div>
-"""
-                
-                html += f"""
-                            <a href="./details/{country_code}-{timeframe_code}.html" 
-                               class="text-xs text-blue-600 hover:text-blue-800 mt-2 inline-block">
-                                詳細を見る →
-                            </a>
                         </div>
 """
             
@@ -388,314 +217,226 @@ class HTMLGenerator:
         return html
     
     def generate_summary_section(self, analysis_result: Dict) -> str:
-        """全体サマリーセクションを生成（ダッシュボード型：削除または最小化）"""
-        # ダッシュボード型では、overview_cardsで既に表示しているため、このセクションは削除
-        return ""
-    
-    def _format_number(self, value, decimals: int = 2, suffix: str = "") -> str:
-        """数値をフォーマット"""
-        if value is None:
-            return "データなし"
-        try:
-            return f"{value:.{decimals}f}{suffix}"
-        except (ValueError, TypeError):
-            return str(value) if value else "データなし"
-    
-    def _generate_quantitative_data_section(self, country_data: Dict, country_code: str) -> str:
-        """定量的データセクションを生成"""
-        html = """
-                <div class="mb-6 p-5 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200">
-                    <h4 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                        <span class="mr-2">📈</span>
-                        定量的補足データ
-                    </h4>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        """全体サマリーセクションを生成"""
+        date_str = datetime.now().strftime("%Y年%m月%d日")
+        overview = analysis_result.get("overview", {})
+        
+        html = f"""
+        <!-- 全体サマリー -->
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">全体サマリー</h2>
+            <div class="bg-white rounded-2xl shadow-md p-6">
+                <p class="text-gray-700 mb-4">{date_str}の市場環境を要約します。</p>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 """
         
-        # マクロ指標
-        macro = country_data.get("macro", {})
-        if macro.get("PMI") is not None:
-            pmi = macro["PMI"]
-            pmi_trend = "改善傾向" if pmi > 50 else "悪化傾向"
-            pmi_class = "text-green-700" if pmi > 50 else "text-red-700"
-            html += f"""
-                        <div class="bg-white p-4 rounded-lg shadow-sm">
-                            <p class="text-xs text-gray-600 mb-1">PMI（製造業）</p>
-                            <p class="text-2xl font-bold {pmi_class}">{self._format_number(pmi, 1)}</p>
-                            <p class="text-xs text-gray-500 mt-1">{pmi_trend}（50以上で拡大）</p>
-                        </div>
-"""
-        
-        if macro.get("CPI") is not None:
-            cpi = macro["CPI"]
-            cpi_trend = "適切" if 1.0 < cpi < 3.0 else ("高い" if cpi > 3.0 else "低い")
-            cpi_class = "text-green-700" if 1.0 < cpi < 3.0 else ("text-red-700" if cpi > 5.0 else "text-yellow-700")
-            html += f"""
-                        <div class="bg-white p-4 rounded-lg shadow-sm">
-                            <p class="text-xs text-gray-600 mb-1">CPI（前年同月比）</p>
-                            <p class="text-2xl font-bold {cpi_class}">{self._format_number(cpi, 2, "%")}</p>
-                            <p class="text-xs text-gray-500 mt-1">{cpi_trend}（目標: 1-3%）</p>
-                        </div>
-"""
-        
-        if macro.get("employment_rate") is not None:
-            emp = macro["employment_rate"]
-            html += f"""
-                        <div class="bg-white p-4 rounded-lg shadow-sm">
-                            <p class="text-xs text-gray-600 mb-1">雇用率</p>
-                            <p class="text-2xl font-bold text-gray-800">{self._format_number(emp, 2, "%")}</p>
-                            <p class="text-xs text-gray-500 mt-1">労働人口比</p>
-                        </div>
-"""
-        
-        # 金融指標
-        financial = country_data.get("financial", {})
-        if financial.get("policy_rate") is not None:
-            rate = financial["policy_rate"]
-            html += f"""
-                        <div class="bg-white p-4 rounded-lg shadow-sm">
-                            <p class="text-xs text-gray-600 mb-1">政策金利</p>
-                            <p class="text-2xl font-bold text-gray-800">{self._format_number(rate, 2, "%")}</p>
-                            <p class="text-xs text-gray-500 mt-1">中央銀行政策金利</p>
-                        </div>
-"""
-        
-        if financial.get("long_term_rate") is not None:
-            ltr = financial["long_term_rate"]
-            html += f"""
-                        <div class="bg-white p-4 rounded-lg shadow-sm">
-                            <p class="text-xs text-gray-600 mb-1">長期金利（10年債）</p>
-                            <p class="text-2xl font-bold text-gray-800">{self._format_number(ltr, 2, "%")}</p>
-                            <p class="text-xs text-gray-500 mt-1">10年物国債利回り</p>
-                        </div>
-"""
-        
-        # 指数データ
-        indices = country_data.get("indices", {})
-        if indices:
-            first_index = list(indices.values())[0]
-            index_code = list(indices.keys())[0]
+        for country_code, directions in overview.items():
+            country_result = analysis_result["countries"].get(country_code, {})
+            country_name = country_result.get("name", country_code)
             
-            latest_price = first_index.get("latest_price")
-            ma20 = first_index.get("ma20")
-            ma200 = first_index.get("ma200")
-            volatility = first_index.get("volatility")
-            volume_ratio = first_index.get("volume_ratio")
+            medium_score = directions.get("medium", {}).get("score", 0)
+            label = self.score_labels.get(str(medium_score), "中立")
+            style = self._get_score_style(medium_score)
             
-            if latest_price:
-                html += f"""
-                        <div class="bg-white p-4 rounded-lg shadow-sm">
-                            <p class="text-xs text-gray-600 mb-1">{index_code} 最新価格</p>
-                            <p class="text-2xl font-bold text-gray-800">{self._format_number(latest_price, 2)}</p>
-                            <p class="text-xs text-gray-500 mt-1">終値</p>
-                        </div>
-"""
-            
-            if ma200 and latest_price:
-                price_vs_ma200 = ((latest_price - ma200) / ma200) * 100
-                trend_class = "text-green-700" if price_vs_ma200 > 0 else "text-red-700"
-                html += f"""
-                        <div class="bg-white p-4 rounded-lg shadow-sm">
-                            <p class="text-xs text-gray-600 mb-1">200日移動平均乖離率</p>
-                            <p class="text-2xl font-bold {trend_class}">{self._format_number(price_vs_ma200, 2, "%")}</p>
-                            <p class="text-xs text-gray-500 mt-1">長期トレンド指標</p>
-                        </div>
-"""
-            
-            if volatility:
-                vol_class = "text-red-700" if volatility > 30 else ("text-yellow-700" if volatility > 20 else "text-green-700")
-                html += f"""
-                        <div class="bg-white p-4 rounded-lg shadow-sm">
-                            <p class="text-xs text-gray-600 mb-1">ボラティリティ（年率）</p>
-                            <p class="text-2xl font-bold {vol_class}">{self._format_number(volatility, 2, "%")}</p>
-                            <p class="text-xs text-gray-500 mt-1">過去30日の標準偏差</p>
-                        </div>
-"""
-            
-            if volume_ratio:
-                vol_ratio_class = "text-green-700" if volume_ratio > 1.2 else ("text-yellow-700" if volume_ratio > 0.8 else "text-gray-700")
-                html += f"""
-                        <div class="bg-white p-4 rounded-lg shadow-sm">
-                            <p class="text-xs text-gray-600 mb-1">出来高比率</p>
-                            <p class="text-2xl font-bold {vol_ratio_class}">{self._format_number(volume_ratio, 2, "倍")}</p>
-                            <p class="text-xs text-gray-500 mt-1">30日平均との比較</p>
-                        </div>
+            html += f"""
+                    <div class="flex items-center space-x-3 p-3 rounded-lg {style['bg']}">
+                        <span class="font-semibold {style['text']}">{country_name}</span>
+                        <span class="text-sm {style['text']}">{label}</span>
+                    </div>
 """
         
         html += """
-                    </div>
                 </div>
+            </div>
+        </section>
 """
-        
-        # 株価指数の簡易グラフ（historical_pricesがある場合）
-        if indices:
-            first_index = list(indices.values())[0]
-            index_code = list(indices.keys())[0]
-            historical_prices = first_index.get("historical_prices", [])
-            
-            if historical_prices and len(historical_prices) > 0:
-                # Chart.js用のデータを準備
-                chart_id = f"chart_{country_code}_{index_code.replace('-', '_')}"
-                chart_labels = [f"{i+1}日前" for i in range(len(historical_prices))][::-1]
-                chart_data = historical_prices[::-1]  # 時系列順に並び替え
-                
-                html += f"""
-                <div class="mt-4 p-4 bg-white rounded-lg border border-gray-200">
-                    <h5 class="text-sm font-semibold text-gray-700 mb-3">{index_code} 価格推移（直近{len(historical_prices)}日）</h5>
-                    <canvas id="{chart_id}" style="max-height: 200px;"></canvas>
-                    <script>
-                    (function() {{
-                        const ctx = document.getElementById('{chart_id}');
-                        if (ctx) {{
-                            new Chart(ctx, {{
-                                type: 'line',
-                                data: {{
-                                    labels: {json.dumps(chart_labels)},
-                                    datasets: [{{
-                                        label: '{index_code}',
-                                        data: {json.dumps(chart_data)},
-                                        borderColor: 'rgb(37, 99, 235)',
-                                        backgroundColor: 'rgba(37, 99, 235, 0.1)',
-                                        tension: 0.4,
-                                        fill: true
-                                    }}]
-                                }},
-                                options: {{
-                                    responsive: true,
-                                    maintainAspectRatio: true,
-                                    plugins: {{
-                                        legend: {{
-                                            display: false
-                                        }},
-                                        tooltip: {{
-                                            mode: 'index',
-                                            intersect: false
-                                        }}
-                                    }},
-                                    scales: {{
-                                        y: {{
-                                            beginAtZero: false
-                                        }}
-                                    }}
-                                }}
-                            }});
-                        }}
-                    }})();
-                    </script>
-                </div>
-"""
-        
         return html
     
-    def _get_top_risks(self, risks: List[str], concrete_risks: List[str], max_count: int = 2) -> List[str]:
-        """重要リスクを最大2つまで取得"""
-        top_risks = []
-        # LLM生成リスクを優先
-        for risk in risks[:max_count]:
-            if len(risk) <= 100:  # 短文のみ
-                top_risks.append(risk)
-        # 足りない場合は指標ベースリスクから追加
-        if len(top_risks) < max_count:
-            for risk in concrete_risks[:max_count - len(top_risks)]:
-                if len(risk) <= 100:
-                    top_risks.append(risk)
-        return top_risks
-    
     def generate_country_analysis(self, country_result: Dict, analysis_result: Dict) -> str:
-        """国別分析セクションを生成（削除：overview_cardsに統合済み）"""
-        # 市場判断（ダッシュボード型）は不要になったため、overview_cardsに統合
-        return ""
+        """国別分析セクションを生成"""
+        country_name = country_result["name"]
+        country_code = country_result["code"]
+        directions = country_result["directions"]
+        
+        html = f"""
+        <!-- {country_name} 市場判断 -->
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">{country_name} 市場判断</h2>
+"""
+        
+        for timeframe in self.config['timeframes']:
+            timeframe_code = timeframe['code']
+            timeframe_name = timeframe['name']
+            
+            direction = directions.get(timeframe_code, {})
+            score = direction.get("score", 0)
+            label = direction.get("direction_label", direction.get("label", "中立"))
+            has_risk = direction.get("has_risk", False)
+            
+            style = self._get_score_style(score)
+            stance = self._get_market_stance(score)
+            risk_badge = '<span class="ml-2 text-red-600">⚠️ リスクあり</span>' if has_risk else ''
+            
+            analysis_text = country_result.get("analysis", {}).get(timeframe_code, {})
+            
+            html += f"""
+            <div class="bg-white rounded-2xl shadow-md p-6 mb-6 card">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-semibold text-gray-900">{timeframe_name}</h3>
+                    <span class="inline-flex items-center px-4 py-2 rounded-lg {style['bg']} {style['text']} font-medium">
+                        {stance} {label}{risk_badge}
+                    </span>
+                </div>
+"""
+            
+            # LLM分析結果を表示
+            direction_data = directions.get(timeframe_code, {})
+            
+            # 前提条件を表示（必須）
+            premise = direction_data.get("premise", "")
+            if premise:
+                html += f"""
+                <div class="mb-4 p-4 bg-green-50 rounded-lg border-l-4 border-green-300">
+                    <h4 class="text-lg font-semibold text-green-800 mb-2">前提条件</h4>
+                    <p class="text-green-700 leading-relaxed">{premise}</p>
+                </div>
+"""
+            
+            if direction_data.get("summary"):
+                html += f"""
+                <div class="mb-4">
+                    <h4 class="text-lg font-semibold text-gray-800 mb-2">市場環境サマリー</h4>
+                    <p class="text-gray-700 leading-relaxed">{direction_data['summary']}</p>
+                </div>
+"""
+            
+            if direction_data.get("key_factors"):
+                html += f"""
+                <div class="mb-4">
+                    <h4 class="text-lg font-semibold text-gray-800 mb-2">主要要因</h4>
+                    <ul class="list-disc list-inside text-gray-700 space-y-1">
+"""
+                for factor in direction_data["key_factors"]:
+                    html += f"""
+                        <li>{factor}</li>
+"""
+                html += """
+                    </ul>
+                </div>
+"""
+            
+            # リスクを表示（必須）
+            risks = direction_data.get("risks", [])
+            if risks:
+                html += f"""
+                <div class="mb-4 p-4 bg-red-50 rounded-lg border-l-4 border-red-300">
+                    <h4 class="text-lg font-semibold text-red-800 mb-2">想定リスク</h4>
+                    <ul class="list-disc list-inside text-red-700 space-y-1">
+"""
+                for risk in risks:
+                    html += f"""
+                        <li>{risk}</li>
+"""
+                html += """
+                    </ul>
+                </div>
+"""
+            
+            # 転換シグナルを表示（必須）
+            turning_points = direction_data.get("turning_points", [])
+            if turning_points:
+                html += f"""
+                <div class="mb-4 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-300">
+                    <h4 class="text-lg font-semibold text-blue-800 mb-2">転換シグナル</h4>
+                    <ul class="list-disc list-inside text-blue-700 space-y-1">
+"""
+                for point in turning_points:
+                    html += f"""
+                        <li>{point}</li>
+"""
+                html += """
+                    </ul>
+                </div>
+"""
+            
+            html += f"""
+                <a href="./logs/{country_code}-{timeframe_code}.html" 
+                   class="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 font-medium">
+                    思考ログを見る →
+                </a>
+            </div>
+"""
+        
+        html += """
+        </section>
+"""
+        return html
     
     def generate_sector_analysis(self, sectors: List[Dict]) -> str:
-        """セクター分析セクションを生成（ダッシュボード型：コンパクト）"""
+        """セクター分析セクションを生成"""
         if not sectors:
             return ""
         
         html = """
-        <!-- 注目セクター（ダッシュボード型） -->
-        <section class="mb-8 fade-in">
-            <h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center">
-                <span class="mr-2">📈</span>
-                注目セクター
-            </h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- 注目セクター -->
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">注目セクター</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 """
         
         for i, sector in enumerate(sectors[:3], 1):
-            sector_id = f"sector-{i}"
-            reason = sector.get('reason', '')
-            short_reason = reason[:60] + "..." if len(reason) > 60 else reason
-            
             html += f"""
-                <div class="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
-                    <div class="p-4">
-                        <div class="flex items-center mb-2">
-                            <span class="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-600 font-bold text-sm mr-2">
-                                {i}
-                            </span>
-                            <h3 class="text-base font-semibold text-gray-900">{sector.get('name', 'セクター')}</h3>
-                        </div>
-                        <p class="text-xs text-gray-700 line-clamp-2 mb-3">{short_reason}</p>
-                        <button onclick="toggleSectorDetail('{sector_id}')" 
-                                class="text-xs text-blue-600 hover:text-blue-800 font-medium">
-                            <span id="{sector_id}-icon">▼</span> 詳細
-                        </button>
+                <div class="bg-white rounded-2xl shadow-md p-6 card">
+                    <div class="flex items-center mb-4">
+                        <span class="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-600 font-bold mr-3">
+                            {i}
+                        </span>
+                        <h3 class="text-lg font-semibold text-gray-900">{sector.get('name', 'セクター')}</h3>
                     </div>
-                    <div id="{sector_id}" class="hidden p-4 bg-gray-50 border-t border-gray-200">
 """
             
-            if sector.get('reason') and len(sector['reason']) > 60:
+            if sector.get('reason'):
                 html += f"""
-                        <p class="text-xs text-gray-700 mb-3">{sector['reason']}</p>
+                    <div class="mb-3">
+                        <p class="text-sm font-medium text-gray-600 mb-1">注目される理由</p>
+                        <p class="text-gray-700 text-sm">{sector['reason']}</p>
+                    </div>
 """
             
             if sector.get('related_fields'):
                 fields = sector['related_fields']
                 if isinstance(fields, str):
                     fields = [fields]
-                html += """
-                        <div class="mb-2">
-                            <p class="text-xs font-medium text-gray-600 mb-1">波及分野</p>
-                            <div class="flex flex-wrap gap-1">
+                html += f"""
+                    <div class="mb-3">
+                        <p class="text-sm font-medium text-gray-600 mb-1">波及する分野</p>
+                        <div class="flex flex-wrap gap-2">
 """
                 for field in fields:
                     html += f"""
-                                <span class="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs rounded">{field}</span>
+                            <span class="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded-lg">{field}</span>
 """
                 html += """
-                            </div>
                         </div>
+                    </div>
 """
             
             if sector.get('timeframe'):
                 html += f"""
-                        <p class="text-xs text-gray-600">
-                            <span class="font-medium">期間:</span> {sector['timeframe']}
-                        </p>
+                    <div>
+                        <span class="inline-flex items-center px-3 py-1 bg-gray-100 text-gray-700 text-xs rounded-lg">
+                            期間: {sector['timeframe']}
+                        </span>
+                    </div>
 """
             
             html += """
-                    </div>
                 </div>
 """
         
         html += """
             </div>
         </section>
-        
-        <script>
-        function toggleSectorDetail(id) {
-            const element = document.getElementById(id);
-            const icon = document.getElementById(id + '-icon');
-            if (element.classList.contains('hidden')) {
-                element.classList.remove('hidden');
-                icon.textContent = '▲';
-            } else {
-                element.classList.add('hidden');
-                icon.textContent = '▼';
-            }
-        }
-        </script>
 """
         return html
     
@@ -778,8 +519,8 @@ class HTMLGenerator:
                     </div>
                     
                     <!-- 詳細パネル（モーダル） -->
-                    <div id="{stock_id}" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" onclick="if(event.target === this) hideStockDetail('{stock_id}')">
-                        <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6" onclick="event.stopPropagation()">
+                    <div id="{stock_id}" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+                        <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
                             <div class="flex items-center justify-between mb-4">
                                 <h3 class="text-2xl font-bold text-gray-900">{stock.get('name', '')} ({stock.get('ticker', '')})</h3>
                                 <button onclick="hideStockDetail('{stock_id}')" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
@@ -937,8 +678,8 @@ class HTMLGenerator:
                     </div>
                     
                     <!-- 詳細パネル（モーダル） -->
-                    <div id="{stock_id}" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" onclick="if(event.target === this) hideStockDetail('{stock_id}')">
-                        <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6" onclick="event.stopPropagation()">
+                    <div id="{stock_id}" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+                        <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
                             <div class="flex items-center justify-between mb-4">
                                 <h3 class="text-2xl font-bold text-gray-900">{stock.get('name', '')} ({stock.get('ticker', '')})</h3>
                                 <button onclick="hideStockDetail('{stock_id}')" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
@@ -1048,17 +789,24 @@ class HTMLGenerator:
         return html
     
     def generate_full_page(self, analysis_result: Dict, sectors: List[Dict], recommendations: Dict) -> str:
-        """フルページを生成（ダッシュボード型）"""
+        """フルページを生成"""
         html = self._generate_header()
         
-        # レベル1：ファーストビュー（市場方向サマリー）
+        # Overview
         html += self.generate_overview_cards(analysis_result)
         
-        # レベル1：注目セクター（あれば）
+        # サマリー
+        html += self.generate_summary_section(analysis_result)
+        
+        # 国別分析
+        for country_code, country_result in analysis_result["countries"].items():
+            html += self.generate_country_analysis(country_result, analysis_result)
+        
+        # セクター分析
         if sectors:
             html += self.generate_sector_analysis(sectors)
         
-        # レベル3：銘柄情報（別セクション、必要に応じて）
+        # 銘柄推奨
         if recommendations:
             html += self.generate_stock_recommendations(recommendations)
         
@@ -1074,482 +822,13 @@ class HTMLGenerator:
         
         logger.info(f"HTMLファイルを保存しました: {filepath}")
     
-    def _generate_enhanced_quantitative_section(self, country_data: Dict, country_code: str) -> str:
-        """強化された定量的指標セクションを生成（詳細ページ用）"""
-        html = """
-            <section class="bg-white rounded-2xl shadow-md p-6 mb-6">
-                <h2 class="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-                    <span class="mr-2">📊</span>
-                    定量的指標値
-                </h2>
-                
-                <!-- CPI -->
-                <div class="mb-6">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-3">CPI（インフレ率）</h3>
-                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <table class="w-full text-sm">
-                            <thead class="bg-gray-100">
-                                <tr>
-                                    <th class="px-4 py-2 text-left">項目</th>
-                                    <th class="px-4 py-2 text-right">値</th>
-                                    <th class="px-4 py-2 text-left">備考</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-"""
-        
-        macro = country_data.get("macro", {})
-        cpi = macro.get("CPI")
-        if cpi is not None:
-            cpi_change = macro.get("CPI_change", 0)
-            cpi_trend = "適切" if 1.0 < cpi < 3.0 else ("高い" if cpi > 3.0 else "低い")
-            html += f"""
-                                <tr class="border-b">
-                                    <td class="px-4 py-2 font-medium">最新値（前年同月比）</td>
-                                    <td class="px-4 py-2 text-right font-bold text-lg">{self._format_number(cpi, 2, "%")}</td>
-                                    <td class="px-4 py-2 text-gray-600">{cpi_trend}（目標範囲: 1-3%）</td>
-                                </tr>
-"""
-            if cpi_change != 0:
-                html += f"""
-                                <tr class="border-b">
-                                    <td class="px-4 py-2 font-medium">前月比変化</td>
-                                    <td class="px-4 py-2 text-right">{self._format_number(cpi_change, 2, "%ポイント")}</td>
-                                    <td class="px-4 py-2 text-gray-600">前月からの変化</td>
-                                </tr>
-"""
-        else:
-            html += """
-                                <tr class="border-b">
-                                    <td class="px-4 py-2" colspan="3" class="text-gray-500">データ取得中</td>
-                                </tr>
-"""
-        
-        html += """
-                                <tr>
-                                    <td class="px-4 py-2 font-medium">発表頻度</td>
-                                    <td class="px-4 py-2 text-right">月次</td>
-                                    <td class="px-4 py-2 text-gray-600">通常、毎月中旬に前月分を発表</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                
-                <!-- PMI -->
-                <div class="mb-6">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-3">PMI（製造業）</h3>
-                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <table class="w-full text-sm">
-                            <thead class="bg-gray-100">
-                                <tr>
-                                    <th class="px-4 py-2 text-left">項目</th>
-                                    <th class="px-4 py-2 text-right">値</th>
-                                    <th class="px-4 py-2 text-left">備考</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-"""
-        
-        pmi = macro.get("PMI")
-        if pmi is not None:
-            pmi_trend = "拡大傾向" if pmi > 50 else "縮小傾向"
-            html += f"""
-                                <tr class="border-b">
-                                    <td class="px-4 py-2 font-medium">最新値</td>
-                                    <td class="px-4 py-2 text-right font-bold text-lg">{self._format_number(pmi, 1)}</td>
-                                    <td class="px-4 py-2 text-gray-600">{pmi_trend}（50以上で拡大）</td>
-                                </tr>
-"""
-        else:
-            html += """
-                                <tr class="border-b">
-                                    <td class="px-4 py-2" colspan="3" class="text-gray-500">データ取得中</td>
-                                </tr>
-"""
-        
-        html += """
-                                <tr>
-                                    <td class="px-4 py-2 font-medium">発表頻度</td>
-                                    <td class="px-4 py-2 text-right">月次</td>
-                                    <td class="px-4 py-2 text-gray-600">通常、毎月第1営業日に前月分を発表</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                
-                <!-- 政策金利 -->
-                <div class="mb-6">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-3">政策金利</h3>
-                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <table class="w-full text-sm">
-                            <thead class="bg-gray-100">
-                                <tr>
-                                    <th class="px-4 py-2 text-left">項目</th>
-                                    <th class="px-4 py-2 text-right">値</th>
-                                    <th class="px-4 py-2 text-left">備考</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-"""
-        
-        financial = country_data.get("financial", {})
-        policy_rate = financial.get("policy_rate")
-        if policy_rate is not None:
-            html += f"""
-                                <tr class="border-b">
-                                    <td class="px-4 py-2 font-medium">現在値</td>
-                                    <td class="px-4 py-2 text-right font-bold text-lg">{self._format_number(policy_rate, 2, "%")}</td>
-                                    <td class="px-4 py-2 text-gray-600">中央銀行政策金利</td>
-                                </tr>
-"""
-        else:
-            html += """
-                                <tr class="border-b">
-                                    <td class="px-4 py-2" colspan="3" class="text-gray-500">データ取得中</td>
-                                </tr>
-"""
-        
-        html += """
-                                <tr>
-                                    <td class="px-4 py-2 font-medium">発表頻度</td>
-                                    <td class="px-4 py-2 text-right">随時（会合ごと）</td>
-                                    <td class="px-4 py-2 text-gray-600">金融政策会合の日程により変動</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                
-                <!-- 失業率 -->
-                <div class="mb-6">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-3">失業率</h3>
-                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <table class="w-full text-sm">
-                            <thead class="bg-gray-100">
-                                <tr>
-                                    <th class="px-4 py-2 text-left">項目</th>
-                                    <th class="px-4 py-2 text-right">値</th>
-                                    <th class="px-4 py-2 text-left">備考</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-"""
-        
-        employment_rate = macro.get("employment_rate")
-        if employment_rate is not None:
-            html += f"""
-                                <tr class="border-b">
-                                    <td class="px-4 py-2 font-medium">雇用率（最新値）</td>
-                                    <td class="px-4 py-2 text-right font-bold text-lg">{self._format_number(employment_rate, 2, "%")}</td>
-                                    <td class="px-4 py-2 text-gray-600">労働人口比</td>
-                                </tr>
-"""
-        else:
-            html += """
-                                <tr class="border-b">
-                                    <td class="px-4 py-2" colspan="3" class="text-gray-500">データ取得中</td>
-                                </tr>
-"""
-        
-        html += """
-                                <tr>
-                                    <td class="px-4 py-2 font-medium">発表頻度</td>
-                                    <td class="px-4 py-2 text-right">月次</td>
-                                    <td class="px-4 py-2 text-gray-600">通常、毎月初旬に前月分を発表</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-"""
-        
-        # グラフ表示を追加
-        html += self._generate_indicator_charts(country_data, country_code)
-        
-        return html
-    
-    def _generate_indicator_charts(self, country_data: Dict, country_code: str) -> str:
-        """指標グラフを生成"""
-        html = """
-            <section class="bg-white rounded-2xl shadow-md p-6 mb-6">
-                <h2 class="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-                    <span class="mr-2">📈</span>
-                    指標グラフ
-                </h2>
-                
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-"""
-        
-        # 株価指数 vs 移動平均グラフ
-        indices = country_data.get("indices", {})
-        if indices:
-            first_index = list(indices.values())[0]
-            index_code = list(indices.keys())[0]
-            historical_prices = first_index.get("historical_prices", [])
-            ma20 = first_index.get("ma20")
-            ma200 = first_index.get("ma200")
-            
-            if historical_prices and len(historical_prices) > 0:
-                chart_id = f"chart_index_{country_code}_{index_code.replace('-', '_')}"
-                chart_labels = [f"{i+1}日前" for i in range(len(historical_prices))][::-1]
-                chart_data = historical_prices[::-1]
-                
-                # 移動平均データを準備
-                ma20_data = []
-                ma200_data = []
-                if ma20 and ma200:
-                    # 簡易的に移動平均を一定値として表示
-                    for _ in range(len(chart_data)):
-                        ma20_data.append(ma20)
-                        ma200_data.append(ma200)
-                
-                html += f"""
-                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <h3 class="text-lg font-semibold text-gray-800 mb-3">{index_code} 価格 vs 移動平均</h3>
-                        <canvas id="{chart_id}" style="max-height: 300px;"></canvas>
-                        <script>
-                        (function() {{
-                            const ctx = document.getElementById('{chart_id}');
-                            if (ctx) {{
-                                new Chart(ctx, {{
-                                    type: 'line',
-                                    data: {{
-                                        labels: {json.dumps(chart_labels)},
-                                        datasets: [
-                                            {{
-                                                label: '{index_code}',
-                                                data: {json.dumps(chart_data)},
-                                                borderColor: 'rgb(37, 99, 235)',
-                                                backgroundColor: 'rgba(37, 99, 235, 0.1)',
-                                                tension: 0.4,
-                                                fill: false
-                                            }}"""
-                
-                if ma20_data:
-                    html += f""",
-                                            {{
-                                                label: 'MA20',
-                                                data: {json.dumps(ma20_data)},
-                                                borderColor: 'rgb(234, 179, 8)',
-                                                backgroundColor: 'rgba(234, 179, 8, 0.1)',
-                                                tension: 0,
-                                                borderDash: [5, 5],
-                                                fill: false
-                                            }}"""
-                
-                if ma200_data:
-                    html += f""",
-                                            {{
-                                                label: 'MA200',
-                                                data: {json.dumps(ma200_data)},
-                                                borderColor: 'rgb(156, 163, 175)',
-                                                backgroundColor: 'rgba(156, 163, 175, 0.1)',
-                                                tension: 0,
-                                                borderDash: [5, 5],
-                                                fill: false
-                                            }}"""
-                
-                html += """
-                                        ]
-                                    },
-                                    options: {
-                                        responsive: true,
-                                        maintainAspectRatio: true,
-                                        plugins: {
-                                            legend: {
-                                                display: true,
-                                                position: 'top'
-                                            },
-                                            tooltip: {
-                                                mode: 'index',
-                                                intersect: false
-                                            }
-                                        },
-                                        scales: {
-                                            y: {
-                                                beginAtZero: false
-                                            }
-                                        }
-                                    }
-                                });
-                            }
-                        })();
-                        </script>
-                    </div>
-"""
-        
-        # CPI/PMIの簡易グラフ（データがある場合）
-        macro = country_data.get("macro", {})
-        cpi = macro.get("CPI")
-        pmi = macro.get("PMI")
-        
-        if cpi is not None or pmi is not None:
-            chart_id = f"chart_macro_{country_code}"
-            # 簡易的に現在値を6ヶ月分として表示（実際のデータでは過去値を使用）
-            chart_labels = ["6ヶ月前", "5ヶ月前", "4ヶ月前", "3ヶ月前", "2ヶ月前", "1ヶ月前", "現在"]
-            
-            html += f"""
-                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <h3 class="text-lg font-semibold text-gray-800 mb-3">マクロ指標推移（推測値）</h3>
-                        <canvas id="{chart_id}" style="max-height: 300px;"></canvas>
-                        <script>
-                        (function() {{
-                            const ctx = document.getElementById('{chart_id}');
-                            if (ctx) {{
-                                const datasets = [];"""
-            
-            if pmi is not None:
-                # PMIは50前後で推移すると仮定
-                pmi_data = [pmi - 2, pmi - 1, pmi, pmi, pmi + 0.5, pmi - 0.5, pmi]
-                html += f"""
-                                datasets.push({{
-                                    label: 'PMI',
-                                    data: {json.dumps(pmi_data)},
-                                    borderColor: 'rgb(34, 197, 94)',
-                                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                                    tension: 0.4,
-                                    fill: false,
-                                    yAxisID: 'y'
-                                }});"""
-            
-            if cpi is not None:
-                # CPIは現在値前後で推移すると仮定
-                cpi_data = [cpi - 0.5, cpi - 0.3, cpi - 0.2, cpi - 0.1, cpi + 0.1, cpi, cpi]
-                html += f"""
-                                datasets.push({{
-                                    label: 'CPI (%)',
-                                    data: {json.dumps(cpi_data)},
-                                    borderColor: 'rgb(239, 68, 68)',
-                                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                                    tension: 0.4,
-                                    fill: false,
-                                    yAxisID: 'y1'
-                                }});"""
-            
-            html += f"""
-                                new Chart(ctx, {{
-                                    type: 'line',
-                                    data: {{
-                                        labels: {json.dumps(chart_labels)},
-                                        datasets: datasets
-                                    }},
-                                    options: {{
-                                        responsive: true,
-                                        maintainAspectRatio: true,
-                                        interaction: {{
-                                            mode: 'index',
-                                            intersect: false
-                                        }},
-                                        plugins: {{
-                                            legend: {{
-                                                display: true,
-                                                position: 'top'
-                                            }},
-                                            tooltip: {{
-                                                mode: 'index',
-                                                intersect: false
-                                            }}
-                                        }},
-                                        scales: {{
-                                            y: {{
-                                                type: 'linear',
-                                                display: true,
-                                                position: 'left',
-                                                beginAtZero: false
-                                            }},
-                                            y1: {{
-                                                type: 'linear',
-                                                display: true,
-                                                position: 'right',
-                                                beginAtZero: false,
-                                                grid: {{
-                                                    drawOnChartArea: false
-                                                }}
-                                            }}
-                                        }}
-                                    }}
-                                }});
-                            }}
-                        }})();
-                        </script>
-                        <p class="text-xs text-gray-500 mt-2">※ 過去データは推測値です。実際のデータ取得が必要です。</p>
-                    </div>
-"""
-        
-        html += """
-                </div>
-            </section>
-"""
-        return html
-    
-    def _generate_trigger_conditions_section(self, country_data: Dict, country_code: str) -> str:
-        """トリガー条件（発動条件）セクションを生成"""
-        html = """
-            <section class="bg-yellow-50 rounded-2xl shadow-md p-6 mb-6 border-l-4 border-yellow-400">
-                <h2 class="text-2xl font-bold text-yellow-900 mb-6 flex items-center">
-                    <span class="mr-2">⚠️</span>
-                    発動条件（トリガー条件）
-                </h2>
-                <p class="text-sm text-yellow-800 mb-4">以下の条件が満たされた場合、市場環境の見直しが必要になる可能性があります。</p>
-                
-                <div class="space-y-4">
-                    <!-- CPIトリガー -->
-                    <div class="bg-white rounded-lg p-4 border border-yellow-200">
-                        <h3 class="font-semibold text-gray-800 mb-2">CPI（インフレ率）のトリガー</h3>
-                        <ol class="list-decimal list-inside space-y-2 text-sm text-gray-700">
-                            <li><strong>3か月連続で前年同月比 +0.4%以上</strong> → 金融政策の変更可能性が高まる</li>
-                            <li><strong>1回の発表で前年同月比 +0.5%超</strong> → 即座に警戒が必要</li>
-                            <li><strong>3か月連続で前年同月比 -0.2%以下</strong> → デフレ懸念が高まる</li>
-                        </ol>
-                        <p class="text-xs text-gray-600 mt-2">※ 過去データでは、3か月連続+0.4%超の条件で金融政策変更が2回発生しています</p>
-                    </div>
-                    
-                    <!-- PMIトリガー -->
-                    <div class="bg-white rounded-lg p-4 border border-yellow-200">
-                        <h3 class="font-semibold text-gray-800 mb-2">PMI（製造業）のトリガー</h3>
-                        <ol class="list-decimal list-inside space-y-2 text-sm text-gray-700">
-                            <li><strong>3か月連続で50未満</strong> → 景気後退シグナル（製造業の活動縮小）</li>
-                            <li><strong>1か月で5ポイント以上急落</strong> → 急激な景気悪化の可能性</li>
-                            <li><strong>6か月連続で55以上</strong> → 景気過熱の可能性</li>
-                        </ol>
-                    </div>
-                    
-                    <!-- 政策金利トリガー -->
-                    <div class="bg-white rounded-lg p-4 border border-yellow-200">
-                        <h3 class="font-semibold text-gray-800 mb-2">政策金利のトリガー</h3>
-                        <ol class="list-decimal list-inside space-y-2 text-sm text-gray-700">
-                            <li><strong>0.5%ポイント以上の引き上げ</strong> → 金融引き締めの強化</li>
-                            <li><strong>2回連続の引き上げ</strong> → 金融政策転換の可能性</li>
-                            <li><strong>0.25%ポイント以上の引き下げ</strong> → 金融緩和への転換</li>
-                        </ol>
-                    </div>
-                    
-                    <!-- 失業率トリガー -->
-                    <div class="bg-white rounded-lg p-4 border border-yellow-200">
-                        <h3 class="font-semibold text-gray-800 mb-2">失業率のトリガー</h3>
-                        <ol class="list-decimal list-inside space-y-2 text-sm text-gray-700">
-                            <li><strong>0.3ポイント以上の急増</strong> → 労働市場悪化シグナル</li>
-                            <li><strong>2か月連続で上昇</strong> → 雇用環境の悪化トレンド</li>
-                            <li><strong>0.2ポイント以上の急減</strong> → 雇用環境の大幅改善</li>
-                        </ol>
-                    </div>
-                </div>
-            </section>
-"""
-        return html
-    
     def generate_detail_page(self, country_result: Dict, timeframe_code: str, analysis_text: Dict) -> str:
-        """詳細ページを生成（強化版）"""
+        """詳細ページを生成"""
         country_name = country_result["name"]
-        country_code = country_result.get("code", "")
         timeframe_name = next(
             (tf['name'] for tf in self.config['timeframes'] if tf['code'] == timeframe_code),
             timeframe_code
         )
-        country_data = country_result.get("data", {})
         
         html = self._generate_header(f"{country_name} 市場分析 - {timeframe_name}")
         
@@ -1560,12 +839,6 @@ class HTMLGenerator:
                 </a>
             </div>
 """
-        
-        # 定量的指標セクション（最優先表示）
-        html += self._generate_enhanced_quantitative_section(country_data, country_code)
-        
-        # トリガー条件セクション
-        html += self._generate_trigger_conditions_section(country_data, country_code)
         
         # 前提条件を表示（必須）
         premise = analysis_text.get("premise", analysis_text.get("前提", ""))
@@ -1628,71 +901,23 @@ class HTMLGenerator:
             </section>
 """
         
-        # 転換ポイント（定量的に改善）
+        # 転換ポイント
         turning_points = analysis_text.get("turning_points", [])
         if not turning_points and analysis_text.get("転換シグナル"):
             turning_points = [analysis_text["転換シグナル"]]
         
-        # データに基づく定量的転換シグナルを追加
-        quantitative_signals = []
-        indices = country_data.get("indices", {})
-        if indices:
-            first_index = list(indices.values())[0]
-            ma200 = first_index.get("ma200")
-            latest_price = first_index.get("latest_price")
-            if ma200 and latest_price:
-                price_vs_ma200 = ((latest_price - ma200) / ma200) * 100
-                if latest_price > ma200:
-                    quantitative_signals.append(f"終値ベースで200日移動平均（{ma200:.2f}）を3日連続で下回った場合 → 長期トレンド転換の可能性")
-                else:
-                    quantitative_signals.append(f"終値ベースで200日移動平均（{ma200:.2f}）を3日連続で上回った場合 → 長期トレンド転換の可能性")
-        
-        if turning_points or quantitative_signals:
+        if turning_points:
             html += f"""
-            <section class="bg-blue-50 rounded-2xl shadow-md p-6 mb-6 border-l-4 border-blue-400">
-                <h2 class="text-2xl font-bold text-blue-800 mb-4 flex items-center">
-                    <span class="mr-2">🔄</span>
-                    転換シグナル（今後注目すべき指標）
-                </h2>
-                <p class="text-sm text-blue-700 mb-4">以下の条件が満たされた場合、市場環境の見直しを検討してください。</p>
-                
-                <div class="space-y-3">
+            <section class="bg-blue-50 rounded-2xl shadow-md p-6 mb-6 border-l-4 border-blue-300">
+                <h2 class="text-2xl font-bold text-blue-800 mb-4">転換ポイント</h2>
+                <ul class="list-disc list-inside text-blue-700 space-y-2">
 """
-            
-            # LLM生成の転換ポイント
-            if turning_points:
-                html += """
-                    <div class="bg-white rounded-lg p-4 border border-blue-200">
-                        <h3 class="font-semibold text-gray-800 mb-2">市場環境からの転換シグナル</h3>
-                        <ul class="list-disc list-inside text-blue-700 space-y-2">
+            for point in turning_points:
+                html += f"""
+                    <li>{point}</li>
 """
-                for point in turning_points:
-                    html += f"""
-                            <li>{point}</li>
-"""
-                html += """
-                        </ul>
-                    </div>
-"""
-            
-            # 定量的転換シグナル
-            if quantitative_signals:
-                html += """
-                    <div class="bg-white rounded-lg p-4 border border-blue-200">
-                        <h3 class="font-semibold text-gray-800 mb-2">定量的転換シグナル</h3>
-                        <ol class="list-decimal list-inside text-blue-700 space-y-2">
-"""
-                for signal in quantitative_signals:
-                    html += f"""
-                            <li>{signal}</li>
-"""
-                html += """
-                        </ol>
-                    </div>
-"""
-            
             html += """
-                </div>
+                </ul>
             </section>
 """
         
