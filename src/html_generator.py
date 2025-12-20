@@ -1181,22 +1181,33 @@ class HTMLGenerator:
         # ルールベース指標を参考情報として表示
         rule_components = analysis.get('rule_based_components', {})
         if rule_components:
+            # スコアを取得（新しい形式: {"score": float, "state": str} または 古い形式: float）
+            def get_score(component):
+                if isinstance(component, dict):
+                    return component.get('score', 0)
+                return component if isinstance(component, (int, float)) else 0
+            
+            macro_score = get_score(rule_components.get('macro', 0))
+            financial_score = get_score(rule_components.get('financial', 0))
+            technical_score = get_score(rule_components.get('technical', 0))
+            structural_score = get_score(rule_components.get('structural', 0))
+            
             html += f"""
                         <div class="bg-gray-50 p-3 rounded-lg">
                             <p class="text-xs text-gray-600 mb-1">マクロ指標スコア</p>
-                            <p class="text-lg font-bold text-gray-900">{rule_components.get('macro', 0):.2f}</p>
+                            <p class="text-lg font-bold text-gray-900">{macro_score:.2f}</p>
                         </div>
                         <div class="bg-gray-50 p-3 rounded-lg">
                             <p class="text-xs text-gray-600 mb-1">金融指標スコア</p>
-                            <p class="text-lg font-bold text-gray-900">{rule_components.get('financial', 0):.2f}</p>
+                            <p class="text-lg font-bold text-gray-900">{financial_score:.2f}</p>
                         </div>
                         <div class="bg-gray-50 p-3 rounded-lg">
                             <p class="text-xs text-gray-600 mb-1">テクニカル指標スコア</p>
-                            <p class="text-lg font-bold text-gray-900">{rule_components.get('technical', 0):.2f}</p>
+                            <p class="text-lg font-bold text-gray-900">{technical_score:.2f}</p>
                         </div>
                         <div class="bg-gray-50 p-3 rounded-lg">
                             <p class="text-xs text-gray-600 mb-1">構造的指標スコア</p>
-                            <p class="text-lg font-bold text-gray-900">{rule_components.get('structural', 0):.2f}</p>
+                            <p class="text-lg font-bold text-gray-900">{structural_score:.2f}</p>
                         </div>
 """
         
