@@ -64,7 +64,7 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <h1 class="text-2xl font-bold text-white">日本 市場分析 - 長期</h1>
-                        <p class="text-blue-100 text-xs mt-1">更新: 2025年12月20日 07:40</p>
+                        <p class="text-blue-100 text-xs mt-1">更新: 2025年12月20日 07:48</p>
                     </div>
                     <p class="text-blue-50 text-xs opacity-90 hidden md:block">市場環境の整理を目的としており、投資助言ではありません</p>
                 </div>
@@ -80,32 +80,381 @@
                 </a>
             </div>
 
+            <section class="bg-white rounded-2xl shadow-md p-6 mb-6">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+                    <span class="mr-2">📊</span>
+                    定量的指標値
+                </h2>
+                
+                <!-- CPI -->
+                <div class="mb-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-3">CPI（インフレ率）</h3>
+                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="px-4 py-2 text-left">項目</th>
+                                    <th class="px-4 py-2 text-right">値</th>
+                                    <th class="px-4 py-2 text-left">備考</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+
+                                <tr class="border-b">
+                                    <td class="px-4 py-2 font-medium">最新値（前年同月比）</td>
+                                    <td class="px-4 py-2 text-right font-bold text-lg">-1.61%</td>
+                                    <td class="px-4 py-2 text-gray-600">低い（目標範囲: 1-3%）</td>
+                                </tr>
+
+                                <tr>
+                                    <td class="px-4 py-2 font-medium">発表頻度</td>
+                                    <td class="px-4 py-2 text-right">月次</td>
+                                    <td class="px-4 py-2 text-gray-600">通常、毎月中旬に前月分を発表</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- PMI -->
+                <div class="mb-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-3">PMI（製造業）</h3>
+                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="px-4 py-2 text-left">項目</th>
+                                    <th class="px-4 py-2 text-right">値</th>
+                                    <th class="px-4 py-2 text-left">備考</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+
+                                <tr class="border-b">
+                                    <td class="px-4 py-2 font-medium">最新値</td>
+                                    <td class="px-4 py-2 text-right font-bold text-lg">52.0</td>
+                                    <td class="px-4 py-2 text-gray-600">拡大傾向（50以上で拡大）</td>
+                                </tr>
+
+                                <tr>
+                                    <td class="px-4 py-2 font-medium">発表頻度</td>
+                                    <td class="px-4 py-2 text-right">月次</td>
+                                    <td class="px-4 py-2 text-gray-600">通常、毎月第1営業日に前月分を発表</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- 政策金利 -->
+                <div class="mb-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-3">政策金利</h3>
+                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="px-4 py-2 text-left">項目</th>
+                                    <th class="px-4 py-2 text-right">値</th>
+                                    <th class="px-4 py-2 text-left">備考</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+
+                                <tr class="border-b">
+                                    <td class="px-4 py-2 font-medium">現在値</td>
+                                    <td class="px-4 py-2 text-right font-bold text-lg">6.42%</td>
+                                    <td class="px-4 py-2 text-gray-600">中央銀行政策金利</td>
+                                </tr>
+
+                                <tr>
+                                    <td class="px-4 py-2 font-medium">発表頻度</td>
+                                    <td class="px-4 py-2 text-right">随時（会合ごと）</td>
+                                    <td class="px-4 py-2 text-gray-600">金融政策会合の日程により変動</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- 失業率 -->
+                <div class="mb-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-3">失業率</h3>
+                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="px-4 py-2 text-left">項目</th>
+                                    <th class="px-4 py-2 text-right">値</th>
+                                    <th class="px-4 py-2 text-left">備考</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+
+                                <tr class="border-b">
+                                    <td class="px-4 py-2 font-medium">雇用率（最新値）</td>
+                                    <td class="px-4 py-2 text-right font-bold text-lg">68.69%</td>
+                                    <td class="px-4 py-2 text-gray-600">労働人口比</td>
+                                </tr>
+
+                                <tr>
+                                    <td class="px-4 py-2 font-medium">発表頻度</td>
+                                    <td class="px-4 py-2 text-right">月次</td>
+                                    <td class="px-4 py-2 text-gray-600">通常、毎月初旬に前月分を発表</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section class="bg-white rounded-2xl shadow-md p-6 mb-6">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+                    <span class="mr-2">📈</span>
+                    指標グラフ
+                </h2>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-3">N225 価格 vs 移動平均</h3>
+                        <canvas id="chart_index_JP_N225" style="max-height: 300px;"></canvas>
+                        <script>
+                        (function() {
+                            const ctx = document.getElementById('chart_index_JP_N225');
+                            if (ctx) {
+                                new Chart(ctx, {
+                                    type: 'line',
+                                    data: {
+                                        labels: ["30\u65e5\u524d", "29\u65e5\u524d", "28\u65e5\u524d", "27\u65e5\u524d", "26\u65e5\u524d", "25\u65e5\u524d", "24\u65e5\u524d", "23\u65e5\u524d", "22\u65e5\u524d", "21\u65e5\u524d", "20\u65e5\u524d", "19\u65e5\u524d", "18\u65e5\u524d", "17\u65e5\u524d", "16\u65e5\u524d", "15\u65e5\u524d", "14\u65e5\u524d", "13\u65e5\u524d", "12\u65e5\u524d", "11\u65e5\u524d", "10\u65e5\u524d", "9\u65e5\u524d", "8\u65e5\u524d", "7\u65e5\u524d", "6\u65e5\u524d", "5\u65e5\u524d", "4\u65e5\u524d", "3\u65e5\u524d", "2\u65e5\u524d", "1\u65e5\u524d"],
+                                        datasets: [
+                                            {
+                                                label: 'N225',
+                                                data: [49507.2109375, 49001.5, 49512.28125, 49383.2890625, 50168.109375, 50836.55078125, 50148.8203125, 50602.80078125, 50655.1015625, 50581.94140625, 50491.87109375, 51028.421875, 49864.6796875, 49303.44921875, 49303.28125, 50253.91015625, 50167.1015625, 49559.0703125, 48659.51953125, 48625.87890625, 49823.94140625, 48537.69921875, 48702.98046875, 50323.91015625, 50376.53125, 51281.828125, 51063.30859375, 50842.9296875, 50911.76171875, 50276.37109375],
+                                                borderColor: 'rgb(37, 99, 235)',
+                                                backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                                                tension: 0.4,
+                                                fill: false
+                                            },
+                                            {
+                                                label: 'MA20',
+                                                data: [49882.739453125, 49882.739453125, 49882.739453125, 49882.739453125, 49882.739453125, 49882.739453125, 49882.739453125, 49882.739453125, 49882.739453125, 49882.739453125, 49882.739453125, 49882.739453125, 49882.739453125, 49882.739453125, 49882.739453125, 49882.739453125, 49882.739453125, 49882.739453125, 49882.739453125, 49882.739453125, 49882.739453125, 49882.739453125, 49882.739453125, 49882.739453125, 49882.739453125, 49882.739453125, 49882.739453125, 49882.739453125, 49882.739453125, 49882.739453125],
+                                                borderColor: 'rgb(234, 179, 8)',
+                                                backgroundColor: 'rgba(234, 179, 8, 0.1)',
+                                                tension: 0,
+                                                borderDash: [5, 5],
+                                                fill: false
+                                            },
+                                            {
+                                                label: 'MA200',
+                                                data: [41980.26876953125, 41980.26876953125, 41980.26876953125, 41980.26876953125, 41980.26876953125, 41980.26876953125, 41980.26876953125, 41980.26876953125, 41980.26876953125, 41980.26876953125, 41980.26876953125, 41980.26876953125, 41980.26876953125, 41980.26876953125, 41980.26876953125, 41980.26876953125, 41980.26876953125, 41980.26876953125, 41980.26876953125, 41980.26876953125, 41980.26876953125, 41980.26876953125, 41980.26876953125, 41980.26876953125, 41980.26876953125, 41980.26876953125, 41980.26876953125, 41980.26876953125, 41980.26876953125, 41980.26876953125],
+                                                borderColor: 'rgb(156, 163, 175)',
+                                                backgroundColor: 'rgba(156, 163, 175, 0.1)',
+                                                tension: 0,
+                                                borderDash: [5, 5],
+                                                fill: false
+                                            }
+                                        ]
+                                    },
+                                    options: {
+                                        responsive: true,
+                                        maintainAspectRatio: true,
+                                        plugins: {
+                                            legend: {
+                                                display: true,
+                                                position: 'top'
+                                            },
+                                            tooltip: {
+                                                mode: 'index',
+                                                intersect: false
+                                            }
+                                        },
+                                        scales: {
+                                            y: {
+                                                beginAtZero: false
+                                            }
+                                        }
+                                    }
+                                });
+                            }
+                        })();
+                        </script>
+                    </div>
+
+                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-3">マクロ指標推移（推測値）</h3>
+                        <canvas id="chart_macro_JP" style="max-height: 300px;"></canvas>
+                        <script>
+                        (function() {
+                            const ctx = document.getElementById('chart_macro_JP');
+                            if (ctx) {
+                                const datasets = [];
+                                datasets.push({
+                                    label: 'PMI',
+                                    data: [50.0, 51.0, 52.0, 52.0, 52.5, 51.5, 52.0],
+                                    borderColor: 'rgb(34, 197, 94)',
+                                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                                    tension: 0.4,
+                                    fill: false,
+                                    yAxisID: 'y'
+                                });
+                                datasets.push({
+                                    label: 'CPI (%)',
+                                    data: [-2.1094309530785833, -1.9094309530785833, -1.8094309530785833, -1.7094309530785834, -1.5094309530785832, -1.6094309530785833, -1.6094309530785833],
+                                    borderColor: 'rgb(239, 68, 68)',
+                                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                    tension: 0.4,
+                                    fill: false,
+                                    yAxisID: 'y1'
+                                });
+                                new Chart(ctx, {
+                                    type: 'line',
+                                    data: {
+                                        labels: ["6\u30f6\u6708\u524d", "5\u30f6\u6708\u524d", "4\u30f6\u6708\u524d", "3\u30f6\u6708\u524d", "2\u30f6\u6708\u524d", "1\u30f6\u6708\u524d", "\u73fe\u5728"],
+                                        datasets: datasets
+                                    },
+                                    options: {
+                                        responsive: true,
+                                        maintainAspectRatio: true,
+                                        interaction: {
+                                            mode: 'index',
+                                            intersect: false
+                                        },
+                                        plugins: {
+                                            legend: {
+                                                display: true,
+                                                position: 'top'
+                                            },
+                                            tooltip: {
+                                                mode: 'index',
+                                                intersect: false
+                                            }
+                                        },
+                                        scales: {
+                                            y: {
+                                                type: 'linear',
+                                                display: true,
+                                                position: 'left',
+                                                beginAtZero: false
+                                            },
+                                            y1: {
+                                                type: 'linear',
+                                                display: true,
+                                                position: 'right',
+                                                beginAtZero: false,
+                                                grid: {
+                                                    drawOnChartArea: false
+                                                }
+                                            }
+                                        }
+                                    }
+                                });
+                            }
+                        })();
+                        </script>
+                        <p class="text-xs text-gray-500 mt-2">※ 過去データは推測値です。実際のデータ取得が必要です。</p>
+                    </div>
+
+                </div>
+            </section>
+
+            <section class="bg-yellow-50 rounded-2xl shadow-md p-6 mb-6 border-l-4 border-yellow-400">
+                <h2 class="text-2xl font-bold text-yellow-900 mb-6 flex items-center">
+                    <span class="mr-2">⚠️</span>
+                    発動条件（トリガー条件）
+                </h2>
+                <p class="text-sm text-yellow-800 mb-4">以下の条件が満たされた場合、市場環境の見直しが必要になる可能性があります。</p>
+                
+                <div class="space-y-4">
+                    <!-- CPIトリガー -->
+                    <div class="bg-white rounded-lg p-4 border border-yellow-200">
+                        <h3 class="font-semibold text-gray-800 mb-2">CPI（インフレ率）のトリガー</h3>
+                        <ol class="list-decimal list-inside space-y-2 text-sm text-gray-700">
+                            <li><strong>3か月連続で前年同月比 +0.4%以上</strong> → 金融政策の変更可能性が高まる</li>
+                            <li><strong>1回の発表で前年同月比 +0.5%超</strong> → 即座に警戒が必要</li>
+                            <li><strong>3か月連続で前年同月比 -0.2%以下</strong> → デフレ懸念が高まる</li>
+                        </ol>
+                        <p class="text-xs text-gray-600 mt-2">※ 過去データでは、3か月連続+0.4%超の条件で金融政策変更が2回発生しています</p>
+                    </div>
+                    
+                    <!-- PMIトリガー -->
+                    <div class="bg-white rounded-lg p-4 border border-yellow-200">
+                        <h3 class="font-semibold text-gray-800 mb-2">PMI（製造業）のトリガー</h3>
+                        <ol class="list-decimal list-inside space-y-2 text-sm text-gray-700">
+                            <li><strong>3か月連続で50未満</strong> → 景気後退シグナル（製造業の活動縮小）</li>
+                            <li><strong>1か月で5ポイント以上急落</strong> → 急激な景気悪化の可能性</li>
+                            <li><strong>6か月連続で55以上</strong> → 景気過熱の可能性</li>
+                        </ol>
+                    </div>
+                    
+                    <!-- 政策金利トリガー -->
+                    <div class="bg-white rounded-lg p-4 border border-yellow-200">
+                        <h3 class="font-semibold text-gray-800 mb-2">政策金利のトリガー</h3>
+                        <ol class="list-decimal list-inside space-y-2 text-sm text-gray-700">
+                            <li><strong>0.5%ポイント以上の引き上げ</strong> → 金融引き締めの強化</li>
+                            <li><strong>2回連続の引き上げ</strong> → 金融政策転換の可能性</li>
+                            <li><strong>0.25%ポイント以上の引き下げ</strong> → 金融緩和への転換</li>
+                        </ol>
+                    </div>
+                    
+                    <!-- 失業率トリガー -->
+                    <div class="bg-white rounded-lg p-4 border border-yellow-200">
+                        <h3 class="font-semibold text-gray-800 mb-2">失業率のトリガー</h3>
+                        <ol class="list-decimal list-inside space-y-2 text-sm text-gray-700">
+                            <li><strong>0.3ポイント以上の急増</strong> → 労働市場悪化シグナル</li>
+                            <li><strong>2か月連続で上昇</strong> → 雇用環境の悪化トレンド</li>
+                            <li><strong>0.2ポイント以上の急減</strong> → 雇用環境の大幅改善</li>
+                        </ol>
+                    </div>
+                </div>
+            </section>
+
             <section class="bg-green-50 rounded-2xl shadow-md p-6 mb-6 border-l-4 border-green-300">
                 <h2 class="text-2xl font-bold text-green-800 mb-4">前提条件</h2>
-                <p class="text-green-700 leading-relaxed">現在の判断は、PMIや長期金利の水準、 employment_rateが68.692%と高い水準にあることなどに基づいている。さらに、テクニカル指標では、価格が200日移動平均を上回っていることや、トレンドスコアが1と強い上昇トレンドにあることが前提となっている</p>
+                <p class="text-green-700 leading-relaxed">データに基づく判断材料を提示しています。テクニカル指標とマクロ環境の現状を反映しています。</p>
             </section>
 
             <section class="bg-white rounded-2xl shadow-md p-6 mb-6">
                 <h2 class="text-2xl font-bold text-gray-900 mb-4">市場環境サマリー</h2>
-                <p class="text-gray-700 leading-relaxed">日本の株式市場は、PMIが52.0と拡張域にあることや、長期金利が4.8%と相対的に低い水準にあることから、やや強気と考えられる。ただし、CPIが-1.609%と低下しており、デフレ圧力が残っている可能性がある</p>
+                <p class="text-gray-700 leading-relaxed">日本市場は長期でやや強気の傾向を示しています。</p>
             </section>
 
             <section class="bg-red-50 rounded-2xl shadow-md p-6 mb-6 border-l-4 border-red-300">
                 <h2 class="text-2xl font-bold text-red-800 mb-4">想定リスク</h2>
                 <ul class="list-disc list-inside text-red-700 space-y-2">
 
-                    <li>デフレ圧力が強まってCPIがさらに低下するリスク、政策金利の引き上げが予想より早く進み、長期金利が上昇するリスク</li>
+                    <li>方向性が明確でないため、外部要因に敏感に反応する可能性</li>
 
                 </ul>
             </section>
 
-            <section class="bg-blue-50 rounded-2xl shadow-md p-6 mb-6 border-l-4 border-blue-300">
-                <h2 class="text-2xl font-bold text-blue-800 mb-4">転換ポイント</h2>
-                <ul class="list-disc list-inside text-blue-700 space-y-2">
+            <section class="bg-blue-50 rounded-2xl shadow-md p-6 mb-6 border-l-4 border-blue-400">
+                <h2 class="text-2xl font-bold text-blue-800 mb-4 flex items-center">
+                    <span class="mr-2">🔄</span>
+                    転換シグナル（今後注目すべき指標）
+                </h2>
+                <p class="text-sm text-blue-700 mb-4">以下の条件が満たされた場合、市場環境の見直しを検討してください。</p>
+                
+                <div class="space-y-3">
 
-                    <li>PMIが49を下回った場合、長期金利が6%を超えた場合、終値ベースで200日移動平均を3日連続で下回った場合</li>
+                    <div class="bg-white rounded-lg p-4 border border-blue-200">
+                        <h3 class="font-semibold text-gray-800 mb-2">市場環境からの転換シグナル</h3>
+                        <ul class="list-disc list-inside text-blue-700 space-y-2">
 
-                </ul>
+                            <li>明確な方向性を示すマクロデータやテクニカルブレイク</li>
+
+                        </ul>
+                    </div>
+
+                    <div class="bg-white rounded-lg p-4 border border-blue-200">
+                        <h3 class="font-semibold text-gray-800 mb-2">定量的転換シグナル</h3>
+                        <ol class="list-decimal list-inside text-blue-700 space-y-2">
+
+                            <li>終値ベースで200日移動平均（41980.27）を3日連続で下回った場合 → 長期トレンド転換の可能性</li>
+
+                        </ol>
+                    </div>
+
+                </div>
             </section>
         </main>
         
