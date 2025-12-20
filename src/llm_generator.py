@@ -43,7 +43,7 @@ class LLMGenerator:
                 logger.error("GROQ_API_KEYが設定されていません。LLM機能は無効化されます。環境変数またはGitHub SecretsにGROQ_API_KEYを設定してください。")
                 self.enabled = False
     
-    def _call_llm(self, system_prompt: str, user_prompt: str, max_tokens: int = 2000, response_format: Optional[Dict] = None, temperature: Optional[float] = None) -> Optional[str]:
+    def _call_llm(self, system_prompt: str, user_prompt: str, max_tokens: int = 2000, response_format: Optional[Dict] = None) -> Optional[str]:
         """
         Groq LLM APIを呼び出す
         
@@ -63,9 +63,8 @@ class LLMGenerator:
             if not self.client:
                 return None
             
-            model = self.ai_config.get('model', 'llama-3.1-70b-versatile')
-            if temperature is None:
-                temperature = self.ai_config.get('temperature', 0.25)
+            model = self.ai_config.get('model', 'llama-3.3-70b-versatile')
+            temperature = self.ai_config.get('temperature', 0.25)
             
             messages = [
                 {"role": "system", "content": system_prompt},
@@ -76,7 +75,7 @@ class LLMGenerator:
                 "model": model,
                 "messages": messages,
                 "max_tokens": max_tokens,
-                "temperature": temperature if temperature is not None else 0.25
+                "temperature": temperature
             }
             
             # JSON形式を要求する場合
@@ -91,117 +90,141 @@ class LLMGenerator:
             logger.error(f"Groq API呼び出しエラー: {e}")
             return None
     
-    def generate_market_direction(
-        self,
-        country_code: str,
-        country_name: str,
-        timeframe_code: str,
-        timeframe_name: str,
-        states: Dict[str, str],
-        market_view: str,
-        market_score: int,
-        reasoning: List[str],
-        key_states: List[str]
-    ) -> Dict:
+    def generate_market_direction(self, rule_based_result: Dict, country_data: Dict, timeframe_code: str, timeframe_name: str) -> Dict:
         """
-        市場方向感をGroq LLMで要約・言語化（判断はルールベースで確定済み）
+        市場方向感の説明文をGroq LLMで生成（スコアは受け取るのみ、生成しない）
         
         Args:
-            country_code: 国コード
-            country_name: 国名
+            rule_based_result: MarketAnalyzerが算出した結果（score, label, components, states, dominant_factorsを含む）
+            country_data: 国別データ（参考情報として使用、主入力ではない）
             timeframe_code: 期間コード（short/medium/long）
             timeframe_name: 期間名（短期/中期/長期）
-            states: 状態の辞書
-            market_view: 市場判断（strong_bullish/bullish/neutral/bearish/strong_bearish）
-            market_score: 市場スコア（-2〜2）
-            reasoning: 判断理由
-            key_states: 主要状態リスト
         
         Returns:
-            市場方向感の辞書（summary, premise, risks, turning_points）
+            説明文の辞書（summary, premise, key_factors, risks, turning_points）
+            注意：scoreとdirection_labelはrule_based_resultからそのまま使用
         """
         if not self.enabled:
-            # LLM無効時はフォールバック
-            return self._generate_fallback_summary(
-                country_name, timeframe_name, market_view, market_score
-            )
+            # LLM無効時はフォールバックを使用
+            return self._generate_fallback_direction(rule_based_result, country_data, timeframe_code, timeframe_name)
+        
+        # MarketAnalyzerが決定したスコアとラベルを取得（変更不可）
+        final_score = rule_based_result.get("score", 0)
+        direction_label = rule_based_result.get("label", "→ 中立")
+        states = rule_based_result.get("states", [])
+        dominant_factors = rule_based_result.get("dominant_factors", [])
+        components = rule_based_result.get("components", {})
         
         # システムプロンプト（固定）
-        system_prompt = """あなたは株式市場分析の文章生成AIです。
-ルールベースで確定した市場判断を、投資家向けに要約・言語化する役割のみを担います。
+        system_prompt = """あなたは株式市場分析の説明文を生成するAIアシスタントです。
+このシステムは投資判断や売買助言を目的としません。
+
+【重要な制約】
+・スコア（-2〜+2）と方向ラベルは既に決定済みです。これらを変更・再評価してはいけません。
+・あなたの役割は「なぜこのスコアになったか」を説明することのみです。
+・数値予測・時期予測を断定することは禁止です。
 
 【絶対条件】
-・市場判断は既にルールベースで確定済み（変更しない）
-・投資判断や売買助言は行わない
-・断定表現は禁止
-・2文構成で、各文40〜50文字以内
-・投資助言をしない
-
-【出力フォーマット】
----
-【観測されている事実・傾向】
-そのため、【市場への影響・投資家心理】
----
+・投資判断はユーザーの自己責任
+・過去の実績は将来を保証しない
+・売買を断定する表現は禁止
+・常に「前提・リスク・転換シグナル」を明示する
+・結論を出さず、判断材料のみを提示する
 
 【禁止表現】
 「買い」「売り」「今がチャンス」「必ず上がる」「儲かる」「推奨」「おすすめ」「目標株価」「期待リターン」「利益率」
+「X月に」「Y日までに」「来週」「来月」などの時期を特定する表現
 
 【許可表現】
-「〜の傾向が見られます」
-「〜という状況です」
-「〜の可能性があります」"""
+「〜の傾向が見られる」
+「〜という前提が成り立っている」
+「条件が崩れた場合は注意が必要」
+「参考情報として〜」
+
+以下の制約を必ず守ってください：
+- 売買・推奨・目標価格の提示は禁止
+- 断定表現は禁止（「〜と考えられる」「〜の可能性がある」を使用）
+- 与えられた状態情報のみを基に説明する
+- 出力は必ずJSONのみ
+- summaryは2文・短文（各40-50文字以内）
+- turning_pointsは「条件」のみを記述（日付・時期・イベント名は書かない）"""
         
-        # ユーザープロンプト生成（状態と判断のみを渡す）
-        view_label_map = {
-            "strong_bullish": "超強気",
-            "bullish": "やや強気",
-            "neutral": "中立",
-            "bearish": "やや弱気",
-            "strong_bearish": "弱気"
+        # ユーザープロンプト生成（状態情報のみを渡す）
+        country_name = country_data.get("name", "")
+        
+        # 期間に応じた考慮事項
+        timeframe_notes = {
+            "short": "短期：需給・金融イベント・テクニカル",
+            "medium": "中期：景気・金融政策・業績環境",
+            "long": "長期：人口動態・産業構造・地政学・制度"
         }
-        view_label = view_label_map.get(market_view, "中立")
+        timeframe_note = timeframe_notes.get(timeframe_code, "")
         
-        user_prompt = f"""以下の情報を基に、市場環境を2文で要約してください。
+        # 状態情報を日本語で説明可能な形式に変換
+        state_descriptions = []
+        for state in states:
+            # 状態コードを日本語に変換（簡易版）
+            state_desc = state.replace("_", " ").title()
+            state_descriptions.append(f"- {state_desc}")
+        
+        # 主要要因を日本語に変換
+        factor_map = {
+            "macro": "マクロ",
+            "financial": "金融",
+            "technical": "テクニカル",
+            "structural": "構造的"
+        }
+        dominant_factors_jp = [factor_map.get(f, f) for f in dominant_factors]
+        
+        user_prompt = f"""以下の情報は、Python側のルールベース分析により既に決定されています。
 
-【国・期間】
-国: {country_name}
-期間: {timeframe_name}
+【決定済み情報（変更不可）】
+- 国: {country_name}
+- 期間: {timeframe_name} ({timeframe_note})
+- 最終スコア: {final_score} ({direction_label})
+- 主要要因: {", ".join(dominant_factors_jp) if dominant_factors_jp else "なし"}
 
-【確定済み市場判断】
-判断: {view_label}（スコア: {market_score}）
-判断理由: {', '.join(reasoning[:3])}
+【各指標の状態】
+{chr(10).join(state_descriptions) if state_descriptions else "- 状態情報なし"}
 
-【主要状態】
-{chr(10).join(key_states[:5])}
+【各指標のスコア内訳】
+{json.dumps(components, ensure_ascii=False, indent=2)}
 
-【出力要件】
-- 2文構成
-- 各文40〜50文字以内
-- 断定しない
-- 投資助言をしない
-- 観測事実と市場への影響を簡潔に記述
+上記の決定済みスコアと状態を前提として、以下の説明文を生成してください。
 
 出力は以下のJSON形式で返してください：
+
 {{
-  "summary": "【観測されている事実・傾向】そのため、【市場への影響・投資家心理】",
-  "premise": "この見方が成り立つ前提条件（1文、40〜50文字）",
+  "summary": "市場環境を2文で要約（1文目：観測されている状態、2文目：「そのため、」で始め市場心理を表現。各40-50文字以内。断定表現禁止）",
+  "premise": "現在の判断の前提条件（なぜこのスコアになったか、再現可能な条件）",
+  "key_factors": [
+    "判断に最も影響した要因1",
+    "判断に最も影響した要因2",
+    "判断に最も影響した要因3"
+  ],
   "risks": [
-    "想定されるリスク1（1文、40〜50文字）",
-    "想定されるリスク2（1文、40〜50文字）"
+    "想定される最大リスク1（必ず記載）",
+    "想定される最大リスク2"
   ],
   "turning_points": [
-    "転換シグナル1（1文、40〜50文字）",
-    "転換シグナル2（1文、40〜50文字）"
+    "方向感が変わる可能性のある条件のみを記述（日付・時期・イベント名は書かない。例：「CPI前年比が再加速した場合」「政策金利が再び引き上げ方向に転じた場合」「200日移動平均を明確に下回った状態が継続した場合」）"
   ]
-}}"""
+}}
+
+重要：
+- summaryは必ず2文（1文目：状態、2文目：「そのため、」で始める）
+- summaryの各文は40-50文字以内
+- premise、risks、turning_pointsは必ず含めてください
+- turning_pointsは「条件」のみ（日付・時期・イベント名は禁止）
+- 断定表現は使用せず、「〜と考えられる」「〜の可能性がある」を使用してください
+- スコアや方向ラベルを変更・再評価してはいけません"""
         
         # Groq API呼び出し（JSON形式を要求）
         result_text = self._call_llm(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
-            max_tokens=500,  # 短縮
-            response_format={"type": "json_object"},
-            temperature=0.2  # 低めに設定
+            max_tokens=2000,
+            response_format={"type": "json_object"}
         )
         
         if result_text:
@@ -209,78 +232,29 @@ class LLMGenerator:
                 # JSONをパース
                 result = json.loads(result_text)
                 
+                # スコアとラベルはrule_based_resultからそのまま使用（変更不可）
+                result["score"] = final_score
+                result["direction_label"] = direction_label
+                
                 # 必須フィールドの検証とデフォルト値設定
                 if "summary" not in result or not result["summary"]:
-                    result["summary"] = self._generate_default_summary(
-                        country_name, timeframe_name, market_view
-                    )
-                
+                    result["summary"] = f"{country_name}市場は{timeframe_name}で{direction_label}の状況です。"
                 if "premise" not in result or not result["premise"]:
-                    result["premise"] = "現在の市場環境が継続することを前提としています。"
-                
+                    result["premise"] = "データに基づく判断材料を提示しています。"
+                if "key_factors" not in result or not result["key_factors"]:
+                    result["key_factors"] = dominant_factors_jp if dominant_factors_jp else ["データに基づく判断"]
                 if "risks" not in result or not result["risks"]:
                     result["risks"] = ["市場環境の変化により、前提条件が崩れる可能性があります。"]
-                
                 if "turning_points" not in result or not result["turning_points"]:
-                    result["turning_points"] = ["主要な状態指標が変化した場合、方向性が転換する可能性があります。"]
-                
-                # 文字数チェック（簡易）
-                if len(result["summary"]) > 100:
-                    logger.warning(f"サマリーが長すぎます: {len(result['summary'])}文字")
+                    result["turning_points"] = ["マクロ環境やテクニカル指標の変化により、方向性が転換する可能性があります。"]
                 
                 return result
                 
             except json.JSONDecodeError as e:
                 logger.error(f"JSONパースエラー: {e}, レスポンス: {result_text[:200]}")
-                return self._generate_fallback_summary(
-                    country_name, timeframe_name, market_view, market_score
-                )
+                return self._generate_fallback_direction(rule_based_result, country_data, timeframe_code, timeframe_name)
         else:
-            return self._generate_fallback_summary(
-                country_name, timeframe_name, market_view, market_score
-            )
-    
-    def _generate_default_summary(
-        self,
-        country_name: str,
-        timeframe_name: str,
-        market_view: str
-    ) -> str:
-        """デフォルトサマリーを生成"""
-        view_label_map = {
-            "strong_bullish": "超強気",
-            "bullish": "やや強気",
-            "neutral": "中立",
-            "bearish": "やや弱気",
-            "strong_bearish": "弱気"
-        }
-        view_label = view_label_map.get(market_view, "中立")
-        
-        return f"{country_name}市場は{timeframe_name}で{view_label}の傾向が見られます。そのため、市場は現在の環境を維持しやすい状況です。"
-    
-    def _generate_fallback_summary(
-        self,
-        country_name: str,
-        timeframe_name: str,
-        market_view: str,
-        market_score: int
-    ) -> Dict:
-        """フォールバックサマリーを生成"""
-        view_label_map = {
-            "strong_bullish": "超強気",
-            "bullish": "やや強気",
-            "neutral": "中立",
-            "bearish": "やや弱気",
-            "strong_bearish": "弱気"
-        }
-        view_label = view_label_map.get(market_view, "中立")
-        
-        return {
-            "summary": f"{country_name}市場は{timeframe_name}で{view_label}の傾向が見られます。そのため、市場は現在の環境を維持しやすい状況です。",
-            "premise": "現在の市場環境が継続することを前提としています。",
-            "risks": ["市場環境の変化により、前提条件が崩れる可能性があります。"],
-            "turning_points": ["主要な状態指標が変化した場合、方向性が転換する可能性があります。"]
-        }
+            return self._generate_fallback_direction(rule_based_result, country_data, timeframe_code, timeframe_name)
     
     def _parse_analysis_result(self, text: str) -> Dict:
         """
@@ -331,45 +305,79 @@ class LLMGenerator:
         
         return sections
     
-    def _generate_fallback_direction_old(self, country_data: Dict, timeframe_code: str, timeframe_name: str) -> Dict:
+    def _generate_fallback_direction(self, rule_based_result: Dict, country_data: Dict, timeframe_code: str, timeframe_name: str) -> Dict:
         """
-        フォールバック方向感分析（LLM無効時またはエラー時）
-        ルールベースで簡易評価
+        フォールバック方向感説明文生成（LLM無効時またはエラー時）
+        ルールベース結果を前提として簡易的な説明文を生成
         
         Args:
+            rule_based_result: MarketAnalyzerが算出した結果（score, label, components, states, dominant_factorsを含む）
             country_data: 国別データ
             timeframe_code: 期間コード
             timeframe_name: 期間名
         
         Returns:
-            市場方向感の辞書
+            説明文の辞書（score, direction_label, summary, premise, key_factors, risks, turning_points）
         """
-        # 簡易的なルールベース評価
-        score = 0
-        summary = f"{country_data.get('name', '')}市場は{timeframe_name}で中立の状況です。"
-        key_factors = []
+        # MarketAnalyzerが決定したスコアとラベルを取得（変更不可）
+        final_score = rule_based_result.get("score", 0)
+        direction_label = rule_based_result.get("label", "→ 中立")
+        states = rule_based_result.get("states", [])
+        dominant_factors = rule_based_result.get("dominant_factors", [])
+        components = rule_based_result.get("components", {})
+        
+        country_name = country_data.get("name", "")
+        
+        # 簡易的な説明文生成
+        # summaryは2文形式
+        if final_score >= 1:
+            summary = f"{country_name}市場は{timeframe_name}で強気の傾向が見られます。\nそのため、上昇トレンドが継続しやすい状況です。"
+        elif final_score <= -1:
+            summary = f"{country_name}市場は{timeframe_name}で弱気の傾向が見られます。\nそのため、慎重な姿勢が続きやすい状況です。"
+        else:
+            summary = f"{country_name}市場は{timeframe_name}で中立の状況です。\nそのため、方向性が明確になるまで様子見の姿勢が続きやすい状況です。"
+        
+        # key_factorsはdominant_factorsから生成
+        factor_map = {
+            "macro": "マクロ環境",
+            "financial": "金融環境",
+            "technical": "テクニカル指標",
+            "structural": "構造的要因"
+        }
+        key_factors = [factor_map.get(f, f) for f in dominant_factors] if dominant_factors else ["データに基づく判断"]
+        
+        # premiseはcomponentsから生成
+        premise_parts = []
+        for factor, data in components.items():
+            if isinstance(data, dict):
+                factor_score = data.get("score", 0)
+                factor_state = data.get("state", "")
+                if factor_score != 0:
+                    factor_name = factor_map.get(factor, factor)
+                    if factor_score > 0:
+                        premise_parts.append(f"{factor_name}が良好")
+                    else:
+                        premise_parts.append(f"{factor_name}が弱い")
+        
+        premise = "、".join(premise_parts) if premise_parts else "データに基づく判断材料を提示しています。"
+        
+        # risksとturning_pointsは簡易生成
         risks = []
         turning_points = []
         
-        # インデックスデータから簡易評価
-        indices = country_data.get("indices", {})
-        if indices:
-            first_index = list(indices.values())[0]
-            price_vs_ma = first_index.get("price_vs_ma200", 0)
-            volatility = first_index.get("volatility", 0)
-            
-            if price_vs_ma > 5:
-                score = 1
-                summary = f"{country_data.get('name', '')}市場は{timeframe_name}でやや強気の傾向を示しています。"
-                key_factors.append("価格がMA200を大きく上回っている")
-            elif price_vs_ma < -5:
-                score = -1
-                summary = f"{country_data.get('name', '')}市場は{timeframe_name}でやや弱気の傾向を示しています。"
-                key_factors.append("価格がMA200を大きく下回っている")
-            
-            if volatility > 30:
-                risks.append("高ボラティリティによる急激な変動の可能性")
-                turning_points.append("ボラティリティが低下し、方向性が明確になった場合")
+        if final_score >= 1:
+            risks.append("上昇トレンドが継続する前提で、急激な調整や外部ショックに注意が必要です。")
+            turning_points.append("価格が200日移動平均を大きく下回った状態が継続した場合")
+        elif final_score <= -1:
+            risks.append("下方リスクが高く、さらなる調整の可能性があります。")
+            turning_points.append("価格が200日移動平均を上回り、出来高とともに上昇した場合")
+        else:
+            risks.append("方向性が明確でないため、外部要因に敏感に反応する可能性があります。")
+            turning_points.append("明確な方向性を示すマクロデータやテクニカルブレイクが発生した場合")
+        
+        # イベントリスクがある場合
+        if rule_based_result.get("has_risk", False):
+            risks.append("集中リスクやイベントリスクが検知されています。")
         
         label_map = {
             2: "超強気",
@@ -379,14 +387,20 @@ class LLMGenerator:
             -2: "超弱気"
         }
         
+        # direction_labelを正規化
+        if direction_label.startswith("→"):
+            direction_label = direction_label.replace("→", "").strip()
+        if direction_label not in ["超強気", "やや強気", "中立", "やや弱気", "超弱気"]:
+            direction_label = label_map.get(final_score, "中立")
+        
         return {
-            "score": score,
-            "direction_label": label_map.get(score, "中立"),
+            "score": final_score,
+            "direction_label": direction_label,
             "summary": summary,
-            "premise": "データに基づく判断材料を提示しています。テクニカル指標とマクロ環境の現状を反映しています。",
-            "key_factors": key_factors if key_factors else ["データが不足しているため、中立と判断"],
-            "risks": risks if risks else ["方向性が明確でないため、外部要因に敏感に反応する可能性"],
-            "turning_points": turning_points if turning_points else ["明確な方向性を示すマクロデータやテクニカルブレイク"]
+            "premise": premise,
+            "key_factors": key_factors,
+            "risks": risks,
+            "turning_points": turning_points
         }
     
     def generate_market_analysis(self, country_data: Dict, direction_data: Dict, timeframe_name: str) -> Dict:
@@ -395,18 +409,28 @@ class LLMGenerator:
         
         Args:
             country_data: 国別データ
-            direction_data: 方向感データ
+            direction_data: 方向感データ（rule_based_result形式を想定）
             timeframe_name: 期間名
         
         Returns:
             分析結果の辞書（結論、前提、リスク、転換シグナル）
         """
-        # 新しい形式から旧形式に変換
+        # 新しい形式に変換
+        timeframe_code = "medium"  # デフォルト
+        for tf in self.config.get('timeframes', []):
+            if tf.get('name') == timeframe_name:
+                timeframe_code = tf.get('code', 'medium')
+                break
+        
+        # direction_dataがrule_based_result形式であることを前提とする
+        llm_result = self.generate_market_direction(direction_data, country_data, timeframe_code, timeframe_name)
+        
+        # 旧形式に変換
         return {
-            "結論": direction_data.get("summary", ""),
-            "前提": direction_data.get("premise", ""),
-            "最大リスク": "、".join(direction_data.get("risks", [])),
-            "転換シグナル": "、".join(direction_data.get("turning_points", []))
+            "結論": llm_result.get("summary", ""),
+            "前提": llm_result.get("premise", "") or "、".join(llm_result.get("key_factors", [])),
+            "最大リスク": "、".join(llm_result.get("risks", [])),
+            "転換シグナル": "、".join(llm_result.get("turning_points", []))
         }
         """
         フォールバック分析（LLM無効時）

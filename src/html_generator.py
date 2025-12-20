@@ -119,27 +119,8 @@ class HTMLGenerator:
 </body>
 </html>"""
     
-    def _get_arrow_style(self, score: int) -> Dict[str, str]:
-        """スコアから矢印スタイルを取得"""
-        # 矢印の角度: -2(-90度) 〜 0(0度) 〜 +2(+90度)
-        angle = score * 45  # -90度 〜 +90度
-        
-        # 色
-        if score >= 1:
-            color = "#10b981"  # green
-        elif score <= -1:
-            color = "#ef4444"  # red
-        else:
-            color = "#6b7280"  # gray
-        
-        return {
-            "angle": angle,
-            "color": color,
-            "transform": f"rotate({angle}deg)"
-        }
-    
     def generate_overview_cards(self, analysis_result: Dict) -> str:
-        """Overviewカードを生成（矢印UI付き）"""
+        """Overviewカードを生成"""
         countries = self.config['countries']
         timeframes = self.config['timeframes']
         overview = analysis_result.get("overview", {})
@@ -159,7 +140,7 @@ class HTMLGenerator:
             html += f"""
                 <div class="bg-white rounded-2xl shadow-md p-6 card">
                     <h3 class="text-xl font-semibold text-gray-900 mb-4">{country_name}</h3>
-                    <div class="space-y-4">
+                    <div class="space-y-3">
 """
             
             for timeframe in timeframes:
@@ -170,37 +151,19 @@ class HTMLGenerator:
                 score = direction.get("score", 0)
                 has_risk = direction.get("has_risk", False)
                 label = self.score_labels.get(str(score), "→ 中立")
-                view = direction.get("view", "neutral")
                 
                 style = self._get_score_style(score)
-                arrow_style = self._get_arrow_style(score)
+                stance = self._get_market_stance(score)
                 risk_icon = "⚠️" if has_risk else ""
                 
                 html += f"""
-                        <div class="border-l-4 {style['border']} pl-3 py-3">
-                            <div class="flex items-center justify-between mb-2">
+                        <div class="border-l-4 {style['border']} pl-3 py-2">
+                            <div class="flex items-center justify-between">
                                 <span class="text-sm font-medium text-gray-600">{timeframe_name}</span>
                                 <a href="./details/{country_code}-{timeframe_code}.html" 
                                    class="inline-flex items-center px-3 py-1 rounded-lg {style['bg']} {style['text']} text-sm font-medium hover:opacity-80 transition">
-                                    {label} {risk_icon}
+                                    {stance} {label} {risk_icon}
                                 </a>
-                            </div>
-                            <!-- 矢印UI -->
-                            <div class="flex items-center justify-center mt-2">
-                                <svg width="60" height="60" viewBox="0 0 60 60" class="arrow-indicator">
-                                    <defs>
-                                        <marker id="arrowhead-{country_code}-{timeframe_code}" markerWidth="10" markerHeight="10" 
-                                                refX="9" refY="3" orient="auto">
-                                            <polygon points="0 0, 10 3, 0 6" fill="{arrow_style['color']}" />
-                                        </marker>
-                                    </defs>
-                                    <line x1="30" y1="30" x2="30" y2="10" 
-                                          stroke="{arrow_style['color']}" 
-                                          stroke-width="3" 
-                                          marker-end="url(#arrowhead-{country_code}-{timeframe_code})"
-                                          transform="rotate({arrow_style['angle']} 30 30)"
-                                          transform-origin="30 30" />
-                                </svg>
                             </div>
                         </div>
 """

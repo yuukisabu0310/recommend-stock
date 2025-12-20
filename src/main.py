@@ -17,9 +17,6 @@ from data_fetcher import DataFetcher
 from market_analyzer import MarketAnalyzer
 from llm_generator import LLMGenerator
 from html_generator import HTMLGenerator
-from state_mapper import StateMapper
-from market_judgment import MarketJudgment
-from sector_recommender import SectorRecommender
 
 # ロギング設定
 Path("logs").mkdir(parents=True, exist_ok=True)
@@ -55,22 +52,24 @@ def main():
         with open(output_dir / "market_data.json", 'w', encoding='utf-8') as f:
             json.dump(market_data, f, ensure_ascii=False, indent=2)
         
-        # 2. 状態マッピング（生データ → 状態）
-        logger.info("ステップ2: 状態マッピング（生データ → 状態）")
-        state_mapper = StateMapper()
-        market_judgment = MarketJudgment()
-        sector_recommender = SectorRecommender()
+        # 2. 市場分析（ルールベース：判断の主導権）
+        logger.info("ステップ2: 市場分析（ルールベース）")
         analyzer = MarketAnalyzer()
+        rule_based_result = analyzer.analyze_all_markets(market_data)
+        logger.info("ルールベース分析完了")
+        
+        # 3. LLM生成（Groq API：説明文生成のみ）
+        logger.info("ステップ3: LLM説明文生成（Groq）")
         llm = LLMGenerator()
         
         # 分析結果の構造を初期化
         analysis_result = {
             "overview": {},
             "countries": {},
-            "timestamp": datetime.now().isoformat()
+            "timestamp": rule_based_result["timestamp"]
         }
         
-        # 各国×期間ごとに分析
+        # 各国×期間ごとにLLMで説明文を生成
         for country_code, country_data in market_data["countries"].items():
             country_result = {
                 "name": country_data["name"],
@@ -80,104 +79,64 @@ def main():
                 "analysis": {}
             }
             
-            # 状態をマッピング
-            states = state_mapper.map_all_states(country_data)
-            logger.info(f"状態マッピング完了: {country_code} - {states}")
-            
             for timeframe in analyzer.config['timeframes']:
                 timeframe_code = timeframe['code']
                 timeframe_name = timeframe['name']
                 
-                logger.info(f"市場判断中: {country_code} - {timeframe_code}")
+                logger.info(f"説明文生成中: {country_code} - {timeframe_code}")
                 
-                # ルールベースで市場判断を決定
-                judgment = market_judgment.judge_market_view(states, timeframe_code)
-                market_view = judgment["view"]
-                market_score = judgment["score"]
-                reasoning = judgment["reasoning"]
-                key_states = judgment["key_states"]
+                # ルールベース結果を取得（判断の主導権はここ）
+                rule_based_direction = rule_based_result["countries"].get(country_code, {}).get("directions", {}).get(timeframe_code, {})
                 
-                logger.info(f"市場判断確定: {country_code} - {timeframe_code} (判断: {market_view}, スコア: {market_score})")
-                
-                # LLMで要約・言語化（判断は確定済み）
-                llm_result = llm.generate_market_direction(
-                    country_code=country_code,
-                    country_name=country_data["name"],
-                    timeframe_code=timeframe_code,
-                    timeframe_name=timeframe_name,
-                    states=states,
-                    market_view=market_view,
-                    market_score=market_score,
-                    reasoning=reasoning,
-                    key_states=key_states
+                # LLMで説明文を生成（スコアは受け取るのみ、生成しない）
+                llm_direction = llm.generate_market_direction(
+                    rule_based_direction,  # MarketAnalyzerが決定した結果を渡す
+                    country_data,
+                    timeframe_code,
+                    timeframe_name
                 )
                 
-                # 判断結果を統合
-                view_label_map = {
-                    "strong_bullish": "超強気",
-                    "bullish": "やや強気",
-                    "neutral": "中立",
-                    "bearish": "やや弱気",
-                    "strong_bearish": "弱気"
-                }
-                direction_label = view_label_map.get(market_view, "中立")
-                
+                # 結果を統合（スコアとラベルはrule_based_directionから、説明文はllm_directionから）
                 direction_result = {
-                    "score": market_score,
-                    "direction_label": direction_label,
-                    "view": market_view,
-                    "summary": llm_result.get("summary", ""),
-                    "premise": llm_result.get("premise", ""),
-                    "risks": llm_result.get("risks", []),
-                    "turning_points": llm_result.get("turning_points", []),
-                    "reasoning": reasoning,
-                    "key_states": key_states,
+                    "score": rule_based_direction.get("score", 0),  # ルールベースのスコアを使用
+                    "direction_label": rule_based_direction.get("label", "→ 中立").replace("→", "").strip(),  # ルールベースのラベルを使用
+                    "summary": llm_direction.get("summary", ""),  # LLM生成の説明文
+                    "premise": llm_direction.get("premise", ""),  # LLM生成の前提条件
+                    "key_factors": llm_direction.get("key_factors", []),  # LLM生成の主要要因
+                    "risks": llm_direction.get("risks", []),  # LLM生成のリスク
+                    "turning_points": llm_direction.get("turning_points", []),  # LLM生成の転換シグナル
                     # 後方互換性のため
-                    "label": direction_label,
-                    "has_risk": len(llm_result.get("risks", [])) > 0,
-                    "key_factors": reasoning  # 判断理由をkey_factorsとして使用
+                    "label": rule_based_direction.get("label", "→ 中立").replace("→", "").strip(),
+                    "has_risk": rule_based_direction.get("has_risk", False),  # ルールベースのリスク判定
+                    # ルールベース結果も保持（思考ログ用）
+                    "rule_based_components": rule_based_direction.get("components", {})
                 }
                 
                 country_result["directions"][timeframe_code] = direction_result
                 
                 # 分析文章（後方互換性のため）
                 country_result["analysis"][timeframe_code] = {
-                    "結論": llm_result.get("summary", ""),
-                    "前提": llm_result.get("premise", ""),
-                    "最大リスク": "、".join(llm_result.get("risks", [])),
-                    "転換シグナル": "、".join(llm_result.get("turning_points", []))
+                    "結論": llm_direction.get("summary", ""),
+                    "前提": llm_direction.get("premise", "") or "、".join(llm_direction.get("key_factors", [])),
+                    "最大リスク": "、".join(llm_direction.get("risks", [])),
+                    "転換シグナル": "、".join(llm_direction.get("turning_points", []))
                 }
                 
                 # Overview用にスコアを記録
                 if country_code not in analysis_result["overview"]:
                     analysis_result["overview"][country_code] = {}
                 analysis_result["overview"][country_code][timeframe_code] = {
-                    "score": market_score,
-                    "has_risk": direction_result["has_risk"],
-                    "view": market_view
+                    "score": direction_result["score"],
+                    "has_risk": direction_result["has_risk"]
                 }
                 
-                logger.info(f"分析完了: {country_code} - {timeframe_code} (スコア: {market_score})")
+                logger.info(f"説明文生成完了: {country_code} - {timeframe_code} (スコア: {direction_result['score']})")
             
             analysis_result["countries"][country_code] = country_result
         
-        # セクター分析生成（テーマベース）
-        logger.info("セクター分析生成（テーマベース）")
-        sectors = []
-        for country_code, country_data in market_data["countries"].items():
-            states = state_mapper.map_all_states(country_data)
-            for timeframe in analyzer.config['timeframes']:
-                timeframe_code = timeframe['code']
-                country_sectors = sector_recommender.recommend_sectors(states, timeframe_code)
-                sectors.extend(country_sectors)
-        
-        # 重複を除去
-        unique_sectors = {}
-        for sector in sectors:
-            name = sector["name"]
-            if name not in unique_sectors:
-                unique_sectors[name] = sector
-        sectors = list(unique_sectors.values())[:3]  # 上位3つ
+        # セクター分析生成
+        logger.info("セクター分析生成")
+        sectors = llm.generate_sector_analysis(market_data)
         logger.info(f"セクター分析完了: {len(sectors)}件")
         
         # 4. 銘柄推奨生成
