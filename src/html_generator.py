@@ -188,7 +188,11 @@ class HTMLGenerator:
 </html>"""
     
     def generate_overview_cards(self, analysis_result: Dict) -> str:
-        """Overviewカードを生成"""
+        """
+        Overviewカードを生成（クリック可能、logsページへリンク）
+        
+        市場判断の文章は表示せず、方向感のみを表示
+        """
         countries = self.config['countries']
         timeframes = self.config['timeframes']
         overview = analysis_result.get("overview", {})
@@ -196,8 +200,7 @@ class HTMLGenerator:
         html = """
         <!-- Market Direction Overview -->
         <section class="mb-12">
-            <h2 class="text-2xl font-bold text-gray-900 mb-6">Market Direction Overview</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 """
         
         for country_config in countries:
@@ -206,9 +209,10 @@ class HTMLGenerator:
             directions = overview.get(country_code, {})
             
             html += f"""
-                <div class="bg-white rounded-2xl shadow-md p-6 card">
-                    <h3 class="text-xl font-semibold text-gray-900 mb-4">{country_name}</h3>
-                    <div class="space-y-3">
+                <div class="bg-white rounded-2xl shadow-md overflow-hidden card">
+                    <div class="p-6">
+                        <h3 class="text-xl font-semibold text-gray-900 mb-4">{country_name}</h3>
+                        <div class="space-y-3">
 """
             
             for timeframe in timeframes:
@@ -224,19 +228,21 @@ class HTMLGenerator:
                 stance = self._get_market_stance(score)
                 risk_icon = "⚠️" if has_risk else ""
                 
+                # カード全体をクリック可能にする
                 html += f"""
-                        <div class="border-l-4 {style['border']} pl-3 py-2">
-                            <div class="flex items-center justify-between">
-                                <span class="text-sm font-medium text-gray-600">{timeframe_name}</span>
-                                <a href="./details/{country_code}-{timeframe_code}.html" 
-                                   class="inline-flex items-center px-3 py-1 rounded-lg {style['bg']} {style['text']} text-sm font-medium hover:opacity-80 transition">
-                                    {stance} {label} {risk_icon}
-                                </a>
-                            </div>
-                        </div>
+                            <a href="./logs/{country_code}-{timeframe_code}.html" 
+                               class="block border-l-4 {style['border']} pl-3 py-3 rounded-r-lg hover:bg-gray-50 transition cursor-pointer">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm font-medium text-gray-700">{timeframe_name}</span>
+                                    <span class="inline-flex items-center px-3 py-1 rounded-lg {style['bg']} {style['text']} text-sm font-medium">
+                                        {stance} {label} {risk_icon}
+                                    </span>
+                                </div>
+                            </a>
 """
             
             html += """
+                        </div>
                     </div>
                 </div>
 """
@@ -820,49 +826,25 @@ class HTMLGenerator:
         return html
     
     def generate_full_page(self, analysis_result: Dict, sectors: List[Dict], recommendations: Dict) -> str:
-        """フルページを生成"""
+        """
+        フルページを生成（index.html：方向感のナビゲーション専用）
+        
+        市場判断の文章は表示せず、方向感の分布を俯瞰するナビゲーションページとして機能
+        """
         html = self._generate_header()
         
-        # 結論ブロック（全体サマリー）
-        # 最初の国×期間の情報を使用
-        conclusion_added = False
-        for country_code, country_result in analysis_result.get("countries", {}).items():
-            if conclusion_added:
-                break
-            country_name = country_result.get("name", country_code)
-            directions = country_result.get("directions", {})
-            
-            # 短期の情報を優先、なければ最初の期間
-            for timeframe in self.config['timeframes']:
-                timeframe_code = timeframe['code']
-                timeframe_name = timeframe['name']
-                
-                if timeframe_code in directions:
-                    direction_data = directions[timeframe_code]
-                    direction_label = direction_data.get("direction_label", direction_data.get("label", "中立"))
-                    summary = direction_data.get("summary", "")
-                    
-                    html += self._generate_conclusion_block(country_name, timeframe_name, direction_label, summary)
-                    conclusion_added = True
-                    break
+        # 説明文
+        html += """
+            <div class="mb-8 bg-blue-50 border-l-4 border-blue-500 p-6 rounded-lg">
+                <h2 class="text-xl font-bold text-blue-900 mb-2">Market Direction Overview</h2>
+                <p class="text-sm text-blue-800">
+                    国別・期間別の市場方向感を一目で把握できます。各カードをクリックすると、詳細な判断根拠（チャート・数値・思考ログ）を確認できます。
+                </p>
+            </div>
+"""
         
-        # Overview
+        # Overviewカード（クリック可能、logsページへリンク）
         html += self.generate_overview_cards(analysis_result)
-        
-        # サマリー
-        html += self.generate_summary_section(analysis_result)
-        
-        # 国別分析
-        for country_code, country_result in analysis_result["countries"].items():
-            html += self.generate_country_analysis(country_result, analysis_result)
-        
-        # セクター分析
-        if sectors:
-            html += self.generate_sector_analysis(sectors)
-        
-        # 銘柄推奨
-        if recommendations:
-            html += self.generate_stock_recommendations(recommendations)
         
         html += self._generate_footer()
         
