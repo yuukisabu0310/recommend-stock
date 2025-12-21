@@ -251,27 +251,30 @@ class HTMLGenerator:
                     sorted_factors = sorted(factor_scores.items(), key=lambda x: x[1], reverse=True)
                     factor_tags = [factor_map.get(f, f) for f, _ in sorted_factors[:2] if _ > 0]
                 
-                # 超短文要約を生成（10-15文字、意味を変えない）
+                # 一文理由を生成（20文字前後、意味を変えない）
                 short_summary = ""
                 if summary:
-                    # summaryから最初の文を取得し、10-15文字に短縮
+                    # summaryから最初の文を取得し、20文字前後に短縮
                     summary_lines = str(summary).replace('\n', '。').split('。')
                     if summary_lines and summary_lines[0]:
                         first_line = summary_lines[0].strip()
-                        # 意味を変えない範囲で短縮
-                        if len(first_line) > 15:
+                        # 意味を変えない範囲で短縮（20文字前後）
+                        if len(first_line) > 25:
                             # 句点や読点で区切って短縮
                             if '、' in first_line:
                                 parts = first_line.split('、')
-                                short_summary = parts[0][:15] if len(parts[0]) <= 15 else parts[0][:12] + "..."
+                                short_summary = parts[0][:22] if len(parts[0]) <= 22 else parts[0][:20] + "..."
+                            elif '。' in first_line:
+                                parts = first_line.split('。')
+                                short_summary = parts[0][:22] if len(parts[0]) <= 22 else parts[0][:20] + "..."
                             else:
-                                short_summary = first_line[:12] + "..."
+                                short_summary = first_line[:20] + "..."
                         else:
                             short_summary = first_line
                 else:
                     # 要因タグから簡易要約を生成
                     if factor_tags:
-                        short_summary = f"{factor_tags[0]}が主因"
+                        short_summary = f"{factor_tags[0]}要因が主因"
                     else:
                         short_summary = "データに基づく判断"
                 
@@ -304,13 +307,18 @@ class HTMLGenerator:
                                 </div>
 """
                 
-                # 超短文要約を表示
+                # 一文理由を表示
                 if short_summary:
                     html += f"""
-                                <p class="text-xs text-gray-600">{short_summary}</p>
+                                <p class="text-xs text-gray-600 mb-2">{short_summary}</p>
 """
                 
-                html += """
+                # 詳細リンク
+                html += f"""
+                                <a href="./logs/{country_code}-{timeframe_code}.html" 
+                                   class="text-xs text-blue-600 hover:text-blue-800 underline">
+                                    詳細を見る →
+                                </a>
                             </a>
 """
             
@@ -1416,6 +1424,455 @@ class HTMLGenerator:
 """
         return html
     
+    def _generate_why_section(self, analysis: Dict) -> str:
+        """
+        この見方が成り立つ理由（Why）セクションを生成
+        
+        Args:
+            analysis: 分析結果
+        
+        Returns:
+            WhyセクションのHTML
+        """
+        html = """
+            <!-- ② この見方が成り立つ理由（Why） -->
+            <section class="bg-white rounded-2xl shadow-md p-6 mb-6">
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">この見方が成り立つ理由</h2>
+                <p class="text-sm text-gray-600 mb-4">なぜこの方向なのか、一段噛み砕いて説明します。</p>
+                <div class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-400">
+                    <ul class="list-disc list-inside text-gray-800 space-y-2">
+"""
+        
+        # key_factorsから理由を抽出（2-3点）
+        key_factors = analysis.get('key_factors', [])
+        premise = analysis.get('premise', '')
+        
+        if key_factors:
+            # 最大3つまで表示
+            for factor in key_factors[:3]:
+                html += f"""
+                        <li>{factor}</li>
+"""
+        elif premise:
+            # premiseから理由を抽出
+            html += f"""
+                        <li>{premise}</li>
+"""
+        else:
+            # フォールバック
+            html += """
+                        <li>データに基づく判断材料を提示しています。</li>
+"""
+        
+        html += """
+                    </ul>
+                </div>
+            </section>
+"""
+        return html
+    
+    def _generate_facts_with_interpretation_section(self, data: Dict, analysis: Dict) -> str:
+        """
+        観測事実 × 解釈（セット表示、折りたたみ可能）セクションを生成
+        
+        Args:
+            data: 国別データ
+            analysis: 分析結果
+        
+        Returns:
+            観測事実×解釈セクションのHTML
+        """
+        html = """
+            <!-- ③ 観測事実 × 解釈（セット表示） -->
+            <section class="bg-white rounded-2xl shadow-md p-6 mb-6">
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">観測事実と解釈</h2>
+                <p class="text-sm text-gray-600 mb-4">観測事実とその解釈をセットで表示します。クリックで詳細を展開できます。</p>
+                <div class="space-y-4">
+"""
+        
+        # 観測事実を抽出
+        facts = self._extract_facts(data, analysis)
+        
+        # 主要な観測事実を優先表示、その他は折りたたみ
+        important_facts = facts[:3] if len(facts) > 3 else facts
+        other_facts = facts[3:] if len(facts) > 3 else []
+        
+        # 主要な観測事実をカード化
+        fact_index = 0
+        for fact in important_facts:
+            fact_index += 1
+            # 解釈を取得（key_factorsから関連するものを抽出）
+            interpretation = self._get_interpretation_for_fact(fact, analysis)
+            
+            html += f"""
+                    <div class="bg-gray-50 rounded-lg border-l-4 border-gray-300 p-4">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <h3 class="text-sm font-semibold text-gray-700 mb-2">観測事実</h3>
+                                <p class="text-sm text-gray-800 mb-2">{fact}</p>
+                                <p class="text-xs text-gray-500">データ取得元: {self._get_data_source(fact)}</p>
+"""
+            
+            if interpretation:
+                html += f"""
+                                <div class="mt-3 pt-3 border-t border-gray-200">
+                                    <h4 class="text-sm font-semibold text-blue-700 mb-1">解釈</h4>
+                                    <p class="text-sm text-blue-800">{interpretation}</p>
+                                </div>
+"""
+            
+            html += """
+                            </div>
+                        </div>
+                    </div>
+"""
+        
+        # その他の観測事実を折りたたみ
+        if other_facts:
+            html += f"""
+                    <details class="bg-gray-50 rounded-lg border-l-4 border-gray-200 p-4">
+                        <summary class="cursor-pointer text-sm font-semibold text-gray-700 mb-2">
+                            その他の観測事実（{len(other_facts)}件）を表示
+                        </summary>
+                        <div class="mt-3 space-y-3">
+"""
+            for fact in other_facts:
+                interpretation = self._get_interpretation_for_fact(fact, analysis)
+                html += f"""
+                            <div class="bg-white p-3 rounded border-l-2 border-gray-300">
+                                <p class="text-sm text-gray-800 mb-1">{fact}</p>
+                                <p class="text-xs text-gray-500 mb-2">データ取得元: {self._get_data_source(fact)}</p>
+"""
+                if interpretation:
+                    html += f"""
+                                <p class="text-xs text-blue-700 mt-2">解釈: {interpretation}</p>
+"""
+                html += """
+                            </div>
+"""
+            html += """
+                        </div>
+                    </details>
+"""
+        
+        html += """
+                </div>
+            </section>
+"""
+        return html
+    
+    def _get_interpretation_for_fact(self, fact: str, analysis: Dict) -> str:
+        """
+        観測事実に対する解釈を取得
+        
+        Args:
+            fact: 観測事実
+            analysis: 分析結果
+        
+        Returns:
+            解釈文（なければ空文字列）
+        """
+        # key_factorsから関連する解釈を抽出
+        key_factors = analysis.get('key_factors', [])
+        summary = analysis.get('summary', '')
+        
+        # 簡易的なマッチング（実際の実装ではより詳細なロジックが必要）
+        if 'CPI' in fact or 'インフレ' in fact:
+            for factor in key_factors:
+                if 'インフレ' in factor or 'CPI' in factor:
+                    return factor
+        elif '金利' in fact or 'rate' in fact.lower():
+            for factor in key_factors:
+                if '金利' in factor or '金融' in factor:
+                    return factor
+        elif '移動平均' in fact or 'MA' in fact:
+            for factor in key_factors:
+                if 'テクニカル' in factor or 'トレンド' in factor:
+                    return factor
+        
+        # マッチしない場合はsummaryから抽出
+        if summary and len(summary) < 100:
+            return summary
+        
+        return ""
+    
+    def _get_data_source(self, fact: str) -> str:
+        """
+        観測事実のデータ取得元を取得
+        
+        Args:
+            fact: 観測事実
+        
+        Returns:
+            データ取得元名
+        """
+        if 'CPI' in fact or 'PMI' in fact:
+            return "FRED / 各国統計機関"
+        elif '金利' in fact or 'rate' in fact.lower():
+            return "FRED / 各国中央銀行"
+        elif '移動平均' in fact or 'MA' in fact or 'SPX' in fact or 'NDX' in fact or 'N225' in fact or 'TPX' in fact:
+            return "Yahoo Finance"
+        elif '雇用' in fact or 'employment' in fact.lower():
+            return "各国統計機関"
+        else:
+            return "各種データソース"
+    
+    def _generate_turning_points_by_direction(self, data: Dict, analysis: Dict) -> str:
+        """
+        見方が変わる条件を上方向/下方向に分けて表示
+        
+        Args:
+            data: 国別データ
+            analysis: 分析結果
+        
+        Returns:
+            転換条件セクションのHTML
+        """
+        html = """
+            <!-- ④ 見方が変わる条件（方向明示） -->
+            <section class="bg-white rounded-2xl shadow-md p-6 mb-6">
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">見方が変わる条件</h2>
+                <p class="text-sm text-gray-600 mb-4">判断が変わる可能性のある条件を、上方向と下方向に分けて示します。</p>
+"""
+        
+        # 現在のスコアを取得
+        score = analysis.get('score', 0)
+        
+        # 転換条件を分類
+        turning_points = analysis.get('turning_points', [])
+        upward_conditions = []  # 上方向への転換条件
+        downward_conditions = []  # 下方向への転換条件
+        
+        # turning_pointsを上方向/下方向に分類
+        for point in turning_points:
+            point_text = str(point)
+            # 簡易的な分類（実際の実装ではより詳細なロジックが必要）
+            if '上回' in point_text or '上昇' in point_text or '緩和' in point_text or '鈍化' in point_text:
+                upward_conditions.append({
+                    'text': point_text,
+                    'indicator': self._extract_indicator_name(point_text),
+                    'next_release': self._get_next_release_date(point_text)
+                })
+            elif '下回' in point_text or '下降' in point_text or '引き締め' in point_text or '加速' in point_text or '急騰' in point_text:
+                downward_conditions.append({
+                    'text': point_text,
+                    'indicator': self._extract_indicator_name(point_text),
+                    'next_release': self._get_next_release_date(point_text)
+                })
+            else:
+                # 分類できない場合は、スコアに基づいて分類
+                if score < 0:
+                    upward_conditions.append({
+                        'text': point_text,
+                        'indicator': self._extract_indicator_name(point_text),
+                        'next_release': self._get_next_release_date(point_text)
+                    })
+                else:
+                    downward_conditions.append({
+                        'text': point_text,
+                        'indicator': self._extract_indicator_name(point_text),
+                        'next_release': self._get_next_release_date(point_text)
+                    })
+        
+        # turning_pointsがない場合は、データから生成
+        if not turning_points:
+            upward_conditions = self._generate_upward_conditions(data, analysis)
+            downward_conditions = self._generate_downward_conditions(data, analysis)
+        
+        # 下方向リスク
+        html += """
+                <div class="mb-6">
+                    <h3 class="text-lg font-semibold text-red-800 mb-3 flex items-center">
+                        <span class="mr-2">📉</span>
+                        下方向への転換条件
+                    </h3>
+                    <div class="space-y-2">
+"""
+        if downward_conditions:
+            for condition in downward_conditions:
+                html += f"""
+                        <div class="flex items-start p-3 bg-red-50 border-l-4 border-red-200 rounded-r-lg">
+                            <span class="mr-2 text-lg">🚩</span>
+                            <div class="flex-1">
+                                <p class="text-sm text-gray-800">{condition['text']}</p>
+"""
+                if condition.get('indicator'):
+                    html += f"""
+                                <p class="text-xs text-gray-500 mt-1">
+                                    対象指標: {condition['indicator']}
+                                    {f"（次回発表予定: {condition.get('next_release', '未定')}）" if condition.get('next_release') else ''}
+                                </p>
+"""
+                html += """
+                            </div>
+                        </div>
+"""
+        else:
+            html += """
+                        <p class="text-sm text-gray-600">現在、下方向への転換条件は特に見当たりません。</p>
+"""
+        html += """
+                    </div>
+                </div>
+"""
+        
+        # 上方向シナリオ
+        html += """
+                <div class="mb-6">
+                    <h3 class="text-lg font-semibold text-green-800 mb-3 flex items-center">
+                        <span class="mr-2">📈</span>
+                        上方向への転換条件
+                    </h3>
+                    <div class="space-y-2">
+"""
+        if upward_conditions:
+            for condition in upward_conditions:
+                html += f"""
+                        <div class="flex items-start p-3 bg-green-50 border-l-4 border-green-200 rounded-r-lg">
+                            <span class="mr-2 text-lg">🚩</span>
+                            <div class="flex-1">
+                                <p class="text-sm text-gray-800">{condition['text']}</p>
+"""
+                if condition.get('indicator'):
+                    html += f"""
+                                <p class="text-xs text-gray-500 mt-1">
+                                    対象指標: {condition['indicator']}
+                                    {f"（次回発表予定: {condition.get('next_release', '未定')}）" if condition.get('next_release') else ''}
+                                </p>
+"""
+                html += """
+                            </div>
+                        </div>
+"""
+        else:
+            html += """
+                        <p class="text-sm text-gray-600">現在、上方向への転換条件は特に見当たりません。</p>
+"""
+        html += """
+                    </div>
+                </div>
+            </section>
+"""
+        return html
+    
+    def _generate_upward_conditions(self, data: Dict, analysis: Dict) -> List[Dict]:
+        """
+        上方向への転換条件を生成
+        
+        Args:
+            data: 国別データ
+            analysis: 分析結果
+        
+        Returns:
+            上方向転換条件のリスト
+        """
+        conditions = []
+        indices = data.get("indices", {})
+        macro = data.get("macro", {})
+        
+        if indices:
+            first_index = list(indices.values())[0]
+            ma200 = first_index.get("ma200")
+            latest_price = first_index.get("latest_price")
+            
+            if ma200 and latest_price and latest_price < ma200:
+                conditions.append({
+                    'text': f'終値ベースで200日移動平均（{ma200:.2f}）を3日連続で上回った場合、方向転換の可能性があります',
+                    'indicator': '価格指数',
+                    'next_release': None
+                })
+        
+        if macro.get("CPI") is not None:
+            conditions.append({
+                'text': 'インフレ再鈍化の確認があった場合、金融緩和期待の再点火の可能性があります',
+                'indicator': 'CPI',
+                'next_release': '次回発表予定日を確認'
+            })
+        
+        return conditions
+    
+    def _generate_downward_conditions(self, data: Dict, analysis: Dict) -> List[Dict]:
+        """
+        下方向への転換条件を生成
+        
+        Args:
+            data: 国別データ
+            analysis: 分析結果
+        
+        Returns:
+            下方向転換条件のリスト
+        """
+        conditions = []
+        indices = data.get("indices", {})
+        macro = data.get("macro", {})
+        financial = data.get("financial", {})
+        
+        if indices:
+            first_index = list(indices.values())[0]
+            ma200 = first_index.get("ma200")
+            latest_price = first_index.get("latest_price")
+            
+            if ma200 and latest_price and latest_price > ma200:
+                conditions.append({
+                    'text': f'終値ベースで200日移動平均（{ma200:.2f}）を3日連続で下回った場合、方向転換の可能性があります',
+                    'indicator': '価格指数',
+                    'next_release': None
+                })
+        
+        if macro.get("CPI") is not None:
+            conditions.append({
+                'text': 'CPI前年比が再加速した場合、金融引き締め期待が高まる可能性があります',
+                'indicator': 'CPI',
+                'next_release': '次回発表予定日を確認'
+            })
+        
+        if financial.get("long_term_rate") is not None:
+            conditions.append({
+                'text': '長期金利が急騰した場合、株式市場への圧力が高まる可能性があります',
+                'indicator': '長期金利',
+                'next_release': None
+            })
+        
+        return conditions
+    
+    def _extract_indicator_name(self, text: str) -> str:
+        """
+        転換条件から指標名を抽出
+        
+        Args:
+            text: 転換条件のテキスト
+        
+        Returns:
+            指標名
+        """
+        if 'CPI' in text or 'インフレ' in text:
+            return 'CPI'
+        elif 'PMI' in text:
+            return 'PMI'
+        elif '金利' in text or 'rate' in text.lower():
+            return '長期金利'
+        elif '移動平均' in text or 'MA' in text:
+            return '価格指数'
+        else:
+            return '各種指標'
+    
+    def _get_next_release_date(self, text: str) -> str:
+        """
+        転換条件から次回発表予定日を取得（簡易版）
+        
+        Args:
+            text: 転換条件のテキスト
+        
+        Returns:
+            次回発表予定日（わかる範囲で）
+        """
+        # 実際の実装では、データソースから次回発表日を取得する必要がある
+        # ここでは簡易的に「次回発表予定日を確認」を返す
+        if 'CPI' in text or 'PMI' in text:
+            return '次回発表予定日を確認'
+        else:
+            return None
+    
     def generate_thought_log(self, country_code: str, timeframe_code: str, data: Dict, analysis: Dict) -> str:
         """思考ログを生成（4ブロック構成：観測事実・解釈・前提・転換シグナル）"""
         date_str = datetime.now().strftime("%Y年%m月%d日 %H:%M")
@@ -1436,237 +1893,25 @@ class HTMLGenerator:
             </div>
 """
         
-        # 結論ブロック
+        # ① 結論（Market View）
         direction_label = analysis.get("direction_label", analysis.get("label", "中立"))
         summary = analysis.get("summary", "")
         html += self._generate_conclusion_block(country_name, timeframe_name, direction_label, summary)
         
-        # ② 方向感の根拠（チャート）
+        # ② この見方が成り立つ理由（Why）
+        html += self._generate_why_section(analysis)
+        
+        # ③ 観測事実 × 解釈（セット表示、折りたたみ可能）
+        html += self._generate_facts_with_interpretation_section(data, analysis)
+        
+        # ④ 見方が変わる条件（方向明示）
+        html += self._generate_turning_points_by_direction(data, analysis)
+        
+        # チャートセクション（補助として）
         html += self._generate_charts_section(data, analysis, country_code, timeframe_code)
         
-        # ③ 判断に使った数値
-        html += self._generate_key_numbers_section(data, analysis)
-        
-        html += f"""
-            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 rounded-lg">
-                <p class="text-sm text-yellow-800">
-                    <strong>重要:</strong> この思考ログは「判断結果」ではなく、「判断材料」です。ユーザーが自分で判断できるための情報を提示しています。
-                </p>
-            </div>
-            
-            <section class="bg-white rounded-2xl shadow-md p-6 mb-6">
-                <h2 class="text-2xl font-bold text-gray-900 mb-6">判断材料</h2>
-                
-                <!-- ① 観測事実（Fact） -->
-                <div class="mb-8 p-6 bg-gray-50 rounded-lg border-l-4 border-gray-400">
-                    <h3 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                        <span class="bg-gray-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3 text-sm font-bold">①</span>
-                        観測事実（Fact）
-                    </h3>
-                    <p class="text-sm text-gray-600 mb-4">実際に観測できる数値・状態のみを列挙しています。主観的表現は含まれていません。</p>
-                    <ul class="list-disc list-inside text-gray-800 space-y-2">
-"""
-        
-        # 観測事実を抽出
-        facts = self._extract_facts(data, analysis)
-        if not facts:
-            facts = ["データが不足しているため、観測事実を抽出できませんでした。"]
-        
-        for fact in facts:
-            html += f"""
-                        <li>{fact}</li>
-"""
-        
+        # 参考情報
         html += """
-                    </ul>
-                </div>
-                
-                <!-- ② 解釈（Interpretation） -->
-                <div class="mb-8 p-6 bg-blue-50 rounded-lg border-l-4 border-blue-400">
-                    <h3 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                        <span class="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3 text-sm font-bold">②</span>
-                        解釈（Interpretation）
-                    </h3>
-                    <p class="text-sm text-gray-600 mb-4">観測事実から考えられる見方を説明しています。断定表現は使用していません。</p>
-                    <div class="bg-white p-4 rounded-lg">
-"""
-        
-        # 解釈を表示（LLMのsummaryまたはkey_factorsから）
-        summary = analysis.get('summary', '')
-        key_factors = analysis.get('key_factors', [])
-        
-        if summary:
-            html += f"""
-                        <p class="text-gray-800 leading-relaxed mb-3">{summary}</p>
-"""
-        
-        if key_factors:
-            html += """
-                        <ul class="list-disc list-inside text-gray-800 space-y-2">
-"""
-            for factor in key_factors:
-                html += f"""
-                            <li>{factor}</li>
-"""
-            html += """
-                        </ul>
-"""
-        
-        if not summary and not key_factors:
-            html += """
-                        <p class="text-gray-800">観測事実から、市場環境は中立的な状態と考えられます。</p>
-"""
-        
-        html += """
-                    </div>
-                </div>
-                
-                <!-- ③ この見方が成り立つ前提（Assumption） -->
-                <div class="mb-8 p-6 bg-green-50 rounded-lg border-l-4 border-green-400">
-                    <h3 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                        <span class="bg-green-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3 text-sm font-bold">③</span>
-                        この見方が成り立つ前提（Assumption）
-                    </h3>
-                    <p class="text-sm text-gray-600 mb-4">解釈が有効であるための条件を明示しています。再現可能な条件です。</p>
-                    <div class="bg-white p-4 rounded-lg">
-"""
-        
-        # 前提条件を表示
-        premise = analysis.get('premise', '')
-        if premise:
-            html += f"""
-                        <p class="text-gray-800 leading-relaxed">{premise}</p>
-"""
-        else:
-            # データから前提条件を生成
-            indices = data.get("indices", {})
-            if indices:
-                first_index = list(indices.values())[0]
-                ma200 = first_index.get("ma200")
-                latest_price = first_index.get("latest_price")
-                if ma200 and latest_price:
-                    if latest_price > ma200:
-                        html += f"""
-                        <ul class="list-disc list-inside text-gray-800 space-y-2">
-                            <li>価格が200日移動平均（{ma200:.2f}）を上回って推移すること</li>
-                            <li>マクロ環境が現在の水準を維持すること</li>
-                            <li>出来高が平均以上を維持すること</li>
-                        </ul>
-"""
-                    else:
-                        html += f"""
-                        <ul class="list-disc list-inside text-gray-800 space-y-2">
-                            <li>価格が200日移動平均（{ma200:.2f}）を下回って推移すること</li>
-                            <li>マクロ環境が現在の水準を維持すること</li>
-                            <li>出来高が平均以上を維持すること</li>
-                        </ul>
-"""
-            else:
-                html += """
-                        <p class="text-gray-800">データに基づく判断材料を提示しています。テクニカル指標とマクロ環境の現状を反映しています。</p>
-"""
-        
-        html += """
-                    </div>
-                </div>
-                
-                <!-- ④ 見方が変わる条件（転換シグナル） -->
-                <div class="mb-8 p-6 bg-orange-50 rounded-lg border-l-4 border-orange-400">
-                    <h3 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                        <span class="bg-orange-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3 text-sm font-bold">④</span>
-                        見方が変わる条件（転換シグナル）
-                    </h3>
-                    <p class="text-sm text-gray-600 mb-4">判断が変わる可能性のある条件を数値で示しています。発生時期を断定するものではありません。</p>
-                    <div class="bg-white p-4 rounded-lg">
-                        <div class="space-y-3">
-"""
-        
-        # 転換シグナルを表示（カード形式、断定禁止）
-        turning_points = analysis.get('turning_points', [])
-        if turning_points:
-            for point in turning_points:
-                # 断定表現を避けるため、「可能性」「注視」表現を確認
-                point_text = str(point)
-                # 「場合」「時」などの条件表現を強調
-                if '場合' in point_text or '時' in point_text:
-                    icon = "🚩"
-                    bg_color = "bg-orange-50"
-                    border_color = "border-orange-200"
-                else:
-                    icon = "⚠️"
-                    bg_color = "bg-yellow-50"
-                    border_color = "border-yellow-200"
-                
-                html += f"""
-                            <div class="flex items-start p-3 {bg_color} border-l-4 {border_color} rounded-r-lg">
-                                <span class="mr-2 text-lg">{icon}</span>
-                                <p class="text-sm text-gray-800 flex-1">{point_text}</p>
-                            </div>
-"""
-        else:
-            # データから転換シグナルを生成（断定禁止）
-            indices = data.get("indices", {})
-            if indices:
-                first_index = list(indices.values())[0]
-                ma20 = first_index.get("ma20")
-                ma75 = first_index.get("ma75")
-                ma200 = first_index.get("ma200")
-                latest_price = first_index.get("latest_price")
-                
-                if ma200 and latest_price:
-                    if latest_price > ma200:
-                        html += f"""
-                            <div class="flex items-start p-3 bg-orange-50 border-l-4 border-orange-200 rounded-r-lg">
-                                <span class="mr-2 text-lg">🚩</span>
-                                <p class="text-sm text-gray-800 flex-1">終値ベースで200日移動平均（{ma200:.2f}）を3日連続で下回った場合、方向転換の可能性があります</p>
-                            </div>
-"""
-                    else:
-                        html += f"""
-                            <div class="flex items-start p-3 bg-orange-50 border-l-4 border-orange-200 rounded-r-lg">
-                                <span class="mr-2 text-lg">🚩</span>
-                                <p class="text-sm text-gray-800 flex-1">終値ベースで200日移動平均（{ma200:.2f}）を3日連続で上回った場合、方向転換の可能性があります</p>
-                            </div>
-"""
-                
-                if ma75:
-                    html += f"""
-                            <div class="flex items-start p-3 bg-yellow-50 border-l-4 border-yellow-200 rounded-r-lg">
-                                <span class="mr-2 text-lg">⚠️</span>
-                                <p class="text-sm text-gray-800 flex-1">出来高を伴って75日移動平均（{ma75:.2f}）を割り込んだ（または突破した）場合、注視が必要です</p>
-                            </div>
-"""
-                
-                if ma20:
-                    html += f"""
-                            <div class="flex items-start p-3 bg-yellow-50 border-l-4 border-yellow-200 rounded-r-lg">
-                                <span class="mr-2 text-lg">⚠️</span>
-                                <p class="text-sm text-gray-800 flex-1">20日移動平均（{ma20:.2f}）と75日移動平均（{ma75:.2f if ma75 else 'N/A'}）の順序が逆転した場合、注視が必要です</p>
-                            </div>
-"""
-            
-            # マクロ指標の転換シグナル（断定禁止）
-            macro = data.get("macro", {})
-            if macro.get("PMI"):
-                html += f"""
-                            <div class="flex items-start p-3 bg-orange-50 border-l-4 border-orange-200 rounded-r-lg">
-                                <span class="mr-2 text-lg">🚩</span>
-                                <p class="text-sm text-gray-800 flex-1">PMIが50を下回った（または上回った）場合、方向転換の可能性があります</p>
-                            </div>
-"""
-            if macro.get("CPI"):
-                html += f"""
-                            <div class="flex items-start p-3 bg-orange-50 border-l-4 border-orange-200 rounded-r-lg">
-                                <span class="mr-2 text-lg">🚩</span>
-                                <p class="text-sm text-gray-800 flex-1">CPI前年同月比が前回値から±1%ポイント以上変化した場合、方向転換の可能性があります</p>
-                            </div>
-"""
-        
-        html += """
-                        </div>
-                    </div>
-                </div>
-                
                 <!-- 参考情報 -->
                 <div class="mt-8 pt-6 border-t border-gray-200">
                     <h3 class="text-lg font-semibold text-gray-800 mb-4">参考情報</h3>
