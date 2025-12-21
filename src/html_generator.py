@@ -1243,10 +1243,26 @@ class HTMLGenerator:
                 caption = f"価格は200日移動平均（{ma200:.2f}）付近で推移しています。"
             
             chart_id = f"priceChart_{country_code}_{timeframe_code}"
+            historical_prices = first_index.get("historical_prices", [])
+            historical_dates = first_index.get("historical_dates", [])
+            
+            # 時系列データが取得できているか確認
+            has_time_series = historical_prices and historical_dates and len(historical_prices) == len(historical_dates)
+            
             html += f"""
                     <!-- 価格トレンドチャート -->
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <h3 class="text-lg font-semibold text-gray-900 mb-2">{index_name} 価格トレンド</h3>
+"""
+            if not has_time_series:
+                html += f"""
+                        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded mb-3">
+                            <p class="text-xs text-yellow-800">
+                                ※ 現在は最新値のみ取得しており、時系列チャートは未対応
+                            </p>
+                        </div>
+"""
+            html += f"""
                         <canvas id="{chart_id}"></canvas>
                         <div class="mt-3 pt-3 border-t border-gray-200">
                             <div class="grid grid-cols-2 gap-2 text-xs text-gray-600">
@@ -1257,7 +1273,7 @@ class HTMLGenerator:
                                     <span class="font-semibold">系列：</span>終値
                                 </div>
                                 <div>
-                                    <span class="font-semibold">期間：</span>直近6か月
+                                    <span class="font-semibold">期間：</span>直近6か月{'' if has_time_series else '（未対応）'}
                                 </div>
                                 <div>
                                     <span class="font-semibold">取得元：</span>Yahoo Finance
@@ -1280,7 +1296,11 @@ class HTMLGenerator:
                 html += f"""
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <h3 class="text-lg font-semibold text-gray-900 mb-2">長期金利（10年債）</h3>
-                        <canvas id="{chart_id}"></canvas>
+                        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded mb-3">
+                            <p class="text-xs text-yellow-800">
+                                ※ 現在は最新値のみ取得しており、時系列チャートは未対応
+                            </p>
+                        </div>
                         <div class="mt-3 pt-3 border-t border-gray-200">
                             <div class="grid grid-cols-2 gap-2 text-xs text-gray-600">
                                 <div>
@@ -1290,7 +1310,7 @@ class HTMLGenerator:
                                     <span class="font-semibold">系列：</span>利回り
                                 </div>
                                 <div>
-                                    <span class="font-semibold">期間：</span>直近6か月
+                                    <span class="font-semibold">期間：</span>直近6か月（未対応）
                                 </div>
                                 <div>
                                     <span class="font-semibold">取得元：</span>FRED / 各国中央銀行
@@ -1307,7 +1327,11 @@ class HTMLGenerator:
                 html += f"""
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <h3 class="text-lg font-semibold text-gray-900 mb-2">CPI（消費者物価指数）</h3>
-                        <canvas id="{chart_id}"></canvas>
+                        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded mb-3">
+                            <p class="text-xs text-yellow-800">
+                                ※ 現在は最新値のみ取得しており、時系列チャートは未対応
+                            </p>
+                        </div>
                         <div class="mt-3 pt-3 border-t border-gray-200">
                             <div class="grid grid-cols-2 gap-2 text-xs text-gray-600">
                                 <div>
@@ -1317,7 +1341,7 @@ class HTMLGenerator:
                                     <span class="font-semibold">系列：</span>前年同月比
                                 </div>
                                 <div>
-                                    <span class="font-semibold">期間：</span>直近12か月
+                                    <span class="font-semibold">期間：</span>直近12か月（未対応）
                                 </div>
                                 <div>
                                     <span class="font-semibold">取得元：</span>FRED / 各国統計機関
@@ -1337,7 +1361,11 @@ class HTMLGenerator:
                 html += f"""
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <h3 class="text-lg font-semibold text-gray-900 mb-2">PMI（購買担当者景気指数）</h3>
-                        <canvas id="{chart_id}"></canvas>
+                        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded mb-3">
+                            <p class="text-xs text-yellow-800">
+                                ※ 現在は最新値のみ取得しており、時系列チャートは未対応
+                            </p>
+                        </div>
                         <div class="mt-3 pt-3 border-t border-gray-200">
                             <div class="grid grid-cols-2 gap-2 text-xs text-gray-600">
                                 <div>
@@ -1347,7 +1375,7 @@ class HTMLGenerator:
                                     <span class="font-semibold">系列：</span>指数値
                                 </div>
                                 <div>
-                                    <span class="font-semibold">期間：</span>直近12か月
+                                    <span class="font-semibold">期間：</span>直近12か月（未対応）
                                 </div>
                                 <div>
                                     <span class="font-semibold">取得元：</span>FRED / 各国統計機関
@@ -1367,7 +1395,11 @@ class HTMLGenerator:
                 html += f"""
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <h3 class="text-lg font-semibold text-gray-900 mb-2">トップ銘柄集中度</h3>
-                        <canvas id="{chart_id}"></canvas>
+                        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded mb-3">
+                            <p class="text-xs text-yellow-800">
+                                ※ 現在は最新値のみ取得しており、時系列チャートは未対応
+                            </p>
+                        </div>
                         <div class="mt-3 pt-3 border-t border-gray-200">
                             <div class="grid grid-cols-2 gap-2 text-xs text-gray-600">
                                 <div>
@@ -1377,7 +1409,7 @@ class HTMLGenerator:
                                     <span class="font-semibold">系列：</span>時価総額比率
                                 </div>
                                 <div>
-                                    <span class="font-semibold">期間：</span>最新データ
+                                    <span class="font-semibold">期間：</span>最新データ（未対応）
                                 </div>
                                 <div>
                                     <span class="font-semibold">取得元：</span>Yahoo Finance
@@ -1422,48 +1454,64 @@ class HTMLGenerator:
         indices = data.get("indices", {})
         if indices:
             first_index = list(indices.values())[0]
-            latest_price = first_index.get("latest_price", 0)
+            historical_prices = first_index.get("historical_prices", [])
+            historical_dates = first_index.get("historical_dates", [])
             ma20 = first_index.get("ma20", 0)
             ma75 = first_index.get("ma75", 0)
             ma200 = first_index.get("ma200", 0)
             
-            chart_id = f"priceChart_{country_code}_{timeframe_code}"
-            scripts += f"""
+            # 時系列データが存在する場合のみチャートを生成
+            if historical_prices and historical_dates and len(historical_prices) == len(historical_dates):
+                # 日付ラベル（表示用に簡略化：最初・中間・最後のみ表示）
+                labels = historical_dates
+                prices_data = historical_prices
+                
+                chart_id = f"priceChart_{country_code}_{timeframe_code}"
+                # JavaScript用にエスケープ
+                labels_js = json.dumps(labels, ensure_ascii=False)
+                prices_js = json.dumps(prices_data, ensure_ascii=False)
+                
+                scripts += f"""
                 // 価格トレンドチャート
                 const ctx_{chart_id.replace('-', '_')} = document.getElementById('{chart_id}');
                 if (ctx_{chart_id.replace('-', '_')}) {{
                     new Chart(ctx_{chart_id.replace('-', '_')}, {{
                         type: 'line',
                         data: {{
-                            labels: ['現在'],
+                            labels: {labels_js},
                             datasets: [
                                 {{
                                     label: '終値',
-                                    data: [{latest_price}],
+                                    data: {prices_js},
                                     borderColor: 'rgb(59, 130, 246)',
                                     backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                                    tension: 0.1
+                                    tension: 0.1,
+                                    pointRadius: 2,
+                                    pointHoverRadius: 4
                                 }},
                                 {{
                                     label: 'MA20',
-                                    data: [{ma20}],
+                                    data: Array({len(prices_data)}).fill({ma20}),
                                     borderColor: 'rgb(34, 197, 94)',
                                     borderDash: [5, 5],
-                                    tension: 0.1
+                                    tension: 0.1,
+                                    pointRadius: 0
                                 }},
                                 {{
                                     label: 'MA75',
-                                    data: [{ma75}],
+                                    data: Array({len(prices_data)}).fill({ma75}),
                                     borderColor: 'rgb(251, 191, 36)',
                                     borderDash: [5, 5],
-                                    tension: 0.1
+                                    tension: 0.1,
+                                    pointRadius: 0
                                 }},
                                 {{
                                     label: 'MA200',
-                                    data: [{ma200}],
+                                    data: Array({len(prices_data)}).fill({ma200}),
                                     borderColor: 'rgb(239, 68, 68)',
                                     borderDash: [5, 5],
-                                    tension: 0.1
+                                    tension: 0.1,
+                                    pointRadius: 0
                                 }}
                             ]
                         }},
@@ -1474,15 +1522,35 @@ class HTMLGenerator:
                                 legend: {{
                                     display: true,
                                     position: 'top'
+                                }},
+                                tooltip: {{
+                                    mode: 'index',
+                                    intersect: false
                                 }}
                             }},
                             scales: {{
+                                x: {{
+                                    ticks: {{
+                                        maxRotation: 45,
+                                        minRotation: 45
+                                    }}
+                                }},
                                 y: {{
                                     beginAtZero: false
                                 }}
                             }}
                         }}
                     }});
+                }}
+"""
+            else:
+                # 時系列データが取得できない場合の注記（チャートは表示しない）
+                chart_id = f"priceChart_{country_code}_{timeframe_code}"
+                scripts += f"""
+                // 価格トレンドチャート（データ未取得）
+                const ctx_{chart_id.replace('-', '_')} = document.getElementById('{chart_id}');
+                if (ctx_{chart_id.replace('-', '_')}) {{
+                    // チャートは表示せず、注記のみ
                 }}
 """
         

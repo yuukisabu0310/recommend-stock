@@ -177,6 +177,11 @@ class DataFetcher:
             avg_volume_30 = float(hist['Volume'].tail(30).mean())
             latest_volume = float(hist['Volume'].iloc[-1])
             
+            # 時系列データ（直近30日）を日付と価格のペアで取得
+            hist_tail = hist.tail(30)
+            historical_prices = hist_tail['Close'].tolist()
+            historical_dates = [date.strftime('%Y-%m-%d') for date in hist_tail.index]
+            
             data = {
                 "index_code": index_code,
                 "country_code": country_code,
@@ -191,7 +196,8 @@ class DataFetcher:
                 "volatility": volatility,
                 "volume_ratio": latest_volume / avg_volume_30 if avg_volume_30 > 0 else 1.0,
                 "date": datetime.now().isoformat(),
-                "historical_prices": hist['Close'].tail(30).tolist()  # 直近30日
+                "historical_prices": historical_prices,  # 直近30日の終値
+                "historical_dates": historical_dates  # 直近30日の日付（yyyy-mm-dd形式）
             }
             
             # フォールバックデータとして保存
