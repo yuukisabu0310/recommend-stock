@@ -1248,6 +1248,22 @@ class HTMLGenerator:
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <h3 class="text-lg font-semibold text-gray-900 mb-2">{index_name} 価格トレンド</h3>
                         <canvas id="{chart_id}"></canvas>
+                        <div class="mt-3 pt-3 border-t border-gray-200">
+                            <div class="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                                <div>
+                                    <span class="font-semibold">指標名：</span>{index_name} 指数
+                                </div>
+                                <div>
+                                    <span class="font-semibold">系列：</span>終値
+                                </div>
+                                <div>
+                                    <span class="font-semibold">期間：</span>直近6か月
+                                </div>
+                                <div>
+                                    <span class="font-semibold">取得元：</span>Yahoo Finance
+                                </div>
+                            </div>
+                        </div>
                         <p class="text-xs text-gray-600 mt-2">{caption}</p>
                     </div>
 """
@@ -1265,6 +1281,22 @@ class HTMLGenerator:
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <h3 class="text-lg font-semibold text-gray-900 mb-2">長期金利（10年債）</h3>
                         <canvas id="{chart_id}"></canvas>
+                        <div class="mt-3 pt-3 border-t border-gray-200">
+                            <div class="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                                <div>
+                                    <span class="font-semibold">指標名：</span>長期金利（10年債）
+                                </div>
+                                <div>
+                                    <span class="font-semibold">系列：</span>利回り
+                                </div>
+                                <div>
+                                    <span class="font-semibold">期間：</span>直近6か月
+                                </div>
+                                <div>
+                                    <span class="font-semibold">取得元：</span>FRED / 各国中央銀行
+                                </div>
+                            </div>
+                        </div>
                         <p class="text-xs text-gray-600 mt-2">現在の長期金利は{rate:.2f}%です。</p>
                     </div>
 """
@@ -1276,6 +1308,22 @@ class HTMLGenerator:
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <h3 class="text-lg font-semibold text-gray-900 mb-2">CPI（消費者物価指数）</h3>
                         <canvas id="{chart_id}"></canvas>
+                        <div class="mt-3 pt-3 border-t border-gray-200">
+                            <div class="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                                <div>
+                                    <span class="font-semibold">指標名：</span>CPI（消費者物価指数）
+                                </div>
+                                <div>
+                                    <span class="font-semibold">系列：</span>前年同月比
+                                </div>
+                                <div>
+                                    <span class="font-semibold">期間：</span>直近12か月
+                                </div>
+                                <div>
+                                    <span class="font-semibold">取得元：</span>FRED / 各国統計機関
+                                </div>
+                            </div>
+                        </div>
                         <p class="text-xs text-gray-600 mt-2">CPI前年同月比は{cpi:.2f}%です。</p>
                     </div>
 """
@@ -1290,6 +1338,22 @@ class HTMLGenerator:
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <h3 class="text-lg font-semibold text-gray-900 mb-2">PMI（購買担当者景気指数）</h3>
                         <canvas id="{chart_id}"></canvas>
+                        <div class="mt-3 pt-3 border-t border-gray-200">
+                            <div class="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                                <div>
+                                    <span class="font-semibold">指標名：</span>PMI（購買担当者景気指数）
+                                </div>
+                                <div>
+                                    <span class="font-semibold">系列：</span>指数値
+                                </div>
+                                <div>
+                                    <span class="font-semibold">期間：</span>直近12か月
+                                </div>
+                                <div>
+                                    <span class="font-semibold">取得元：</span>FRED / 各国統計機関
+                                </div>
+                            </div>
+                        </div>
                         <p class="text-xs text-gray-600 mt-2">{caption}</p>
                     </div>
 """
@@ -1304,6 +1368,22 @@ class HTMLGenerator:
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <h3 class="text-lg font-semibold text-gray-900 mb-2">トップ銘柄集中度</h3>
                         <canvas id="{chart_id}"></canvas>
+                        <div class="mt-3 pt-3 border-t border-gray-200">
+                            <div class="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                                <div>
+                                    <span class="font-semibold">指標名：</span>トップ銘柄集中度
+                                </div>
+                                <div>
+                                    <span class="font-semibold">系列：</span>時価総額比率
+                                </div>
+                                <div>
+                                    <span class="font-semibold">期間：</span>最新データ
+                                </div>
+                                <div>
+                                    <span class="font-semibold">取得元：</span>Yahoo Finance
+                                </div>
+                            </div>
+                        </div>
                         <p class="text-xs text-gray-600 mt-2">上位銘柄の集中度は{concentration*100:.1f}%です。</p>
                     </div>
 """
@@ -1517,7 +1597,15 @@ class HTMLGenerator:
             <!-- ①-2 現在の政策・構造的論点（要約） -->
             <section class="bg-white rounded-2xl shadow-md p-6 mb-6">
                 <h2 class="text-2xl font-bold text-gray-900 mb-4">現在の政策・構造的論点（要約）</h2>
-                <p class="text-sm text-gray-600 mb-4">市場判断の前提となる大きな論点を要約します。</p>
+                
+                <!-- このセクションの位置づけ -->
+                <div class="bg-blue-50 p-3 rounded-lg border-l-4 border-blue-400 mb-4">
+                    <p class="text-sm text-gray-800 font-medium">
+                        【このセクションの位置づけ】<br>
+                        この市場判断が、どの政策目的・構造的課題を前提としているかを整理するための要約。
+                    </p>
+                </div>
+                
                 <div class="bg-purple-50 p-4 rounded-lg border-l-4 border-purple-400">
 """
         
@@ -1526,14 +1614,37 @@ class HTMLGenerator:
         
         if background_points:
             html += """
-                    <ul class="list-disc list-inside text-gray-800 space-y-2">
+                    <div class="space-y-3">
 """
             for point in background_points:
-                html += f"""
-                        <li>{point}</li>
+                # 課題・政策スタンス・注目指標を分類して表示
+                if point.startswith("課題："):
+                    html += f"""
+                        <div class="mb-3">
+                            <p class="text-sm font-semibold text-gray-800 mb-1">【課題】</p>
+                            <p class="text-sm text-gray-700 ml-4">{point.replace("課題：", "")}</p>
+                        </div>
+"""
+                elif point.startswith("政策スタンス："):
+                    html += f"""
+                        <div class="mb-3">
+                            <p class="text-sm font-semibold text-gray-800 mb-1">【政策スタンス】</p>
+                            <p class="text-sm text-gray-700 ml-4">{point.replace("政策スタンス：", "")}</p>
+                        </div>
+"""
+                elif point.startswith("注目指標："):
+                    html += f"""
+                        <div class="mb-3">
+                            <p class="text-sm font-semibold text-gray-800 mb-1">【注目指標】</p>
+                            <p class="text-sm text-gray-700 ml-4">{point.replace("注目指標：", "")}</p>
+                        </div>
+"""
+                else:
+                    html += f"""
+                        <p class="text-sm text-gray-800">{point}</p>
 """
             html += """
-                    </ul>
+                    </div>
 """
         else:
             html += """
@@ -1568,14 +1679,14 @@ class HTMLGenerator:
             
             # 課題
             if cpi is not None:
-                points.append("課題：インフレ沈静化と景気減速の両立")
+                points.append("課題：インフレ抑制と景気減速回避の両立が政策上の論点となっている")
             
             # 政策スタンス
             if policy_rate is not None:
-                points.append("政策スタンス：FRBはデータ次第で慎重姿勢を維持")
+                points.append("政策スタンス：FRBはインフレ指標と雇用指標の双方を確認しながら慎重姿勢を維持")
             
             # 注目指標
-            points.append("注目指標：CPI、雇用統計、政策金利見通し")
+            points.append("注目指標：CPI、PCE、雇用統計、政策金利見通し")
         
         elif country_code == "JP":
             macro = data.get("macro", {})
@@ -1585,11 +1696,11 @@ class HTMLGenerator:
             
             # 課題
             if cpi is not None:
-                points.append("課題：物価上昇率の持続可能性と金融政策の正常化")
+                points.append("課題：物価上昇率の持続可能性と金融政策の正常化が政策上の論点となっている")
             
             # 政策スタンス
             if policy_rate is not None:
-                points.append("政策スタンス：日銀は金融緩和の出口戦略を検討")
+                points.append("政策スタンス：日銀は物価動向と賃金動向を確認しながら金融緩和の出口戦略を検討")
             
             # 注目指標
             points.append("注目指標：CPI、賃金動向、金融政策決定会合")
