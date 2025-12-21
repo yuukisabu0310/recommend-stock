@@ -1055,11 +1055,70 @@ class HTMLGenerator:
         
         logger.info(f"詳細ページを保存しました: {filepath}")
     
-    def _extract_facts(self, data: Dict, analysis: Dict) -> List[str]:
-        """観測事実を抽出（数値・状態のみ、主観的表現は禁止）"""
+    def _extract_facts(self, data: Dict, analysis: Dict) -> List[Dict]:
+        """
+        観測事実を抽出（影響度順、数値・状態のみ、主観的表現は禁止）
+        
+        Returns:
+            観測事実のリスト（各要素は{'text': str, 'priority': int, 'source': str, 'release_date': str}）
+        """
         facts = []
         
-        # インデックスデータから観測事実を抽出
+        # 優先順位: 1=金融政策・金利・インフレ, 2=景気指標, 3=株価トレンド, 4=補足的データ
+        
+        # 1. 金融政策・金利・インフレ関連（最優先）
+        financial = data.get("financial", {})
+        if financial.get("policy_rate") is not None:
+            facts.append({
+                'text': f"政策金利は{financial['policy_rate']:.2f}%です",
+                'priority': 1,
+                'source': self._get_data_source("政策金利"),
+                'release_date': self._get_latest_release_date("政策金利")
+            })
+        if financial.get("long_term_rate") is not None:
+            facts.append({
+                'text': f"長期金利（10年債）は{financial['long_term_rate']:.2f}%です",
+                'priority': 1,
+                'source': self._get_data_source("長期金利"),
+                'release_date': self._get_latest_release_date("長期金利")
+            })
+        
+        macro = data.get("macro", {})
+        if macro.get("CPI") is not None:
+            cpi_change = macro.get("CPI_change", 0)
+            prev_cpi = macro['CPI'] - cpi_change if cpi_change else None
+            if prev_cpi:
+                facts.append({
+                    'text': f"CPI前年同月比は{macro['CPI']:.2f}%です（前回: {prev_cpi:.2f}%）",
+                    'priority': 1,
+                    'source': self._get_data_source("CPI"),
+                    'release_date': self._get_latest_release_date("CPI")
+                })
+            else:
+                facts.append({
+                    'text': f"CPI前年同月比は{macro['CPI']:.2f}%です",
+                    'priority': 1,
+                    'source': self._get_data_source("CPI"),
+                    'release_date': self._get_latest_release_date("CPI")
+                })
+        
+        # 2. 景気指標
+        if macro.get("PMI") is not None:
+            facts.append({
+                'text': f"PMIは{macro['PMI']:.1f}です",
+                'priority': 2,
+                'source': self._get_data_source("PMI"),
+                'release_date': self._get_latest_release_date("PMI")
+            })
+        if macro.get("employment_rate") is not None:
+            facts.append({
+                'text': f"雇用率は{macro['employment_rate']:.2f}%です",
+                'priority': 2,
+                'source': self._get_data_source("雇用"),
+                'release_date': self._get_latest_release_date("雇用")
+            })
+        
+        # 3. 株価トレンド・需給・ボラティリティ
         indices = data.get("indices", {})
         if indices:
             for index_code, index_data in indices.items():
@@ -1067,59 +1126,78 @@ class HTMLGenerator:
                 ma20 = index_data.get("ma20")
                 ma75 = index_data.get("ma75")
                 ma200 = index_data.get("ma200")
-                price_vs_ma20 = index_data.get("price_vs_ma20", 0)
-                price_vs_ma75 = index_data.get("price_vs_ma75", 0)
                 price_vs_ma200 = index_data.get("price_vs_ma200", 0)
                 volume_ratio = index_data.get("volume_ratio", 1.0)
                 volatility = index_data.get("volatility", 0)
                 
-                if latest_price:
-                    facts.append(f"{index_code}の最新終値は{latest_price:.2f}です")
+                if latest_price and ma200:
+                    facts.append({
+                        'text': f"{index_code}の最新終値は{latest_price:.2f}です（MA200との乖離: {price_vs_ma200:+.2f}%）",
+                        'priority': 3,
+                        'source': self._get_data_source(index_code),
+                        'release_date': self._get_latest_release_date("株価")
+                    })
                 
-                # 移動平均との関係（事実のみ）
-                if ma20 and latest_price:
-                    facts.append(f"{index_code}の20日移動平均は{ma20:.2f}です（最新価格との差: {price_vs_ma20:+.2f}%）")
-                
-                if ma75 and latest_price:
-                    facts.append(f"{index_code}の75日移動平均は{ma75:.2f}です（最新価格との差: {price_vs_ma75:+.2f}%）")
-                
-                if ma200 and latest_price:
-                    facts.append(f"{index_code}の200日移動平均は{ma200:.2f}です（最新価格との差: {price_vs_ma200:+.2f}%）")
-                
-                # 移動平均の順序関係（事実のみ）
+                # 移動平均の順序関係
                 if ma20 and ma75 and ma200:
                     if ma20 > ma75 > ma200:
-                        facts.append(f"{index_code}の移動平均は20日 > 75日 > 200日の順序です")
+                        facts.append({
+                            'text': f"{index_code}の移動平均は20日 > 75日 > 200日の順序です",
+                            'priority': 3,
+                            'source': self._get_data_source(index_code),
+                            'release_date': self._get_latest_release_date("株価")
+                        })
                     elif ma20 < ma75 < ma200:
-                        facts.append(f"{index_code}の移動平均は20日 < 75日 < 200日の順序です")
-                    else:
-                        facts.append(f"{index_code}の移動平均は交差している状態です")
+                        facts.append({
+                            'text': f"{index_code}の移動平均は20日 < 75日 < 200日の順序です",
+                            'priority': 3,
+                            'source': self._get_data_source(index_code),
+                            'release_date': self._get_latest_release_date("株価")
+                        })
                 
-                # 出来高（事実のみ）
+                # 出来高
                 if volume_ratio:
-                    facts.append(f"{index_code}の最新出来高は直近30日平均の{volume_ratio:.2f}倍です")
+                    facts.append({
+                        'text': f"{index_code}の最新出来高は直近30日平均の{volume_ratio:.2f}倍です",
+                        'priority': 4,
+                        'source': self._get_data_source(index_code),
+                        'release_date': self._get_latest_release_date("株価")
+                    })
                 
-                # ボラティリティ（事実のみ）
+                # ボラティリティ
                 if volatility:
-                    facts.append(f"{index_code}の過去30日のボラティリティ（年率換算）は{volatility:.2f}%です")
+                    facts.append({
+                        'text': f"{index_code}の過去30日のボラティリティ（年率換算）は{volatility:.2f}%です",
+                        'priority': 4,
+                        'source': self._get_data_source(index_code),
+                        'release_date': self._get_latest_release_date("株価")
+                    })
         
-        # マクロ指標から観測事実を抽出
-        macro = data.get("macro", {})
-        if macro.get("PMI") is not None:
-            facts.append(f"PMIは{macro['PMI']:.1f}です")
-        if macro.get("CPI") is not None:
-            facts.append(f"CPI前年同月比は{macro['CPI']:.2f}%です")
-        if macro.get("employment_rate") is not None:
-            facts.append(f"雇用率は{macro['employment_rate']:.2f}%です")
-        
-        # 金融指標から観測事実を抽出
-        financial = data.get("financial", {})
-        if financial.get("policy_rate") is not None:
-            facts.append(f"政策金利は{financial['policy_rate']:.2f}%です")
-        if financial.get("long_term_rate") is not None:
-            facts.append(f"長期金利（10年債）は{financial['long_term_rate']:.2f}%です")
+        # 優先順位でソート
+        facts.sort(key=lambda x: x['priority'])
         
         return facts
+    
+    def _get_latest_release_date(self, indicator: str) -> str:
+        """
+        指標の最新発表日を取得（簡易版）
+        
+        Args:
+            indicator: 指標名
+        
+        Returns:
+            最新発表日（わかる範囲で）
+        """
+        # 実際の実装では、データソースから最新発表日を取得する必要がある
+        # ここでは簡易的に「最新データ反映」を返す
+        if 'CPI' in indicator or 'PMI' in indicator:
+            return "最新データ反映"
+        elif '金利' in indicator or 'rate' in indicator.lower():
+            return "最新データ反映"
+        elif '株価' in indicator or 'SPX' in indicator or 'NDX' in indicator or 'N225' in indicator:
+            return "最新データ反映"
+        else:
+            return "最新データ反映"
     
     def _generate_charts_section(self, data: Dict, analysis: Dict, country_code: str, timeframe_code: str) -> str:
         """
@@ -1424,12 +1502,113 @@ class HTMLGenerator:
 """
         return html
     
-    def _generate_why_section(self, analysis: Dict) -> str:
+    def _generate_policy_background_section(self, data: Dict, country_code: str) -> str:
         """
-        この見方が成り立つ理由（Why）セクションを生成
+        政策・構造的背景セクションを生成（要約）
+        
+        Args:
+            data: 国別データ
+            country_code: 国コード
+        
+        Returns:
+            政策・構造的背景セクションのHTML
+        """
+        html = """
+            <!-- ①-2 現在の政策・構造的論点（要約） -->
+            <section class="bg-white rounded-2xl shadow-md p-6 mb-6">
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">現在の政策・構造的論点（要約）</h2>
+                <p class="text-sm text-gray-600 mb-4">市場判断の前提となる大きな論点を要約します。</p>
+                <div class="bg-purple-50 p-4 rounded-lg border-l-4 border-purple-400">
+"""
+        
+        # 国別の背景情報を生成（最大3点・短文）
+        background_points = self._get_policy_background_points(data, country_code)
+        
+        if background_points:
+            html += """
+                    <ul class="list-disc list-inside text-gray-800 space-y-2">
+"""
+            for point in background_points:
+                html += f"""
+                        <li>{point}</li>
+"""
+            html += """
+                    </ul>
+"""
+        else:
+            html += """
+                    <p class="text-gray-800">データに基づく判断材料を提示しています。</p>
+"""
+        
+        html += """
+                </div>
+            </section>
+"""
+        return html
+    
+    def _get_policy_background_points(self, data: Dict, country_code: str) -> List[str]:
+        """
+        政策・構造的背景のポイントを取得（最大3点・短文）
+        
+        Args:
+            data: 国別データ
+            country_code: 国コード
+        
+        Returns:
+            背景ポイントのリスト
+        """
+        points = []
+        
+        # 国別の背景情報（現状整理のみ、評価は禁止）
+        if country_code == "US":
+            macro = data.get("macro", {})
+            financial = data.get("financial", {})
+            cpi = macro.get("CPI")
+            policy_rate = financial.get("policy_rate")
+            
+            # 課題
+            if cpi is not None:
+                points.append("課題：インフレ沈静化と景気減速の両立")
+            
+            # 政策スタンス
+            if policy_rate is not None:
+                points.append("政策スタンス：FRBはデータ次第で慎重姿勢を維持")
+            
+            # 注目指標
+            points.append("注目指標：CPI、雇用統計、政策金利見通し")
+        
+        elif country_code == "JP":
+            macro = data.get("macro", {})
+            financial = data.get("financial", {})
+            cpi = macro.get("CPI")
+            policy_rate = financial.get("policy_rate")
+            
+            # 課題
+            if cpi is not None:
+                points.append("課題：物価上昇率の持続可能性と金融政策の正常化")
+            
+            # 政策スタンス
+            if policy_rate is not None:
+                points.append("政策スタンス：日銀は金融緩和の出口戦略を検討")
+            
+            # 注目指標
+            points.append("注目指標：CPI、賃金動向、金融政策決定会合")
+        
+        else:
+            # その他の国
+            points.append("課題：インフレ・景気・金融政策のバランス")
+            points.append("政策スタンス：中央銀行はデータに基づく判断を継続")
+            points.append("注目指標：主要経済指標と金融政策動向")
+        
+        return points[:3]  # 最大3点
+    
+    def _generate_why_section(self, analysis: Dict, data: Dict) -> str:
+        """
+        この見方が成り立つ理由（Why）セクションを生成（具体化）
         
         Args:
             analysis: 分析結果
+            data: 国別データ
         
         Returns:
             WhyセクションのHTML
@@ -1438,30 +1617,29 @@ class HTMLGenerator:
             <!-- ② この見方が成り立つ理由（Why） -->
             <section class="bg-white rounded-2xl shadow-md p-6 mb-6">
                 <h2 class="text-2xl font-bold text-gray-900 mb-4">この見方が成り立つ理由</h2>
-                <p class="text-sm text-gray-600 mb-4">なぜこの方向なのか、一段噛み砕いて説明します。</p>
+                <p class="text-sm text-gray-600 mb-4">なぜこの方向なのか、具体的な指標・事象とともに説明します。</p>
                 <div class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-400">
-                    <ul class="list-disc list-inside text-gray-800 space-y-2">
+                    <ul class="list-disc list-inside text-gray-800 space-y-3">
 """
         
-        # key_factorsから理由を抽出（2-3点）
+        # key_factorsから理由を抽出し、具体化
         key_factors = analysis.get('key_factors', [])
-        premise = analysis.get('premise', '')
+        rule_components = analysis.get('rule_based_components', {})
         
+        # 各要因を具体化
         if key_factors:
-            # 最大3つまで表示
             for factor in key_factors[:3]:
+                # 既存の要因を具体化（分類＋具体指標・事象＋状態）
+                concrete_reason = self._concretize_reason(factor, data, rule_components)
                 html += f"""
-                        <li>{factor}</li>
-"""
-        elif premise:
-            # premiseから理由を抽出
-            html += f"""
-                        <li>{premise}</li>
+                        <li class="mb-2">{concrete_reason}</li>
 """
         else:
-            # フォールバック
-            html += """
-                        <li>データに基づく判断材料を提示しています。</li>
+            # データから理由を生成
+            concrete_reasons = self._generate_concrete_reasons_from_data(data, rule_components)
+            for reason in concrete_reasons[:3]:
+                html += f"""
+                        <li class="mb-2">{reason}</li>
 """
         
         html += """
@@ -1470,6 +1648,122 @@ class HTMLGenerator:
             </section>
 """
         return html
+    
+    def _concretize_reason(self, factor: str, data: Dict, rule_components: Dict) -> str:
+        """
+        理由を具体化（分類＋具体指標・事象＋状態）
+        
+        Args:
+            factor: 要因（抽象的な表現）
+            data: 国別データ
+            rule_components: ルールベース指標
+        
+        Returns:
+            具体化された理由
+        """
+        # 既存の要因を具体化（新しい評価は追加しない）
+        factor_lower = factor.lower()
+        
+        # テクニカル関連
+        if 'テクニカル' in factor or 'トレンド' in factor or '移動平均' in factor:
+            indices = data.get("indices", {})
+            if indices:
+                first_index = list(indices.values())[0]
+                latest_price = first_index.get("latest_price")
+                ma20 = first_index.get("ma20")
+                ma75 = first_index.get("ma75")
+                index_name = {"SPX": "S&P500", "NDX": "NASDAQ100", "N225": "日経225", "TPX": "TOPIX"}.get(
+                    list(indices.keys())[0], list(indices.keys())[0]
+                )
+                if latest_price and ma20 and ma75:
+                    if latest_price > ma20 and latest_price > ma75:
+                        return f"テクニカル：{index_name}が20日・75日移動平均を上回って推移しており、短期的なトレンドが維持されている"
+                    elif latest_price < ma20 and latest_price < ma75:
+                        return f"テクニカル：{index_name}が20日・75日移動平均を下回って推移しており、短期的なトレンドが弱い"
+            return f"テクニカル：{factor}"
+        
+        # マクロ関連
+        elif 'マクロ' in factor or 'インフレ' in factor or 'CPI' in factor:
+            macro = data.get("macro", {})
+            cpi = macro.get("CPI")
+            cpi_change = macro.get("CPI_change", 0)
+            if cpi is not None:
+                if cpi_change < 0:
+                    return f"マクロ：CPIの低下ペースが続いており、インフレ沈静化が進んでいる"
+                elif cpi_change > 0:
+                    return f"マクロ：CPIの低下ペースが鈍化しており、インフレ沈静化が一服している兆しが見られる"
+                else:
+                    return f"マクロ：CPI前年同月比は{cpi:.2f}%で推移しており、インフレ動向が注視されている"
+            return f"マクロ：{factor}"
+        
+        # 金融政策関連
+        elif '金融' in factor or '金利' in factor or '政策' in factor:
+            financial = data.get("financial", {})
+            policy_rate = financial.get("policy_rate")
+            long_term_rate = financial.get("long_term_rate")
+            country_code = data.get("code", "")
+            central_bank = {"US": "FRB", "JP": "日銀"}.get(country_code, "中央銀行")
+            
+            if policy_rate is not None or long_term_rate is not None:
+                rate_text = ""
+                if policy_rate is not None:
+                    rate_text += f"政策金利{policy_rate:.2f}%"
+                if long_term_rate is not None:
+                    if rate_text:
+                        rate_text += f"、長期金利{long_term_rate:.2f}%"
+                    else:
+                        rate_text = f"長期金利{long_term_rate:.2f}%"
+                
+                return f"金融政策：{central_bank}が{rate_text}の水準を維持しており、金融緩和期待が後退している"
+            return f"金融政策：{factor}"
+        
+        # その他は既存の表現をそのまま使用
+        return factor
+    
+    def _generate_concrete_reasons_from_data(self, data: Dict, rule_components: Dict) -> List[str]:
+        """
+        データから具体的な理由を生成
+        
+        Args:
+            data: 国別データ
+            rule_components: ルールベース指標
+        
+        Returns:
+            具体化された理由のリスト
+        """
+        reasons = []
+        
+        # テクニカル
+        indices = data.get("indices", {})
+        if indices:
+            first_index = list(indices.values())[0]
+            latest_price = first_index.get("latest_price")
+            ma20 = first_index.get("ma20")
+            ma75 = first_index.get("ma75")
+            index_name = {"SPX": "S&P500", "NDX": "NASDAQ100", "N225": "日経225", "TPX": "TOPIX"}.get(
+                list(indices.keys())[0], list(indices.keys())[0]
+            )
+            if latest_price and ma20 and ma75:
+                if latest_price > ma20 and latest_price > ma75:
+                    reasons.append(f"テクニカル：{index_name}が20日・75日移動平均を上回って推移しており、短期的なトレンドが維持されている")
+                elif latest_price < ma20 and latest_price < ma75:
+                    reasons.append(f"テクニカル：{index_name}が20日・75日移動平均を下回って推移しており、短期的なトレンドが弱い")
+        
+        # マクロ
+        macro = data.get("macro", {})
+        cpi = macro.get("CPI")
+        if cpi is not None:
+            reasons.append(f"マクロ：CPI前年同月比は{cpi:.2f}%で推移しており、インフレ動向が注視されている")
+        
+        # 金融政策
+        financial = data.get("financial", {})
+        policy_rate = financial.get("policy_rate")
+        country_code = data.get("code", "")
+        central_bank = {"US": "FRB", "JP": "日銀"}.get(country_code, "中央銀行")
+        if policy_rate is not None:
+            reasons.append(f"金融政策：{central_bank}が政策金利{policy_rate:.2f}%の水準を維持しており、金融政策の方向性が注視されている")
+        
+        return reasons
     
     def _generate_facts_with_interpretation_section(self, data: Dict, analysis: Dict) -> str:
         """
@@ -1490,27 +1784,31 @@ class HTMLGenerator:
                 <div class="space-y-4">
 """
         
-        # 観測事実を抽出
+        # 観測事実を抽出（影響度順）
         facts = self._extract_facts(data, analysis)
         
-        # 主要な観測事実を優先表示、その他は折りたたみ
+        # 主要な観測事実を優先表示（上位3件）、その他は折りたたみ
         important_facts = facts[:3] if len(facts) > 3 else facts
         other_facts = facts[3:] if len(facts) > 3 else []
         
         # 主要な観測事実をカード化
-        fact_index = 0
-        for fact in important_facts:
-            fact_index += 1
+        for fact_data in important_facts:
+            fact_text = fact_data['text']
+            fact_source = fact_data.get('source', '')
+            fact_release_date = fact_data.get('release_date', '')
             # 解釈を取得（key_factorsから関連するものを抽出）
-            interpretation = self._get_interpretation_for_fact(fact, analysis)
+            interpretation = self._get_interpretation_for_fact(fact_text, analysis)
             
             html += f"""
                     <div class="bg-gray-50 rounded-lg border-l-4 border-gray-300 p-4">
                         <div class="flex items-start justify-between">
                             <div class="flex-1">
                                 <h3 class="text-sm font-semibold text-gray-700 mb-2">観測事実</h3>
-                                <p class="text-sm text-gray-800 mb-2">{fact}</p>
-                                <p class="text-xs text-gray-500">データ取得元: {self._get_data_source(fact)}</p>
+                                <p class="text-sm text-gray-800 mb-2">{fact_text}</p>
+                                <div class="flex items-center gap-3 text-xs text-gray-500">
+                                    <span>データ取得元: {fact_source}</span>
+                                    {f'<span>最新発表日: {fact_release_date}</span>' if fact_release_date else ''}
+                                </div>
 """
             
             if interpretation:
@@ -1536,12 +1834,18 @@ class HTMLGenerator:
                         </summary>
                         <div class="mt-3 space-y-3">
 """
-            for fact in other_facts:
-                interpretation = self._get_interpretation_for_fact(fact, analysis)
+            for fact_data in other_facts:
+                fact_text = fact_data['text']
+                fact_source = fact_data.get('source', '')
+                fact_release_date = fact_data.get('release_date', '')
+                interpretation = self._get_interpretation_for_fact(fact_text, analysis)
                 html += f"""
                             <div class="bg-white p-3 rounded border-l-2 border-gray-300">
-                                <p class="text-sm text-gray-800 mb-1">{fact}</p>
-                                <p class="text-xs text-gray-500 mb-2">データ取得元: {self._get_data_source(fact)}</p>
+                                <p class="text-sm text-gray-800 mb-1">{fact_text}</p>
+                                <div class="flex items-center gap-3 text-xs text-gray-500 mb-2">
+                                    <span>データ取得元: {fact_source}</span>
+                                    {f'<span>最新発表日: {fact_release_date}</span>' if fact_release_date else ''}
+                                </div>
 """
                 if interpretation:
                     html += f"""
@@ -1581,13 +1885,17 @@ class HTMLGenerator:
             for factor in key_factors:
                 if 'インフレ' in factor or 'CPI' in factor:
                     return factor
-        elif '金利' in fact or 'rate' in fact.lower():
+        elif '金利' in fact or 'rate' in fact.lower() or '政策' in fact:
             for factor in key_factors:
-                if '金利' in factor or '金融' in factor:
+                if '金利' in factor or '金融' in factor or '政策' in factor:
                     return factor
-        elif '移動平均' in fact or 'MA' in fact:
+        elif '移動平均' in fact or 'MA' in fact or 'SPX' in fact or 'NDX' in fact or 'N225' in fact:
             for factor in key_factors:
                 if 'テクニカル' in factor or 'トレンド' in factor:
+                    return factor
+        elif 'PMI' in fact:
+            for factor in key_factors:
+                if 'PMI' in factor or '景気' in factor:
                     return factor
         
         # マッチしない場合はsummaryから抽出
@@ -1694,13 +2002,20 @@ class HTMLGenerator:
                         <div class="flex items-start p-3 bg-red-50 border-l-4 border-red-200 rounded-r-lg">
                             <span class="mr-2 text-lg">🚩</span>
                             <div class="flex-1">
-                                <p class="text-sm text-gray-800">{condition['text']}</p>
+                                <p class="text-sm text-gray-800 font-medium mb-1">{condition['text']}</p>
 """
-                if condition.get('indicator'):
+                # なぜ重要か
+                importance = self._get_importance_reason(condition['text'], condition.get('indicator', ''))
+                if importance:
                     html += f"""
+                                <p class="text-xs text-gray-600 mb-1">→ {importance}</p>
+"""
+                # 対象指標と次回発表日（必ず記載）
+                indicator = condition.get('indicator', self._extract_indicator_name(condition['text']))
+                next_release = condition.get('next_release') or self._get_next_release_date(condition['text'])
+                html += f"""
                                 <p class="text-xs text-gray-500 mt-1">
-                                    対象指標: {condition['indicator']}
-                                    {f"（次回発表予定: {condition.get('next_release', '未定')}）" if condition.get('next_release') else ''}
+                                    対象指標: {indicator} | 次回発表予定: {next_release}
                                 </p>
 """
                 html += """
@@ -1731,13 +2046,20 @@ class HTMLGenerator:
                         <div class="flex items-start p-3 bg-green-50 border-l-4 border-green-200 rounded-r-lg">
                             <span class="mr-2 text-lg">🚩</span>
                             <div class="flex-1">
-                                <p class="text-sm text-gray-800">{condition['text']}</p>
+                                <p class="text-sm text-gray-800 font-medium mb-1">{condition['text']}</p>
 """
-                if condition.get('indicator'):
+                # なぜ重要か
+                importance = self._get_importance_reason(condition['text'], condition.get('indicator', ''))
+                if importance:
                     html += f"""
+                                <p class="text-xs text-gray-600 mb-1">→ {importance}</p>
+"""
+                # 対象指標と次回発表日（必ず記載）
+                indicator = condition.get('indicator', self._extract_indicator_name(condition['text']))
+                next_release = condition.get('next_release') or self._get_next_release_date(condition['text'])
+                html += f"""
                                 <p class="text-xs text-gray-500 mt-1">
-                                    対象指標: {condition['indicator']}
-                                    {f"（次回発表予定: {condition.get('next_release', '未定')}）" if condition.get('next_release') else ''}
+                                    対象指標: {indicator} | 次回発表予定: {next_release}
                                 </p>
 """
                 html += """
@@ -1816,21 +2138,21 @@ class HTMLGenerator:
                 conditions.append({
                     'text': f'終値ベースで200日移動平均（{ma200:.2f}）を3日連続で下回った場合、方向転換の可能性があります',
                     'indicator': '価格指数',
-                    'next_release': None
+                    'next_release': '常時更新（市場データ）'
                 })
         
         if macro.get("CPI") is not None:
             conditions.append({
                 'text': 'CPI前年比が再加速した場合、金融引き締め期待が高まる可能性があります',
                 'indicator': 'CPI',
-                'next_release': '次回発表予定日を確認'
+                'next_release': '次回：今月下旬予定（米国CPI）'
             })
         
         if financial.get("long_term_rate") is not None:
             conditions.append({
                 'text': '長期金利が急騰した場合、株式市場への圧力が高まる可能性があります',
                 'indicator': '長期金利',
-                'next_release': None
+                'next_release': '常時更新（市場データ）'
             })
         
         return conditions
@@ -1856,22 +2178,59 @@ class HTMLGenerator:
         else:
             return '各種指標'
     
+    def _get_importance_reason(self, text: str, indicator: str) -> str:
+        """
+        転換条件の重要性理由を取得
+        
+        Args:
+            text: 転換条件のテキスト
+            indicator: 指標名
+        
+        Returns:
+            重要性理由
+        """
+        if 'CPI' in text or 'インフレ' in text:
+            return "インフレ沈静化前提が崩れるため"
+        elif '金利' in text or '政策金利' in text:
+            return "金融政策の方向性が変わるため"
+        elif '長期金利' in text or '10年債' in text:
+            return "株式市場への圧力が高まるため"
+        elif '移動平均' in text or 'MA' in text or '株価' in text:
+            return "トレンド転換のシグナルとなるため"
+        elif 'PMI' in text:
+            return "景気動向の先行指標となるため"
+        else:
+            return "市場判断の前提が変わるため"
+    
     def _get_next_release_date(self, text: str) -> str:
         """
-        転換条件から次回発表予定日を取得（簡易版）
+        転換条件から次回発表予定日を取得（必ず記載）
         
         Args:
             text: 転換条件のテキスト
         
         Returns:
-            次回発表予定日（わかる範囲で）
+            次回発表予定日（わかる範囲で、必ず記載）
         """
-        # 実際の実装では、データソースから次回発表日を取得する必要がある
-        # ここでは簡易的に「次回発表予定日を確認」を返す
-        if 'CPI' in text or 'PMI' in text:
-            return '次回発表予定日を確認'
+        # 指標ごとに次回発表予定日を返す（概算表記でも可）
+        if 'CPI' in text or 'インフレ' in text:
+            # CPIは通常月次で発表（米国は中旬、日本は下旬）
+            return '次回：今月下旬予定（米国CPI）'
+        elif 'PMI' in text:
+            # PMIは通常月初に発表
+            return '次回：来月初旬予定（PMI）'
+        elif '金利' in text or '政策金利' in text:
+            # 政策金利はFOMC・日銀金融政策決定会合で決定
+            return '次回：FOMC・日銀会合日程を確認'
+        elif '長期金利' in text or '10年債' in text:
+            # 長期金利は常時更新
+            return '常時更新（市場データ）'
+        elif '移動平均' in text or 'MA' in text or '株価' in text:
+            # 株価は常時更新
+            return '常時更新（市場データ）'
         else:
-            return None
+            # 不明な場合は概算表記
+            return '次回発表予定日を確認'
     
     def generate_thought_log(self, country_code: str, timeframe_code: str, data: Dict, analysis: Dict) -> str:
         """思考ログを生成（4ブロック構成：観測事実・解釈・前提・転換シグナル）"""
@@ -1898,8 +2257,11 @@ class HTMLGenerator:
         summary = analysis.get("summary", "")
         html += self._generate_conclusion_block(country_name, timeframe_name, direction_label, summary)
         
+        # ①-2 政策・構造的背景（要約）
+        html += self._generate_policy_background_section(data, country_code)
+        
         # ② この見方が成り立つ理由（Why）
-        html += self._generate_why_section(analysis)
+        html += self._generate_why_section(analysis, data)
         
         # ③ 観測事実 × 解釈（セット表示、折りたたみ可能）
         html += self._generate_facts_with_interpretation_section(data, analysis)
