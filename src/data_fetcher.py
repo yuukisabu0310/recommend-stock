@@ -103,17 +103,10 @@ class DataFetcher:
             for attempt in range(max_retries):
                 try:
                     stock = yf.Ticker(ticker)
-                    # periodパラメータを使用（より確実）
-                    if days <= 30:
-                        period = "1mo"
-                    elif days <= 90:
-                        period = "3mo"
-                    elif days <= 180:
-                        period = "6mo"
-                    elif days <= 365:
-                        period = "1y"
-                    else:
-                        period = "2y"
+                    # 【改善①】MA200計算用に最低200営業日以上のデータを取得
+                    # 表示期間が6か月でも、MA計算用データは内部的に拡張して保持
+                    # 1年分（約252営業日）を取得してMA200計算に使用
+                    period = "1y"  # MA200計算用に最低1年分を取得
                     
                     hist = stock.history(period=period)
                     
@@ -177,18 +170,20 @@ class DataFetcher:
             avg_volume_30 = float(hist['Volume'].tail(30).mean())
             latest_volume = float(hist['Volume'].iloc[-1])
             
-            # 【修正】時系列データ（直近6か月分、約130営業日）を日付と価格のペアで取得
-            # 6か月分のデータを取得（営業日ベースで約130日）
-            days_for_chart = min(130, len(hist))
-            hist_tail = hist.tail(days_for_chart)
-            historical_prices = hist_tail['Close'].tolist()
-            historical_dates = [date.strftime('%Y-%m-%d') for date in hist_tail.index]
+            # 【改善①】表示用データ（直近6か月分、約130営業日）とMA計算用データを分離
+            # 表示期間は6か月だが、MA計算用データは全期間を使用
+            display_days = min(130, len(hist))  # 6か月分（約130営業日）
+            hist_display = hist.tail(display_days)
             
-            # 【修正】MAを時系列配列として計算（rolling average）
+            # 表示用の価格データと日付
+            historical_prices = hist_display['Close'].tolist()
+            historical_dates = [date.strftime('%Y-%m-%d') for date in hist_display.index]
+            
+            # 【改善①】MAを時系列配列として計算（全期間のhistを使用して計算）
             # MA20, MA75, MA200の時系列データを生成
-            ma20_series = hist_tail['Close'].rolling(window=20, min_periods=1).mean().tolist()
-            ma75_series = hist_tail['Close'].rolling(window=75, min_periods=1).mean().tolist()
-            ma200_series = hist_tail['Close'].rolling(window=200, min_periods=1).mean().tolist()
+            ma20_series = hist['Close'].rolling(window=20, min_periods=1).mean().tail(display_days).tolist()
+            ma75_series = hist['Close'].rolling(window=75, min_periods=1).mean().tail(display_days).tolist()
+            ma200_series = hist['Close'].rolling(window=200, min_periods=1).mean().tail(display_days).tolist()
             
             # データ数が不足している場合は、最新値で埋める
             if len(ma20_series) < len(historical_prices):
@@ -216,12 +211,12 @@ class DataFetcher:
                 "volatility": volatility,
                 "volume_ratio": latest_volume / avg_volume_30 if avg_volume_30 > 0 else 1.0,
                 "date": datetime.now().isoformat(),
-                "historical_prices": historical_prices,  # 直近6か月分の終値
-                "historical_dates": historical_dates,  # 直近6か月分の日付（yyyy-mm-dd形式）
-                "historical_ma20": ma20_series,  # 【修正】MA20の時系列配列
-                "historical_ma75": ma75_series,  # 【修正】MA75の時系列配列
-                "historical_ma200": ma200_series,  # 【修正】MA200の時系列配列
-                "top_stocks_concentration": concentration  # 【修正】構造スコア計算用の集中度
+                "historical_prices": historical_prices,  # 【改善①】直近6か月分の終値
+                "historical_dates": historical_dates,  # 【改善①】直近6か月分の日付
+                "historical_ma20": ma20_series,  # 【改善①】MA20の時系列配列
+                "historical_ma75": ma75_series,  # 【改善①】MA75の時系列配列
+                "historical_ma200": ma200_series,  # 【改善①】MA200の時系列配列
+                "top_stocks_concentration": concentration  # 構造スコア計算用の集中度
             }
             
             # フォールバックデータとして保存
@@ -266,14 +261,14 @@ class DataFetcher:
         logger.error(f"FRED API取得最終失敗 ({series_id}, {country_code})")
         return None
     
-    def _get_fred_series_data(self, series_id: str, country_code: str, days: int = 365, max_retries: int = 3) -> Optional[Dict]:
+    def _get_fred_series_data(self, series_id: str, country_code: str, days: int = 730, max_retries: int = 3) -> Optional[Dict]:
         """
         FRED APIから時系列データを取得（リトライ付き）
         
         Args:
             series_id: FREDシリーズID
             country_code: 国コード
-            days: 取得日数
+            days: 取得日数（CPIは月次データなので、約24ヶ月分）
             max_retries: 最大リトライ回数
         
         Returns:
@@ -283,16 +278,15 @@ class DataFetcher:
             logger.warning(f"FRED APIクライアントが初期化されていません ({series_id}, {country_code})")
             return None
         
-        # 取得件数の見積もり（営業日ベース）
-        # 6か月 = 約130日、1年 = 約252日
-        limit = min(365, days) if days <= 365 else 730
+        # CPIは月次データなので、約24ヶ月分を取得
+        limit = min(36, days // 30) if days > 30 else 24  # 最大36ヶ月分
         
         for attempt in range(max_retries):
             try:
                 # FRED APIから時系列データを取得
                 data = self.fred_client.get_series(series_id, limit=limit)
                 if not data.empty:
-                    # 最新から指定日数分を取得
+                    # 最新から指定期間分を取得
                     data_tail = data.tail(min(limit, len(data)))
                     dates = [date.strftime('%Y-%m-%d') for date in data_tail.index]
                     values = [float(val) for val in data_tail.values]
@@ -337,9 +331,9 @@ class DataFetcher:
             }
         }
         
-        # CPI: FRED APIから取得（最新値と時系列データ）
+        # 【改善②】CPI: FRED APIから取得（最新値と時系列データ）
         cpi = None
-        cpi_series = None  # 【修正】CPIの時系列データ（前年同月比）
+        cpi_series = None  # CPIの時系列データ（前年比YoY）
         
         if country_code == "US":
             if not self.fred_client:
@@ -349,29 +343,28 @@ class DataFetcher:
                 cpi_raw_series = self._get_fred_series_data(fred_series["US"]["CPI"], country_code, days=730)
                 if cpi_raw_series:
                     try:
-                        # 前年同月比を計算（各月について12ヶ月前との比較）
+                        # 前年比（YoY）を計算（各月について12ヶ月前との比較）
                         raw_values = cpi_raw_series["values"]
                         raw_dates = cpi_raw_series["dates"]
                         
-                        # 前年同月比を計算（簡易実装：最新値と12ヶ月前の値を比較）
+                        # 前年比を計算（簡易実装：最新値と12ヶ月前の値を比較）
                         if len(raw_values) >= 13:
                             current = raw_values[-1]
-                            previous = raw_values[0] if len(raw_values) >= 13 else raw_values[-12]
+                            previous = raw_values[-13] if len(raw_values) >= 13 else raw_values[0]
                             cpi = ((current / previous) - 1) * 100  # 年率換算（%）
                             
-                            # 時系列データも生成（各月について前年同月比を計算）
+                            # 時系列データも生成（各月について前年比を計算）
                             cpi_yoy_values = []
+                            cpi_yoy_dates = []
                             for i in range(len(raw_values)):
                                 if i >= 12:
                                     # 12ヶ月前の値と比較
                                     yoy = ((raw_values[i] / raw_values[i-12]) - 1) * 100
                                     cpi_yoy_values.append(yoy)
-                                else:
-                                    # データが不足している場合は最新のYoYを使用
-                                    cpi_yoy_values.append(cpi)
+                                    cpi_yoy_dates.append(raw_dates[i])
                             
                             cpi_series = {
-                                "dates": raw_dates[-len(cpi_yoy_values):],
+                                "dates": cpi_yoy_dates,
                                 "values": cpi_yoy_values,
                                 "latest": cpi
                             }
@@ -397,20 +390,20 @@ class DataFetcher:
                         
                         if len(raw_values) >= 13:
                             current = raw_values[-1]
-                            previous = raw_values[0] if len(raw_values) >= 13 else raw_values[-12]
+                            previous = raw_values[-13] if len(raw_values) >= 13 else raw_values[0]
                             cpi = ((current / previous) - 1) * 100  # 年率換算（%）
                             
                             # 時系列データも生成
                             cpi_yoy_values = []
+                            cpi_yoy_dates = []
                             for i in range(len(raw_values)):
                                 if i >= 12:
                                     yoy = ((raw_values[i] / raw_values[i-12]) - 1) * 100
                                     cpi_yoy_values.append(yoy)
-                                else:
-                                    cpi_yoy_values.append(cpi)
+                                    cpi_yoy_dates.append(raw_dates[i])
                             
                             cpi_series = {
-                                "dates": raw_dates[-len(cpi_yoy_values):],
+                                "dates": cpi_yoy_dates,
                                 "values": cpi_yoy_values,
                                 "latest": cpi
                             }
@@ -455,7 +448,7 @@ class DataFetcher:
             "CPI": cpi,
             "employment_rate": employment_rate,
             "date": datetime.now().isoformat(),
-            "cpi_series": cpi_series  # 【修正】CPIの時系列データ（前年同月比）
+            "cpi_series": cpi_series  # 【改善②】CPIの時系列データ（前年比YoY）
         }
         # 返り値をログ出力（nullチェック）
         logger.info(f"get_macro_indicators返り値 ({country_code}): PMI={pmi}, CPI={cpi}, employment_rate={employment_rate}")
@@ -562,42 +555,27 @@ class DataFetcher:
             if policy_rate is None:
                 policy_rate = self._get_japan_policy_rate()
         
-        # 長期金利: FRED APIまたはyfinanceから取得（最新値と時系列データ）
+        # 長期金利: FRED APIまたはyfinanceから取得
         long_term_rate = None
-        long_term_rate_series = None  # 【修正】時系列データ
-        
         if country_code == "US":
-            # FRED APIから時系列データを取得（過去6か月～1年）
-            long_term_rate_series = self._get_fred_series_data(fred_series["US"]["long_term_rate"], country_code, days=365)
-            if long_term_rate_series:
-                long_term_rate = long_term_rate_series["latest"]
-            else:
-                # FRED APIが失敗した場合はyfinanceから取得
-                if yf:
-                    try:
-                        rate_stock = yf.Ticker("^TNX")
-                        hist = rate_stock.history(period="6mo")
-                        if not hist.empty:
-                            long_term_rate = float(hist['Close'].iloc[-1])
-                            # yfinanceから時系列データも取得
-                            hist_tail = hist.tail(min(130, len(hist)))
-                            long_term_rate_series = {
-                                "dates": [date.strftime('%Y-%m-%d') for date in hist_tail.index],
-                                "values": hist_tail['Close'].tolist(),
-                                "latest": long_term_rate
-                            }
-                    except Exception as e:
-                        logger.warning(f"長期金利取得エラー (yfinance, {country_code}): {e}")
+            # FRED APIから取得
+            long_term_rate = self._get_fred_data(fred_series["US"]["long_term_rate"], country_code)
+            # FRED APIが失敗した場合はyfinanceから取得
+            if long_term_rate is None and yf:
+                try:
+                    rate_stock = yf.Ticker("^TNX")
+                    hist = rate_stock.history(period="5d")
+                    if not hist.empty:
+                        long_term_rate = float(hist['Close'].iloc[-1])
+                except Exception as e:
+                    logger.warning(f"長期金利取得エラー (yfinance, {country_code}): {e}")
         elif country_code == "JP":
-            # 日本: FRED APIから時系列データを取得
-            if fred_series["JP"]["long_term_rate"]:
-                long_term_rate_series = self._get_fred_series_data(fred_series["JP"]["long_term_rate"], country_code, days=365)
-                if long_term_rate_series:
-                    long_term_rate = long_term_rate_series["latest"]
+            # 日本: 日本銀行統計データAPIから取得を試行（公式データを優先）
+            long_term_rate = self._get_japan_long_term_rate()
             
-            # FRED APIが失敗した場合は日本銀行統計データAPIから取得を試行
-            if long_term_rate is None:
-                long_term_rate = self._get_japan_long_term_rate()
+            # 日本銀行統計データAPIが失敗した場合はFRED APIをフォールバックとして使用
+            if long_term_rate is None and fred_series["JP"]["long_term_rate"]:
+                long_term_rate = self._get_fred_data(fred_series["JP"]["long_term_rate"], country_code)
         
         # クレジットスプレッド: インデックスデータから推測（実データ取得が困難なため）
         credit_spread = None
@@ -614,8 +592,7 @@ class DataFetcher:
             "policy_rate": policy_rate,
             "long_term_rate": long_term_rate,
             "credit_spread": credit_spread,
-            "date": datetime.now().isoformat(),
-            "long_term_rate_series": long_term_rate_series  # 【修正】長期金利の時系列データ
+            "date": datetime.now().isoformat()
         }
         # 返り値をログ出力（nullチェック）
         logger.info(f"get_financial_indicators返り値 ({country_code}): policy_rate={policy_rate}, long_term_rate={long_term_rate}, credit_spread={credit_spread}")
