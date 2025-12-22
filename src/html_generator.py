@@ -1290,17 +1290,30 @@ class HTMLGenerator:
         
         if timeframe_code == "short":
             # 短期：金利、CPI
+            # 【修正】長期金利チャート（時系列データ対応）
             if financial.get("long_term_rate") is not None:
                 rate = financial.get("long_term_rate")
+                rate_series = financial.get("long_term_rate_series")  # 時系列データ
                 chart_id = f"rateChart_{country_code}_{timeframe_code}"
+                has_rate_series = rate_series and rate_series.get("dates") and rate_series.get("values")
+                
                 html += f"""
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <h3 class="text-lg font-semibold text-gray-900 mb-2">長期金利（10年債）</h3>
+"""
+                if not has_rate_series:
+                    html += f"""
                         <div class="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded mb-3">
                             <p class="text-xs text-yellow-800">
                                 ※ 現在は最新値のみ取得しており、時系列チャートは未対応
                             </p>
                         </div>
+"""
+                else:
+                    html += f"""
+                        <canvas id="{chart_id}"></canvas>
+"""
+                html += f"""
                         <div class="mt-3 pt-3 border-t border-gray-200">
                             <div class="grid grid-cols-2 gap-2 text-xs text-gray-600">
                                 <div>
@@ -1310,7 +1323,7 @@ class HTMLGenerator:
                                     <span class="font-semibold">系列：</span>利回り
                                 </div>
                                 <div>
-                                    <span class="font-semibold">期間：</span>直近6か月（未対応）
+                                    <span class="font-semibold">期間：</span>直近6か月{'' if has_rate_series else '（未対応）'}
                                 </div>
                                 <div>
                                     <span class="font-semibold">取得元：</span>FRED / 各国中央銀行
@@ -1321,17 +1334,30 @@ class HTMLGenerator:
                     </div>
 """
             
+            # 【修正】CPIチャート（時系列データ対応）
             if macro.get("CPI") is not None:
                 cpi = macro.get("CPI")
+                cpi_series = macro.get("cpi_series")  # 時系列データ
                 chart_id = f"cpiChart_{country_code}_{timeframe_code}"
+                has_cpi_series = cpi_series and cpi_series.get("dates") and cpi_series.get("values")
+                
                 html += f"""
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <h3 class="text-lg font-semibold text-gray-900 mb-2">CPI（消費者物価指数）</h3>
+"""
+                if not has_cpi_series:
+                    html += f"""
                         <div class="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded mb-3">
                             <p class="text-xs text-yellow-800">
                                 ※ 現在は最新値のみ取得しており、時系列チャートは未対応
                             </p>
                         </div>
+"""
+                else:
+                    html += f"""
+                        <canvas id="{chart_id}"></canvas>
+"""
+                html += f"""
                         <div class="mt-3 pt-3 border-t border-gray-200">
                             <div class="grid grid-cols-2 gap-2 text-xs text-gray-600">
                                 <div>
@@ -1341,7 +1367,7 @@ class HTMLGenerator:
                                     <span class="font-semibold">系列：</span>前年同月比
                                 </div>
                                 <div>
-                                    <span class="font-semibold">期間：</span>直近12か月（未対応）
+                                    <span class="font-semibold">期間：</span>直近12か月{'' if has_cpi_series else '（未対応）'}
                                 </div>
                                 <div>
                                     <span class="font-semibold">取得元：</span>FRED / 各国統計機関
@@ -1460,9 +1486,21 @@ class HTMLGenerator:
             ma75 = first_index.get("ma75", 0)
             ma200 = first_index.get("ma200", 0)
             
-            # 時系列データが存在する場合のみチャートを生成
+            # 【修正】時系列データが存在する場合のみチャートを生成
             if historical_prices and historical_dates and len(historical_prices) == len(historical_dates):
-                # 日付ラベル（表示用に簡略化：最初・中間・最後のみ表示）
+                # MAの時系列配列を取得（存在しない場合は単一値から生成）
+                historical_ma20 = first_index.get("historical_ma20", [])
+                historical_ma75 = first_index.get("historical_ma75", [])
+                historical_ma200 = first_index.get("historical_ma200", [])
+                
+                # MA時系列データが存在しない場合は、単一値から配列を生成（後方互換性）
+                if not historical_ma20 or len(historical_ma20) != len(historical_prices):
+                    historical_ma20 = [ma20] * len(historical_prices)
+                if not historical_ma75 or len(historical_ma75) != len(historical_prices):
+                    historical_ma75 = [ma75] * len(historical_prices)
+                if not historical_ma200 or len(historical_ma200) != len(historical_prices):
+                    historical_ma200 = [ma200] * len(historical_prices)
+                
                 labels = historical_dates
                 prices_data = historical_prices
                 
@@ -1470,9 +1508,12 @@ class HTMLGenerator:
                 # JavaScript用にエスケープ
                 labels_js = json.dumps(labels, ensure_ascii=False)
                 prices_js = json.dumps(prices_data, ensure_ascii=False)
+                ma20_js = json.dumps(historical_ma20, ensure_ascii=False)
+                ma75_js = json.dumps(historical_ma75, ensure_ascii=False)
+                ma200_js = json.dumps(historical_ma200, ensure_ascii=False)
                 
                 scripts += f"""
-                // 価格トレンドチャート
+                // 価格トレンドチャート（修正：MAを時系列配列として表示）
                 const ctx_{chart_id.replace('-', '_')} = document.getElementById('{chart_id}');
                 if (ctx_{chart_id.replace('-', '_')}) {{
                     new Chart(ctx_{chart_id.replace('-', '_')}, {{
@@ -1491,7 +1532,7 @@ class HTMLGenerator:
                                 }},
                                 {{
                                     label: 'MA20',
-                                    data: Array({len(prices_data)}).fill({ma20}),
+                                    data: {ma20_js},
                                     borderColor: 'rgb(34, 197, 94)',
                                     borderDash: [5, 5],
                                     tension: 0.1,
@@ -1499,7 +1540,7 @@ class HTMLGenerator:
                                 }},
                                 {{
                                     label: 'MA75',
-                                    data: Array({len(prices_data)}).fill({ma75}),
+                                    data: {ma75_js},
                                     borderColor: 'rgb(251, 191, 36)',
                                     borderDash: [5, 5],
                                     tension: 0.1,
@@ -1507,7 +1548,7 @@ class HTMLGenerator:
                                 }},
                                 {{
                                     label: 'MA200',
-                                    data: Array({len(prices_data)}).fill({ma200}),
+                                    data: {ma200_js},
                                     borderColor: 'rgb(239, 68, 68)',
                                     borderDash: [5, 5],
                                     tension: 0.1,
@@ -1551,6 +1592,130 @@ class HTMLGenerator:
                 const ctx_{chart_id.replace('-', '_')} = document.getElementById('{chart_id}');
                 if (ctx_{chart_id.replace('-', '_')}) {{
                     // チャートは表示せず、注記のみ
+                }}
+"""
+        
+        # 【修正】長期金利チャート（時系列データ対応）
+        financial = data.get("financial", {})
+        if financial.get("long_term_rate_series"):
+            rate_series = financial.get("long_term_rate_series")
+            if rate_series.get("dates") and rate_series.get("values"):
+                chart_id = f"rateChart_{country_code}_{timeframe_code}"
+                labels_js = json.dumps(rate_series["dates"], ensure_ascii=False)
+                values_js = json.dumps(rate_series["values"], ensure_ascii=False)
+                
+                scripts += f"""
+                // 長期金利チャート（修正：時系列データを表示）
+                const ctx_rate_{chart_id.replace('-', '_')} = document.getElementById('{chart_id}');
+                if (ctx_rate_{chart_id.replace('-', '_')}) {{
+                    new Chart(ctx_rate_{chart_id.replace('-', '_')}, {{
+                        type: 'line',
+                        data: {{
+                            labels: {labels_js},
+                            datasets: [
+                                {{
+                                    label: '長期金利（10年債）',
+                                    data: {values_js},
+                                    borderColor: 'rgb(168, 85, 247)',
+                                    backgroundColor: 'rgba(168, 85, 247, 0.1)',
+                                    tension: 0.1,
+                                    pointRadius: 2,
+                                    pointHoverRadius: 4
+                                }}
+                            ]
+                        }},
+                        options: {{
+                            responsive: true,
+                            maintainAspectRatio: true,
+                            plugins: {{
+                                legend: {{
+                                    display: true,
+                                    position: 'top'
+                                }},
+                                tooltip: {{
+                                    mode: 'index',
+                                    intersect: false
+                                }}
+                            }},
+                            scales: {{
+                                x: {{
+                                    ticks: {{
+                                        maxRotation: 45,
+                                        minRotation: 45
+                                    }}
+                                }},
+                                y: {{
+                                    beginAtZero: false,
+                                    title: {{
+                                        display: true,
+                                        text: '利回り (%)'
+                                    }}
+                                }}
+                            }}
+                        }}
+                    }});
+                }}
+"""
+        
+        # 【修正】CPIチャート（時系列データ対応）
+        macro = data.get("macro", {})
+        if macro.get("cpi_series"):
+            cpi_series = macro.get("cpi_series")
+            if cpi_series.get("dates") and cpi_series.get("values"):
+                chart_id = f"cpiChart_{country_code}_{timeframe_code}"
+                labels_js = json.dumps(cpi_series["dates"], ensure_ascii=False)
+                values_js = json.dumps(cpi_series["values"], ensure_ascii=False)
+                
+                scripts += f"""
+                // CPIチャート（修正：時系列データを表示）
+                const ctx_cpi_{chart_id.replace('-', '_')} = document.getElementById('{chart_id}');
+                if (ctx_cpi_{chart_id.replace('-', '_')}) {{
+                    new Chart(ctx_cpi_{chart_id.replace('-', '_')}, {{
+                        type: 'line',
+                        data: {{
+                            labels: {labels_js},
+                            datasets: [
+                                {{
+                                    label: 'CPI前年同月比',
+                                    data: {values_js},
+                                    borderColor: 'rgb(236, 72, 153)',
+                                    backgroundColor: 'rgba(236, 72, 153, 0.1)',
+                                    tension: 0.1,
+                                    pointRadius: 2,
+                                    pointHoverRadius: 4
+                                }}
+                            ]
+                        }},
+                        options: {{
+                            responsive: true,
+                            maintainAspectRatio: true,
+                            plugins: {{
+                                legend: {{
+                                    display: true,
+                                    position: 'top'
+                                }},
+                                tooltip: {{
+                                    mode: 'index',
+                                    intersect: false
+                                }}
+                            }},
+                            scales: {{
+                                x: {{
+                                    ticks: {{
+                                        maxRotation: 45,
+                                        minRotation: 45
+                                    }}
+                                }},
+                                y: {{
+                                    beginAtZero: false,
+                                    title: {{
+                                        display: true,
+                                        text: '前年同月比 (%)'
+                                    }}
+                                }}
+                            }}
+                        }}
+                    }});
                 }}
 """
         
