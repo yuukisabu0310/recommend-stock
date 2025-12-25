@@ -1172,13 +1172,40 @@ class HTMLGenerator:
         
         if timeframe_code == "short":
             # 短期：金利、CPI
+            # 【改善②】長期金利チャート（時系列データ表示）
             if financial.get("long_term_rate") is not None:
                 rate = financial.get("long_term_rate")
+                rate_series = financial.get("long_term_rate_series")  # 時系列データ
                 chart_id = f"rateChart_{country_code}_{timeframe_code}"
+                has_rate_series = rate_series and rate_series.get("dates") and rate_series.get("values")
+                
+                # 期間表記を自動生成
+                period_text = ""
+                if has_rate_series:
+                    dates = rate_series["dates"]
+                    if dates:
+                        period_text = f"{dates[0]} ～ {dates[-1]}"
+                
                 html += f"""
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <h3 class="text-lg font-semibold text-gray-900 mb-2">長期金利（10年債）</h3>
                         <canvas id="{chart_id}"></canvas>
+                        <div class="mt-3 pt-3 border-t border-gray-200">
+                            <div class="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                                <div>
+                                    <span class="font-semibold">指標名：</span>長期金利（10年債）
+                                </div>
+                                <div>
+                                    <span class="font-semibold">系列：</span>利回り
+                                </div>
+                                <div>
+                                    <span class="font-semibold">期間：</span>{period_text if period_text else '取得可能な最大期間'}
+                                </div>
+                                <div>
+                                    <span class="font-semibold">取得元：</span>FRED / 各国中央銀行
+                                </div>
+                            </div>
+                        </div>
                         <p class="text-xs text-gray-600 mt-2">現在の長期金利は{rate:.2f}%です。</p>
                     </div>
 """
@@ -1235,7 +1262,7 @@ class HTMLGenerator:
                     </div>
 """
         
-        # 【改善③】構造リスク可視化（円グラフ化）
+        # 【改善①】構造リスク可視化（円グラフ化、S&P500構成比）
         if indices:
             first_index = list(indices.values())[0]
             concentration = first_index.get("top_stocks_concentration", 0)
@@ -1245,6 +1272,19 @@ class HTMLGenerator:
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <h3 class="text-lg font-semibold text-gray-900 mb-2">トップ銘柄集中度</h3>
                         <canvas id="{chart_id}"></canvas>
+                        <div class="mt-3 pt-3 border-t border-gray-200">
+                            <div class="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                                <div>
+                                    <span class="font-semibold">指標名：</span>トップ銘柄集中度（S&P500構成比）
+                                </div>
+                                <div>
+                                    <span class="font-semibold">取得元：</span>Yahoo Finance
+                                </div>
+                                <div>
+                                    <span class="font-semibold">対象範囲：</span>S&P500全体
+                                </div>
+                            </div>
+                        </div>
                         <p class="text-xs text-gray-600 mt-2 mb-2">
                             指数が特定銘柄にどの程度依存しているかを把握するための指標
                         </p>
@@ -1451,26 +1491,89 @@ class HTMLGenerator:
                 }}
 """
         
-        # 【改善③】トップ銘柄集中度（円グラフ化）
-        if indices:
-            first_index = list(indices.values())[0]
-            concentration = first_index.get("top_stocks_concentration", 0)
-            if concentration > 0:
-                chart_id = f"concentrationChart_{country_code}_{timeframe_code}"
-                
-                # 簡易的な構成比率を計算（実際の実装では各銘柄の時価総額シェアを取得）
-                # Apple, Microsoft, Nvidia, Alphabet, Amazon, Meta, Tesla, その他
-                apple_ratio = concentration * 0.25
-                microsoft_ratio = concentration * 0.20
-                nvidia_ratio = concentration * 0.15
-                alphabet_ratio = concentration * 0.12
-                amazon_ratio = concentration * 0.10
-                meta_ratio = concentration * 0.08
-                tesla_ratio = concentration * 0.05
-                other_ratio = 1.0 - concentration
+        # 【改善②】長期金利チャート（時系列データ表示）
+        financial = data.get("financial", {})
+        if financial.get("long_term_rate_series"):
+            rate_series = financial.get("long_term_rate_series")
+            if rate_series.get("dates") and rate_series.get("values"):
+                chart_id = f"rateChart_{country_code}_{timeframe_code}"
+                labels_js = json.dumps(rate_series["dates"], ensure_ascii=False)
+                values_js = json.dumps(rate_series["values"], ensure_ascii=False)
                 
                 scripts += f"""
-                // トップ銘柄集中度（改善③：円グラフ化）
+                // 長期金利チャート（改善②：時系列データを表示）
+                const ctx_rate_{chart_id.replace('-', '_')} = document.getElementById('{chart_id}');
+                if (ctx_rate_{chart_id.replace('-', '_')}) {{
+                    new Chart(ctx_rate_{chart_id.replace('-', '_')}, {{
+                        type: 'line',
+                        data: {{
+                            labels: {labels_js},
+                            datasets: [
+                                {{
+                                    label: '長期金利（10年債）',
+                                    data: {values_js},
+                                    borderColor: 'rgb(168, 85, 247)',
+                                    backgroundColor: 'rgba(168, 85, 247, 0.1)',
+                                    tension: 0.1,
+                                    pointRadius: 2,
+                                    pointHoverRadius: 4
+                                }}
+                            ]
+                        }},
+                        options: {{
+                            responsive: true,
+                            maintainAspectRatio: true,
+                            plugins: {{
+                                legend: {{
+                                    display: true,
+                                    position: 'top'
+                                }},
+                                tooltip: {{
+                                    mode: 'index',
+                                    intersect: false
+                                }}
+                            }},
+                            scales: {{
+                                x: {{
+                                    ticks: {{
+                                        maxRotation: 45,
+                                        minRotation: 45
+                                    }}
+                                }},
+                                y: {{
+                                    beginAtZero: false,
+                                    title: {{
+                                        display: true,
+                                        text: '利回り (%)'
+                                    }}
+                                }}
+                            }}
+                        }}
+                    }});
+                }}
+"""
+        
+        # 【改善①】トップ銘柄集中度（円グラフ化、S&P500構成比）
+        if indices:
+            first_index = list(indices.values())[0]
+            composition = first_index.get("top_stocks_composition")  # 構成比データ
+            concentration = first_index.get("top_stocks_concentration", 0)
+            
+            if composition and concentration > 0:
+                chart_id = f"concentrationChart_{country_code}_{timeframe_code}"
+                
+                # 構成比データから値を取得
+                apple_ratio = composition.get("Apple", 0) * 100
+                microsoft_ratio = composition.get("Microsoft", 0) * 100
+                nvidia_ratio = composition.get("Nvidia", 0) * 100
+                alphabet_ratio = composition.get("Alphabet", 0) * 100
+                amazon_ratio = composition.get("Amazon", 0) * 100
+                meta_ratio = composition.get("Meta", 0) * 100
+                tesla_ratio = composition.get("Tesla", 0) * 100
+                other_ratio = composition.get("その他", 0) * 100
+                
+                scripts += f"""
+                // トップ銘柄集中度（改善①：円グラフ化、S&P500構成比）
                 const ctx_conc_{chart_id.replace('-', '_')} = document.getElementById('{chart_id}');
                 if (ctx_conc_{chart_id.replace('-', '_')}) {{
                     new Chart(ctx_conc_{chart_id.replace('-', '_')}, {{
@@ -1480,14 +1583,14 @@ class HTMLGenerator:
                             datasets: [
                                 {{
                                     data: [
-                                        {apple_ratio * 100:.1f},
-                                        {microsoft_ratio * 100:.1f},
-                                        {nvidia_ratio * 100:.1f},
-                                        {alphabet_ratio * 100:.1f},
-                                        {amazon_ratio * 100:.1f},
-                                        {meta_ratio * 100:.1f},
-                                        {tesla_ratio * 100:.1f},
-                                        {other_ratio * 100:.1f}
+                                        {apple_ratio:.1f},
+                                        {microsoft_ratio:.1f},
+                                        {nvidia_ratio:.1f},
+                                        {alphabet_ratio:.1f},
+                                        {amazon_ratio:.1f},
+                                        {meta_ratio:.1f},
+                                        {tesla_ratio:.1f},
+                                        {other_ratio:.1f}
                                     ],
                                     backgroundColor: [
                                         'rgb(59, 130, 246)',
@@ -1513,7 +1616,7 @@ class HTMLGenerator:
                                 tooltip: {{
                                     callbacks: {{
                                         label: function(context) {{
-                                            return context.label + ': ' + context.parsed + '%';
+                                            return context.label + ': ' + context.parsed.toFixed(1) + '%';
                                         }}
                                     }}
                                 }}

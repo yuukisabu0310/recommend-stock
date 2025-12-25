@@ -193,9 +193,28 @@ class DataFetcher:
             if len(ma200_series) < len(historical_prices):
                 ma200_series = [ma200] * (len(historical_prices) - len(ma200_series)) + ma200_series
             
-            # 簡易的な上位銘柄集中度の計算（実際の実装では上位銘柄の時価総額シェアを計算）
-            # ここではボラティリティと出来高から推測（簡易実装）
-            concentration = min(0.4, max(0.1, volatility / 100.0))  # 0.1～0.4の範囲に正規化
+            # 【改善①】トップ銘柄集中度の構成比データを計算（S&P500内構成比）
+            # 簡易的な実装として、既存の集中度からMagnificent Sevenの構成比を計算
+            # 実際の実装では各銘柄の時価総額シェアを取得する必要がある
+            concentration = min(0.4, max(0.1, volatility / 100.0))  # 0.1～0.4の範囲に正規化（構造スコア計算用）
+            
+            # Magnificent Sevenの構成比を計算（簡易実装：合計がconcentrationになるように配分）
+            # 実際のS&P500構成比に近い想定値を使用
+            total_magnificent_seven = concentration  # 合計集中度
+            
+            # 構成比を定義（S&P500の実際の構成比に近い想定値）
+            # これらの値は簡易的なものであり、実際のデータ取得が推奨される
+            composition_ratios = {
+                "Apple": total_magnificent_seven * 0.24,      # 約24% of Magnificent Seven
+                "Microsoft": total_magnificent_seven * 0.21,  # 約21% of Magnificent Seven
+                "Nvidia": total_magnificent_seven * 0.18,     # 約18% of Magnificent Seven
+                "Amazon": total_magnificent_seven * 0.12,     # 約12% of Magnificent Seven
+                "Alphabet": total_magnificent_seven * 0.11,   # 約11% of Magnificent Seven
+                "Meta": total_magnificent_seven * 0.09,       # 約9% of Magnificent Seven
+                "Tesla": total_magnificent_seven * 0.05,      # 約5% of Magnificent Seven
+            }
+            # その他は残り
+            composition_ratios["その他"] = 1.0 - total_magnificent_seven
             
             data = {
                 "index_code": index_code,
@@ -216,7 +235,8 @@ class DataFetcher:
                 "historical_ma20": ma20_series,  # 【改善①】MA20の時系列配列
                 "historical_ma75": ma75_series,  # 【改善①】MA75の時系列配列
                 "historical_ma200": ma200_series,  # 【改善①】MA200の時系列配列
-                "top_stocks_concentration": concentration  # 構造スコア計算用の集中度
+                "top_stocks_concentration": concentration,  # 構造スコア計算用の集中度（後方互換性）
+                "top_stocks_composition": composition_ratios  # 【改善①】トップ銘柄構成比（S&P500内構成比）
             }
             
             # フォールバックデータとして保存
@@ -261,15 +281,16 @@ class DataFetcher:
         logger.error(f"FRED API取得最終失敗 ({series_id}, {country_code})")
         return None
     
-    def _get_fred_series_data(self, series_id: str, country_code: str, days: int = 730, max_retries: int = 3) -> Optional[Dict]:
+    def _get_fred_series_data(self, series_id: str, country_code: str, days: int = 730, max_retries: int = 3, is_daily: bool = False) -> Optional[Dict]:
         """
         FRED APIから時系列データを取得（リトライ付き）
         
         Args:
             series_id: FREDシリーズID
             country_code: 国コード
-            days: 取得日数（CPIは月次データなので、約24ヶ月分）
+            days: 取得日数（日次データの場合は営業日数、月次データの場合は月数）
             max_retries: 最大リトライ回数
+            is_daily: Trueの場合は日次データ、Falseの場合は月次データとして扱う
         
         Returns:
             {"dates": List[str], "values": List[float], "latest": float} またはNone
@@ -278,8 +299,13 @@ class DataFetcher:
             logger.warning(f"FRED APIクライアントが初期化されていません ({series_id}, {country_code})")
             return None
         
-        # CPIは月次データなので、約24ヶ月分を取得
-        limit = min(36, days // 30) if days > 30 else 24  # 最大36ヶ月分
+        # データタイプに応じてlimitを計算
+        if is_daily:
+            # 日次データの場合（長期金利など）：営業日数ベースで約252日/年
+            limit = min(365, days)  # 最大365日分
+        else:
+            # 月次データの場合（CPIなど）：約24ヶ月分を取得
+            limit = min(36, days // 30) if days > 30 else 24  # 最大36ヶ月分
         
         for attempt in range(max_retries):
             try:
@@ -555,27 +581,43 @@ class DataFetcher:
             if policy_rate is None:
                 policy_rate = self._get_japan_policy_rate()
         
-        # 長期金利: FRED APIまたはyfinanceから取得
+        # 【改善②】長期金利: FRED APIまたはyfinanceから取得（時系列データ含む）
         long_term_rate = None
+        long_term_rate_series = None  # 時系列データ
+        
         if country_code == "US":
-            # FRED APIから取得
-            long_term_rate = self._get_fred_data(fred_series["US"]["long_term_rate"], country_code)
+            # FRED APIから時系列データを取得（過去6か月～1年、日次データ）
+            if self.fred_client:
+                long_term_rate_series = self._get_fred_series_data(fred_series["US"]["long_term_rate"], country_code, days=365, is_daily=True)
+                if long_term_rate_series:
+                    long_term_rate = long_term_rate_series["latest"]
+            
             # FRED APIが失敗した場合はyfinanceから取得
             if long_term_rate is None and yf:
                 try:
                     rate_stock = yf.Ticker("^TNX")
-                    hist = rate_stock.history(period="5d")
+                    hist = rate_stock.history(period="6mo")
                     if not hist.empty:
                         long_term_rate = float(hist['Close'].iloc[-1])
+                        # yfinanceから時系列データも取得
+                        hist_tail = hist.tail(min(130, len(hist)))
+                        long_term_rate_series = {
+                            "dates": [date.strftime('%Y-%m-%d') for date in hist_tail.index],
+                            "values": hist_tail['Close'].tolist(),
+                            "latest": long_term_rate
+                        }
                 except Exception as e:
                     logger.warning(f"長期金利取得エラー (yfinance, {country_code}): {e}")
         elif country_code == "JP":
-            # 日本: 日本銀行統計データAPIから取得を試行（公式データを優先）
-            long_term_rate = self._get_japan_long_term_rate()
+            # 日本: FRED APIから時系列データを取得（日次データ）
+            if self.fred_client and fred_series["JP"]["long_term_rate"]:
+                long_term_rate_series = self._get_fred_series_data(fred_series["JP"]["long_term_rate"], country_code, days=365, is_daily=True)
+                if long_term_rate_series:
+                    long_term_rate = long_term_rate_series["latest"]
             
-            # 日本銀行統計データAPIが失敗した場合はFRED APIをフォールバックとして使用
-            if long_term_rate is None and fred_series["JP"]["long_term_rate"]:
-                long_term_rate = self._get_fred_data(fred_series["JP"]["long_term_rate"], country_code)
+            # FRED APIが失敗した場合は日本銀行統計データAPIから取得を試行
+            if long_term_rate is None:
+                long_term_rate = self._get_japan_long_term_rate()
         
         # クレジットスプレッド: インデックスデータから推測（実データ取得が困難なため）
         credit_spread = None
@@ -592,7 +634,8 @@ class DataFetcher:
             "policy_rate": policy_rate,
             "long_term_rate": long_term_rate,
             "credit_spread": credit_spread,
-            "date": datetime.now().isoformat()
+            "date": datetime.now().isoformat(),
+            "long_term_rate_series": long_term_rate_series  # 【改善②】長期金利の時系列データ
         }
         # 返り値をログ出力（nullチェック）
         logger.info(f"get_financial_indicators返り値 ({country_code}): policy_rate={policy_rate}, long_term_rate={long_term_rate}, credit_spread={credit_spread}")
