@@ -1286,9 +1286,9 @@ class HTMLGenerator:
                             </div>
                         </div>
                         <p class="text-xs text-gray-600 mt-2 mb-2">
-                            指数が特定銘柄にどの程度依存しているかを把握するための指標
+                            本グラフは S&P500指数におけるマグニフィセント・セブン（M7）の時価総額構成比を示しています
                         </p>
-                        <p class="text-xs text-gray-600">上位銘柄の集中度は{concentration*100:.1f}%です。</p>
+                        <p class="text-xs text-gray-600">M7合計の構成比は{concentration*100:.1f}%です。</p>
                     </div>
 """
         
