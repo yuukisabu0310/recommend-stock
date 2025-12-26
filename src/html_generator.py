@@ -1262,33 +1262,42 @@ class HTMLGenerator:
                     </div>
 """
         
-        # 【改善①】構造リスク可視化（円グラフ化、S&P500構成比）
+        # 【改善】構造リスク可視化（トップ10銘柄集中度、時価総額ベース、米国・日本共通）
         if indices:
             first_index = list(indices.values())[0]
             concentration = first_index.get("top_stocks_concentration", 0)
             if concentration > 0:
                 chart_id = f"concentrationChart_{country_code}_{timeframe_code}"
+                # 指数名を取得
+                index_name_map = {
+                    ("US", "SPX"): "S&P500",
+                    ("JP", "TPX"): "TOPIX",
+                    ("JP", "N225"): "日経平均"
+                }
+                first_index_code = list(indices.keys())[0] if indices else None
+                index_name = index_name_map.get((country_code, first_index_code), "指数")
+                
                 html += f"""
                     <div class="bg-gray-50 p-4 rounded-lg">
-                        <h3 class="text-lg font-semibold text-gray-900 mb-2">トップ銘柄集中度</h3>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">トップ10銘柄集中度（時価総額ベース）</h3>
                         <canvas id="{chart_id}"></canvas>
                         <div class="mt-3 pt-3 border-t border-gray-200">
                             <div class="grid grid-cols-2 gap-2 text-xs text-gray-600">
                                 <div>
-                                    <span class="font-semibold">指標名：</span>トップ銘柄集中度（S&P500構成比）
+                                    <span class="font-semibold">指標名：</span>トップ10銘柄集中度（{index_name}構成比）
                                 </div>
                                 <div>
                                     <span class="font-semibold">取得元：</span>Yahoo Finance
                                 </div>
                                 <div>
-                                    <span class="font-semibold">対象範囲：</span>S&P500全体
+                                    <span class="font-semibold">対象範囲：</span>{index_name}全体
                                 </div>
                             </div>
                         </div>
                         <p class="text-xs text-gray-600 mt-2 mb-2">
-                            本グラフは S&P500指数におけるマグニフィセント・セブン（M7）の時価総額構成比を示しています
+                            指数全体に占める、時価総額上位10銘柄の割合
                         </p>
-                        <p class="text-xs text-gray-600">M7合計の構成比は{concentration*100:.1f}%です。</p>
+                        <p class="text-xs text-gray-600">上位10銘柄の構成比は{concentration*100:.1f}%です。</p>
                     </div>
 """
         
@@ -1553,7 +1562,7 @@ class HTMLGenerator:
                 }}
 """
         
-        # 【改善①】トップ銘柄集中度（円グラフ化、S&P500構成比）
+        # 【改善】トップ10銘柄集中度（時価総額ベース、米国・日本共通）
         if indices:
             first_index = list(indices.values())[0]
             composition = first_index.get("top_stocks_composition")  # 構成比データ
@@ -1562,46 +1571,51 @@ class HTMLGenerator:
             if composition and concentration > 0:
                 chart_id = f"concentrationChart_{country_code}_{timeframe_code}"
                 
-                # 構成比データから値を取得
-                apple_ratio = composition.get("Apple", 0) * 100
-                microsoft_ratio = composition.get("Microsoft", 0) * 100
-                nvidia_ratio = composition.get("Nvidia", 0) * 100
-                alphabet_ratio = composition.get("Alphabet", 0) * 100
-                amazon_ratio = composition.get("Amazon", 0) * 100
-                meta_ratio = composition.get("Meta", 0) * 100
-                tesla_ratio = composition.get("Tesla", 0) * 100
+                # 構成比データから「その他」を除外し、上位銘柄をソート
+                # 「その他」は最後に追加
+                sorted_items = sorted(
+                    [(name, ratio) for name, ratio in composition.items() if name != "その他"],
+                    key=lambda x: x[1],
+                    reverse=True
+                )
                 other_ratio = composition.get("その他", 0) * 100
                 
+                # ラベルとデータ配列を生成
+                labels = [name for name, _ in sorted_items] + ["その他"]
+                data_values = [ratio * 100 for _, ratio in sorted_items] + [other_ratio]
+                
+                # カラーパレット（最大11色：上位10 + その他）
+                color_palette = [
+                    'rgb(59, 130, 246)',   # Blue
+                    'rgb(34, 197, 94)',    # Green
+                    'rgb(251, 191, 36)',   # Yellow
+                    'rgb(239, 68, 68)',    # Red
+                    'rgb(168, 85, 247)',   # Purple
+                    'rgb(236, 72, 153)',   # Pink
+                    'rgb(249, 115, 22)',   # Orange
+                    'rgb(20, 184, 166)',   # Teal
+                    'rgb(139, 92, 246)',   # Indigo
+                    'rgb(245, 158, 11)',   # Amber
+                    'rgb(156, 163, 175)'   # Gray (その他)
+                ]
+                
+                # JavaScriptの配列として生成
+                labels_js = json.dumps(labels, ensure_ascii=False)
+                data_js = json.dumps(data_values, ensure_ascii=False)
+                colors_js = json.dumps(color_palette[:len(labels)], ensure_ascii=False)
+                
                 scripts += f"""
-                // トップ銘柄集中度（改善①：円グラフ化、S&P500構成比）
+                // トップ10銘柄集中度（時価総額ベース、米国・日本共通）
                 const ctx_conc_{chart_id.replace('-', '_')} = document.getElementById('{chart_id}');
                 if (ctx_conc_{chart_id.replace('-', '_')}) {{
                     new Chart(ctx_conc_{chart_id.replace('-', '_')}, {{
                         type: 'doughnut',
                         data: {{
-                            labels: ['Apple', 'Microsoft', 'Nvidia', 'Alphabet', 'Amazon', 'Meta', 'Tesla', 'その他'],
+                            labels: {labels_js},
                             datasets: [
                                 {{
-                                    data: [
-                                        {apple_ratio:.1f},
-                                        {microsoft_ratio:.1f},
-                                        {nvidia_ratio:.1f},
-                                        {alphabet_ratio:.1f},
-                                        {amazon_ratio:.1f},
-                                        {meta_ratio:.1f},
-                                        {tesla_ratio:.1f},
-                                        {other_ratio:.1f}
-                                    ],
-                                    backgroundColor: [
-                                        'rgb(59, 130, 246)',
-                                        'rgb(34, 197, 94)',
-                                        'rgb(251, 191, 36)',
-                                        'rgb(239, 68, 68)',
-                                        'rgb(168, 85, 247)',
-                                        'rgb(236, 72, 153)',
-                                        'rgb(249, 115, 22)',
-                                        'rgb(156, 163, 175)'
-                                    ]
+                                    data: {data_js},
+                                    backgroundColor: {colors_js}
                                 }}
                             ]
                         }},

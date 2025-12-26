@@ -193,31 +193,24 @@ class DataFetcher:
             if len(ma200_series) < len(historical_prices):
                 ma200_series = [ma200] * (len(historical_prices) - len(ma200_series)) + ma200_series
             
-            # 【修正】トップ銘柄集中度（M7構成比）をS&P500指数ベースの時価総額構成比として計算
-            # M7構成比 = (M7銘柄の時価総額合計) ÷ (S&P500指数全体の時価総額)
+            # 【改善】トップ10銘柄集中度を時価総額ベースで計算（米国・日本共通）
+            # 集中度 = (上位10銘柄の時価総額合計) ÷ (指数全体の時価総額) × 100（%）
             concentration = None
             composition_ratios = None
             
-            # S&P500の場合のみ、実際の時価総額データから構成比を計算
-            if index_code == "SPX" and country_code == "US":
-                m7_composition = self._calculate_m7_composition()
-                if m7_composition:
-                    composition_ratios = m7_composition["ratios"]
-                    concentration = m7_composition["total_m7_ratio"]
+            # 米国（S&P500）または日本（TOPIX/日経平均）の場合、実際の時価総額データから構成比を計算
+            if (index_code == "SPX" and country_code == "US") or (country_code == "JP" and (index_code == "TPX" or index_code == "N225")):
+                top10_composition = self._calculate_top10_concentration(index_code, country_code)
+                if top10_composition:
+                    composition_ratios = top10_composition["ratios"]
+                    concentration = top10_composition["top10_ratio"]
             
-            # データ取得に失敗した場合、またはS&P500以外の場合は簡易計算を使用（後方互換性）
+            # データ取得に失敗した場合は簡易計算を使用（後方互換性）
             if concentration is None:
                 concentration = min(0.4, max(0.1, volatility / 100.0))  # 0.1～0.4の範囲に正規化（構造スコア計算用）
-                total_magnificent_seven = concentration
+                # 簡易フォールバック：固定比率を使用
                 composition_ratios = {
-                    "Apple": total_magnificent_seven * 0.24,
-                    "Microsoft": total_magnificent_seven * 0.21,
-                    "Nvidia": total_magnificent_seven * 0.18,
-                    "Amazon": total_magnificent_seven * 0.12,
-                    "Alphabet": total_magnificent_seven * 0.11,
-                    "Meta": total_magnificent_seven * 0.09,
-                    "Tesla": total_magnificent_seven * 0.05,
-                    "その他": 1.0 - total_magnificent_seven
+                    "その他": 1.0 - concentration
                 }
             
             data = {
@@ -240,7 +233,7 @@ class DataFetcher:
                 "historical_ma75": ma75_series,  # 【改善①】MA75の時系列配列
                 "historical_ma200": ma200_series,  # 【改善①】MA200の時系列配列
                 "top_stocks_concentration": concentration,  # 構造スコア計算用の集中度（後方互換性）
-                "top_stocks_composition": composition_ratios  # 【修正】トップ銘柄構成比（S&P500指数ベース時価総額構成比）
+                "top_stocks_composition": composition_ratios  # 【改善】トップ10銘柄構成比（時価総額ベース、指数全体に対する比率）
             }
             
             # フォールバックデータとして保存
@@ -809,117 +802,160 @@ class DataFetcher:
             logger.error(f"銘柄データ取得エラー ({ticker}): {e}")
             return None
     
-    def _calculate_m7_composition(self) -> Optional[Dict]:
+    def _calculate_top10_concentration(self, index_code: str, country_code: str) -> Optional[Dict]:
         """
-        M7（Magnificent Seven）のS&P500指数ベース構成比を計算
+        時価総額上位10銘柄の指数ベース構成比を計算（米国・日本共通）
+        
+        Args:
+            index_code: インデックスコード（SPX, TPX, N225等）
+            country_code: 国コード（US, JP）
         
         Returns:
-            {"ratios": Dict, "total_m7_ratio": float} またはNone
+            {"ratios": Dict, "top10_ratio": float, "top10_stocks": List[Dict]} またはNone
         """
         if not yf:
-            logger.warning("yfinanceが利用できません。M7構成比を計算できません。")
+            logger.warning("yfinanceが利用できません。トップ10銘柄集中度を計算できません。")
             return None
         
-        # M7銘柄のティッカー
-        m7_tickers = {
-            "Apple": "AAPL",
-            "Microsoft": "MSFT",
-            "Nvidia": "NVDA",
-            "Amazon": "AMZN",
-            "Meta": "META",
-            "Alphabet": ["GOOGL", "GOOG"],  # GOOGL + GOOG を合算
-            "Tesla": "TSLA"
-        }
+        # 主要銘柄リスト（指数構成銘柄の代表的な銘柄）
+        # 実際の実装では、指数の全構成銘柄リストから取得するのが理想だが、
+        # ここでは主要銘柄から時価総額上位10銘柄を抽出
+        if country_code == "US" and index_code == "SPX":
+            # S&P500の主要構成銘柄（上位50銘柄程度を想定）
+            major_stocks = [
+                ("AAPL", "Apple"), ("MSFT", "Microsoft"), ("NVDA", "Nvidia"), ("AMZN", "Amazon"),
+                ("META", "Meta"), ("GOOGL", "Alphabet"), ("GOOG", "Alphabet"), ("TSLA", "Tesla"),
+                ("BRK-B", "Berkshire Hathaway"), ("V", "Visa"), ("JNJ", "Johnson & Johnson"),
+                ("WMT", "Walmart"), ("JPM", "JPMorgan Chase"), ("MA", "Mastercard"), ("PG", "Procter & Gamble"),
+                ("UNH", "UnitedHealth"), ("HD", "Home Depot"), ("DIS", "Disney"), ("BAC", "Bank of America"),
+                ("ADBE", "Adobe"), ("NFLX", "Netflix"), ("AVGO", "Broadcom"), ("COST", "Costco"),
+                ("CRM", "Salesforce"), ("PYPL", "PayPal"), ("ABBV", "AbbVie"), ("MRK", "Merck"),
+                ("TMO", "Thermo Fisher"), ("CSCO", "Cisco"), ("ACN", "Accenture"), ("PEP", "PepsiCo"),
+                ("NKE", "Nike"), ("TXN", "Texas Instruments"), ("ABT", "Abbott"), ("CVX", "Chevron"),
+                ("LIN", "Linde"), ("NEE", "NextEra Energy"), ("ORCL", "Oracle"), ("AMD", "AMD"),
+                ("HON", "Honeywell"), ("PM", "Philip Morris"), ("INTU", "Intuit"), ("UNP", "Union Pacific"),
+                ("LOW", "Lowe's"), ("RTX", "Raytheon Technologies"), ("UPS", "UPS"), ("SPGI", "S&P Global"),
+                ("QCOM", "Qualcomm"), ("DE", "Deere"), ("CAT", "Caterpillar"), ("MDT", "Medtronic"),
+                ("GE", "GE"), ("BKNG", "Booking Holdings"), ("AXP", "American Express")
+            ]
+        elif country_code == "JP":
+            # 日本株の主要銘柄（日経225/TOPIX主要構成銘柄）
+            if index_code == "N225" or index_code == "TPX":
+                major_stocks = [
+                    ("7203.T", "トヨタ自動車"), ("6758.T", "ソニーグループ"), ("6861.T", "キーエンス"),
+                    ("9984.T", "ソフトバンクグループ"), ("8035.T", "東京エレクトロン"), ("4063.T", "信越化学工業"),
+                    ("6098.T", "リクルートホールディングス"), ("4519.T", "中外製薬"), ("6501.T", "日立製作所"),
+                    ("8306.T", "三菱UFJフィナンシャル・グループ"), ("7267.T", "ホンダ"), ("8058.T", "三菱商事"),
+                    ("6752.T", "パナソニック"), ("7733.T", "オリンパス"), ("4503.T", "アステラス製薬"),
+                    ("4901.T", "富士フイルムホールディングス"), ("9434.T", "ソフトバンク"), ("6367.T", "ダイキン工業"),
+                    ("4543.T", "テルモ"), ("7741.T", "HOYA"), ("9022.T", "東日本旅客鉄道"), ("8802.T", "三菱地所"),
+                    ("2914.T", "日本たばこ産業"), ("8766.T", "東京海上ホールディングス"), ("8411.T", "みずほフィナンシャルグループ"),
+                    ("4661.T", "オリエンタルランド"), ("3382.T", "セブン&アイ・ホールディングス"), ("6954.T", "ファナック"),
+                    ("8001.T", "伊藤忠商事"), ("7974.T", "任天堂"), ("9433.T", "KDDI"), ("6971.T", "京セラ"),
+                    ("9020.T", "東日本旅客鉄道"), ("7201.T", "日産自動車"), ("4502.T", "武田薬品工業"),
+                    ("3405.T", "クラレ"), ("5201.T", "AGC"), ("6471.T", "日本精工"), ("4452.T", "花王"),
+                    ("7743.T", "セイコーエプソン"), ("7732.T", "トプコン"), ("6902.T", "デンソー"),
+                    ("5401.T", "日本製鉄"), ("3401.T", "帝人"), ("4061.T", "デンカ"), ("5411.T", "JFEホールディングス"),
+                    ("5801.T", "古河電気工業"), ("5108.T", "ブリヂストン"), ("5713.T", "住友金属鉱山"),
+                    ("5714.T", "DOWAホールディングス"), ("5233.T", "太平洋セメント"), ("3402.T", "東レ")
+                ]
+            else:
+                logger.warning(f"未対応の指数コード: {index_code}")
+                return None
+        else:
+            logger.warning(f"未対応の指数・国コード: {index_code}, {country_code}")
+            return None
         
         try:
-            m7_market_caps = {}
-            total_m7_market_cap = 0.0
+            # 各銘柄の時価総額を取得
+            stock_market_caps = []
+            alphabet_cap = None  # Alphabet（GOOGL + GOOG）の合算時価総額
             
-            # M7銘柄の時価総額を取得
-            for name, ticker in m7_tickers.items():
+            for ticker, name in major_stocks:
+                # Alphabet（GOOGL + GOOG）を特別に処理
                 if name == "Alphabet":
-                    # AlphabetはGOOGL + GOOGを合算
-                    googl_cap = None
-                    goog_cap = None
-                    try:
-                        googl_stock = yf.Ticker("GOOGL")
-                        googl_info = googl_stock.info
-                        googl_cap = googl_info.get("marketCap")
-                    except Exception as e:
-                        logger.warning(f"GOOGL時価総額取得エラー: {e}")
-                    
-                    try:
-                        goog_stock = yf.Ticker("GOOG")
-                        goog_info = goog_stock.info
-                        goog_cap = goog_info.get("marketCap")
-                    except Exception as e:
-                        logger.warning(f"GOOG時価総額取得エラー: {e}")
-                    
-                    if googl_cap and goog_cap:
-                        alphabet_cap = googl_cap + goog_cap
-                        m7_market_caps[name] = alphabet_cap
-                        total_m7_market_cap += alphabet_cap
-                    elif googl_cap:
-                        m7_market_caps[name] = googl_cap
-                        total_m7_market_cap += googl_cap
-                    elif goog_cap:
-                        m7_market_caps[name] = goog_cap
-                        total_m7_market_cap += goog_cap
-                else:
-                    try:
-                        stock = yf.Ticker(ticker)
-                        info = stock.info
-                        market_cap = info.get("marketCap")
-                        if market_cap:
-                            m7_market_caps[name] = market_cap
-                            total_m7_market_cap += market_cap
-                    except Exception as e:
-                        logger.warning(f"{name} ({ticker}) 時価総額取得エラー: {e}")
+                    if ticker == "GOOGL":
+                        try:
+                            googl_stock = yf.Ticker("GOOGL")
+                            googl_info = googl_stock.info
+                            googl_cap = googl_info.get("marketCap")
+                            
+                            goog_stock = yf.Ticker("GOOG")
+                            goog_info = goog_stock.info
+                            goog_cap = goog_info.get("marketCap")
+                            
+                            if googl_cap and goog_cap:
+                                alphabet_cap = googl_cap + goog_cap
+                            elif googl_cap:
+                                alphabet_cap = googl_cap
+                            elif goog_cap:
+                                alphabet_cap = goog_cap
+                            
+                            if alphabet_cap and alphabet_cap > 0:
+                                stock_market_caps.append({
+                                    "ticker": "GOOGL+GOOG",
+                                    "name": "Alphabet",
+                                    "market_cap": alphabet_cap
+                                })
+                        except Exception as e:
+                            logger.debug(f"Alphabet ({ticker}) 時価総額取得エラー: {e}")
+                    # GOOGはスキップ（GOOGLで既に処理済み）
+                    continue
+                
+                try:
+                    stock = yf.Ticker(ticker)
+                    info = stock.info
+                    market_cap = info.get("marketCap")
+                    if market_cap and market_cap > 0:
+                        stock_market_caps.append({
+                            "ticker": ticker,
+                            "name": name,
+                            "market_cap": market_cap
+                        })
+                except Exception as e:
+                    logger.debug(f"{name} ({ticker}) 時価総額取得エラー: {e}")
+                    continue
             
-            if total_m7_market_cap == 0:
-                logger.warning("M7銘柄の時価総額が取得できませんでした。")
+            if len(stock_market_caps) < 10:
+                logger.warning(f"時価総額データが10銘柄未満です（{len(stock_market_caps)}銘柄）。トップ10銘柄集中度を計算できません。")
                 return None
             
-            # S&P500全体の時価総額を取得（方法B：S&P500の主要構成銘柄から推定）
-            # S&P500の上位50銘柄程度の時価総額を合算して、S&P500全体を推定
-            # 上位50銘柄でS&P500の約80-85%をカバーできるため、その逆算で全体を推定
-            sp500_total_market_cap = None
+            # 時価総額でソート（降順）
+            stock_market_caps.sort(key=lambda x: x["market_cap"], reverse=True)
             
-            # 主要なS&P500構成銘柄（M7以外の上位銘柄）の時価総額を取得して合算
-            # これにより、より正確なS&P500全体の推定が可能
-            try:
-                # S&P500の主要構成銘柄（M7以外の上位銘柄例）
-                # 実際の実装では、S&P500の全構成銘柄リストから取得するのが理想
-                # ここでは簡易的に、M7構成比が一般的な範囲（25-35%）になるように調整
-                # 一般的にM7はS&P500の約25-35%を占めるため、その逆算でS&P500全体を推定
-                estimated_sp500_total = total_m7_market_cap / 0.30  # 30%を仮定（一般的な中央値）
-                sp500_total_market_cap = estimated_sp500_total
-                logger.info(f"M7構成比からS&P500全体を推定: {sp500_total_market_cap:.0f} (M7合計: {total_m7_market_cap:.0f})")
-            except Exception as e:
-                logger.warning(f"S&P500全体時価総額推定エラー: {e}")
-                # フォールバック：M7構成比から推定
-                estimated_sp500_total = total_m7_market_cap / 0.30
-                sp500_total_market_cap = estimated_sp500_total
+            # 上位10銘柄を抽出
+            top10_stocks = stock_market_caps[:10]
+            top10_total_market_cap = sum(stock["market_cap"] for stock in top10_stocks)
             
-            # 構成比を計算（S&P500指数ベース）
+            # 指数全体の時価総額を推定
+            # 上位50銘柄程度の時価総額合計から、指数全体を推定
+            # 一般的に上位50銘柄で指数の約80-85%をカバーするため、その逆算で全体を推定
+            top50_stocks = stock_market_caps[:min(50, len(stock_market_caps))]
+            top50_total_market_cap = sum(stock["market_cap"] for stock in top50_stocks)
+            
+            # 上位50銘柄が指数全体の約82.5%を占めると仮定（80-85%の中間値）
+            index_total_market_cap = top50_total_market_cap / 0.825
+            
+            # 構成比を計算
             composition_ratios = {}
-            for name, market_cap in m7_market_caps.items():
-                ratio = market_cap / sp500_total_market_cap
-                composition_ratios[name] = ratio
+            for stock in top10_stocks:
+                ratio = stock["market_cap"] / index_total_market_cap
+                composition_ratios[stock["name"]] = ratio
             
             # その他は残り
-            total_m7_ratio = total_m7_market_cap / sp500_total_market_cap
-            composition_ratios["その他"] = 1.0 - total_m7_ratio
+            top10_ratio = top10_total_market_cap / index_total_market_cap
+            composition_ratios["その他"] = 1.0 - top10_ratio
             
-            logger.info(f"M7構成比計算完了: 合計={total_m7_ratio*100:.2f}%")
+            logger.info(f"トップ10銘柄集中度計算完了 ({country_code}, {index_code}): {top10_ratio*100:.2f}%")
             
             return {
                 "ratios": composition_ratios,
-                "total_m7_ratio": total_m7_ratio
+                "top10_ratio": top10_ratio,
+                "top10_stocks": [{"name": s["name"], "ticker": s["ticker"]} for s in top10_stocks]
             }
             
         except Exception as e:
-            logger.error(f"M7構成比計算エラー: {e}")
+            logger.error(f"トップ10銘柄集中度計算エラー ({country_code}, {index_code}): {e}")
             return None
     
     def _save_fallback_data(self, key: str, data: Dict):
