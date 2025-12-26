@@ -47,6 +47,97 @@ class HTMLGenerator:
         else:
             return "🟡"  # 中立
     
+    def _generate_summary_3points(self, data: Dict, analysis: Dict, country_name: str, timeframe_name: str) -> str:
+        """
+        総合判断サマリー（ChatGPT的3点整理）を生成
+        
+        Args:
+            data: 国別データ
+            analysis: 分析結果
+            country_name: 国名
+            timeframe_name: 期間名
+        
+        Returns:
+            3点整理のHTML
+        """
+        # 現在の市場局面を判定
+        score = analysis.get("score", 0)
+        indices = data.get("indices", {})
+        macro = data.get("macro", {})
+        financial = data.get("financial", {})
+        
+        # 市場局面の説明文を生成
+        if score >= 1:
+            market_situation = f"{country_name}市場は{timeframe_name}で上昇トレンドを示しています"
+        elif score <= -1:
+            market_situation = f"{country_name}市場は{timeframe_name}で調整局面にあります"
+        else:
+            market_situation = f"{country_name}市場は{timeframe_name}で中立的な状況です"
+        
+        # 金融環境の制約を確認
+        if financial.get("long_term_rate"):
+            rate = financial.get("long_term_rate")
+            if rate > 4.0:
+                market_situation += "が、金融環境に制約があります"
+            elif rate < 2.0:
+                market_situation += "が、金融環境は緩和的です"
+        
+        # 判断の主因を特定
+        rule_components = analysis.get("rule_based_components", {})
+        main_factor = "複数の指標が総合的に影響しています"
+        
+        if rule_components:
+            # スコアの絶対値が大きい指標を特定
+            def get_score(component):
+                if isinstance(component, dict):
+                    return abs(component.get("score", 0))
+                return abs(component) if isinstance(component, (int, float)) else 0
+            
+            macro_score = get_score(rule_components.get("macro", 0))
+            financial_score = get_score(rule_components.get("financial", 0))
+            technical_score = get_score(rule_components.get("technical", 0))
+            structural_score = get_score(rule_components.get("structural", 0))
+            
+            max_score = max(macro_score, financial_score, technical_score, structural_score)
+            if max_score > 0:
+                if max_score == macro_score:
+                    main_factor = "マクロ指標が最も影響しています"
+                elif max_score == financial_score:
+                    main_factor = "金融指標が最も影響しています"
+                elif max_score == technical_score:
+                    main_factor = "テクニカル指標が最も影響しています"
+                elif max_score == structural_score:
+                    main_factor = "構造的指標が最も影響しています"
+        
+        # 投資スタンスの方向性
+        if score >= 1:
+            stance = "強気"
+        elif score <= -1:
+            stance = "警戒"
+        else:
+            stance = "中立"
+        
+        return f"""
+            <!-- 総合判断サマリー（3点整理） -->
+            <section class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl shadow-md p-6 mb-6 border-l-4 border-blue-500">
+                <h2 class="text-xl font-bold text-gray-900 mb-4">総合判断サマリー</h2>
+                <div class="space-y-3">
+                    <div class="flex items-start">
+                        <span class="text-blue-600 font-bold mr-3">•</span>
+                        <p class="text-gray-800 flex-1"><strong>現在の市場局面：</strong>{market_situation}。</p>
+                    </div>
+                    <div class="flex items-start">
+                        <span class="text-blue-600 font-bold mr-3">•</span>
+                        <p class="text-gray-800 flex-1"><strong>判断の主因：</strong>{main_factor}。</p>
+                    </div>
+                    <div class="flex items-start">
+                        <span class="text-blue-600 font-bold mr-3">•</span>
+                        <p class="text-gray-800 flex-1"><strong>投資スタンスの方向性：</strong>{stance}のスタンスが適切と考えられます。</p>
+                    </div>
+                </div>
+            </section>
+"""
+    
     def _generate_conclusion_block(self, country_name: str, timeframe_name: str, direction_label: str, summary) -> str:
         """
         結論ブロックを生成（2行固定）
@@ -1163,6 +1254,9 @@ class HTMLGenerator:
                         <h3 class="text-lg font-semibold text-gray-900 mb-2">{index_name} 価格トレンド</h3>
                         <canvas id="{chart_id}"></canvas>
                         <p class="text-xs text-gray-600 mt-2">{caption}</p>
+                        <p class="text-xs text-gray-500 mt-2 italic">
+                            トレンド系指標（移動平均）は市場参加者の心理を反映します。短期MA（20日）は直近の動き、長期MA（200日）は長期的なトレンドを示します。
+                        </p>
                     </div>
 """
         
@@ -1207,6 +1301,9 @@ class HTMLGenerator:
                             </div>
                         </div>
                         <p class="text-xs text-gray-600 mt-2">現在の長期金利は{rate:.2f}%です。</p>
+                        <p class="text-xs text-gray-500 mt-2 italic">
+                            長期金利は株式市場のバリュエーションに影響します。金利上昇は将来キャッシュフローの割引率を高め、株式の理論価値を下げる傾向があります。一方、金利低下は逆の効果をもたらします。
+                        </p>
                     </div>
 """
             
@@ -1245,6 +1342,9 @@ class HTMLGenerator:
                             </div>
                         </div>
                         <p class="text-xs text-gray-600 mt-2">CPI前年同月比は{cpi:.2f}%です。</p>
+                        <p class="text-xs text-gray-500 mt-2 italic">
+                            CPIの前年比（YoY）は金融政策判断で重視されます。中央銀行は一般的に2%前後を目標としており、この水準との関係が金融政策の方向性に影響します。
+                        </p>
                     </div>
 """
         
@@ -1298,6 +1398,9 @@ class HTMLGenerator:
                             指数全体に占める、時価総額上位10銘柄の割合
                         </p>
                         <p class="text-xs text-gray-600">上位10銘柄の構成比は{concentration*100:.1f}%です。</p>
+                        <p class="text-xs text-gray-500 mt-2 italic">
+                            集中度が高い市場は、特定銘柄の動きが指数全体に大きく影響する「強さ」と、その銘柄の変動リスクが指数全体に波及する「脆さ」の両面を持ちます。構造分析として市場の依存構造を把握するために有効です。
+                        </p>
                     </div>
 """
         
@@ -1761,6 +1864,9 @@ class HTMLGenerator:
         summary = analysis.get("summary", "")
         html += self._generate_conclusion_block(country_name, timeframe_name, direction_label, summary)
         
+        # ① 総合判断サマリー（ChatGPT的3点整理）
+        html += self._generate_summary_3points(data, analysis, country_name, timeframe_name)
+        
         # ② 方向感の根拠（チャート）
         html += self._generate_charts_section(data, analysis, country_code, timeframe_code)
         
@@ -2026,6 +2132,19 @@ class HTMLGenerator:
                         </div>
 """
         
+        # 構造的指標スコアの読み方ガイドを追加（常に表示）
+        if rule_components:
+            html += """
+                    <div class="mt-4 p-4 bg-yellow-50 rounded-lg border-l-4 border-yellow-400">
+                        <p class="text-sm text-yellow-800 font-semibold mb-2">構造的指標スコアの読み方</p>
+                        <ul class="text-xs text-yellow-700 space-y-1 list-disc list-inside">
+                            <li>このスコアは売買シグナルではありません</li>
+                            <li>個別指標を要約した参考指標です</li>
+                            <li>スコア単体ではなく、内訳指標と併せて解釈すべきです</li>
+                        </ul>
+                    </div>
+"""
+        
         direction_label = analysis.get('direction_label', analysis.get('label', '中立'))
         score = analysis.get('score', 0)
         html += f"""
@@ -2037,6 +2156,15 @@ class HTMLGenerator:
                     </div>
                 </div>
             </section>
+"""
+        
+        # ChatGPT視点との整合性コメント
+        html += """
+            <div class="bg-gray-50 border-l-4 border-gray-400 p-4 mb-6 rounded-lg">
+                <p class="text-sm text-gray-700">
+                    本レポートは一般的なマクロ・テクニカル分析の枠組みと整合的だが、最終的な投資判断は個別リスク許容度を考慮する必要がある。
+                </p>
+            </div>
 """
         
         html += self._generate_footer()
