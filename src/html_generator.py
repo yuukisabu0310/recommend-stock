@@ -47,96 +47,61 @@ class HTMLGenerator:
         else:
             return "🟡"  # 中立
     
-    def _generate_summary_3points(self, data: Dict, analysis: Dict, country_name: str, timeframe_name: str) -> str:
+    def _get_period_text(self, timeframe_code: str) -> str:
         """
-        総合判断サマリー（ChatGPT的3点整理）を生成
+        期間コードから期間表記を取得
         
         Args:
-            data: 国別データ
-            analysis: 分析結果
-            country_name: 国名
-            timeframe_name: 期間名
+            timeframe_code: 期間コード（short, medium, long）
         
         Returns:
-            3点整理のHTML
+            期間表記（文字列）
         """
-        # 現在の市場局面を判定
-        score = analysis.get("score", 0)
-        indices = data.get("indices", {})
-        macro = data.get("macro", {})
-        financial = data.get("financial", {})
+        period_map = {
+            "short": "直近6か月",
+            "medium": "直近2〜3年",
+            "long": "取得可能な最大期間（年単位）"
+        }
+        return period_map.get(timeframe_code, "")
+    
+    def _filter_series_by_period(self, series: List[Dict[str, Any]], timeframe_code: str) -> List[Dict[str, Any]]:
+        """
+        時系列データを期間に応じてフィルタリング
         
-        # 市場局面の説明文を生成
-        if score >= 1:
-            market_situation = f"{country_name}市場は{timeframe_name}で上昇トレンドを示しています"
-        elif score <= -1:
-            market_situation = f"{country_name}市場は{timeframe_name}で調整局面にあります"
-        else:
-            market_situation = f"{country_name}市場は{timeframe_name}で中立的な状況です"
+        Args:
+            series: 時系列データのリスト [{"date": str, "value": float}, ...]
+            timeframe_code: 期間コード（short, medium, long）
         
-        # 金融環境の制約を確認
-        if financial.get("long_term_rate"):
-            rate = financial.get("long_term_rate")
-            if rate > 4.0:
-                market_situation += "が、金融環境に制約があります"
-            elif rate < 2.0:
-                market_situation += "が、金融環境は緩和的です"
+        Returns:
+            フィルタリングされた時系列データのリスト
+        """
+        if not series:
+            return []
         
-        # 判断の主因を特定
-        rule_components = analysis.get("rule_based_components", {})
-        main_factor = "複数の指標が総合的に影響しています"
+        from datetime import datetime, timedelta
         
-        if rule_components:
-            # スコアの絶対値が大きい指標を特定
-            def get_score(component):
-                if isinstance(component, dict):
-                    return abs(component.get("score", 0))
-                return abs(component) if isinstance(component, (int, float)) else 0
-            
-            macro_score = get_score(rule_components.get("macro", 0))
-            financial_score = get_score(rule_components.get("financial", 0))
-            technical_score = get_score(rule_components.get("technical", 0))
-            structural_score = get_score(rule_components.get("structural", 0))
-            
-            max_score = max(macro_score, financial_score, technical_score, structural_score)
-            if max_score > 0:
-                if max_score == macro_score:
-                    main_factor = "マクロ指標が最も影響しています"
-                elif max_score == financial_score:
-                    main_factor = "金融指標が最も影響しています"
-                elif max_score == technical_score:
-                    main_factor = "テクニカル指標が最も影響しています"
-                elif max_score == structural_score:
-                    main_factor = "構造的指標が最も影響しています"
+        today = datetime.now()
         
-        # 投資スタンスの方向性
-        if score >= 1:
-            stance = "強気"
-        elif score <= -1:
-            stance = "警戒"
-        else:
-            stance = "中立"
+        if timeframe_code == "short":
+            # 直近6か月
+            cutoff_date = today - timedelta(days=180)
+        elif timeframe_code == "medium":
+            # 直近2〜3年（2.5年 = 約912日）
+            cutoff_date = today - timedelta(days=912)
+        else:  # long
+            # 取得可能な最大期間（フィルタリングなし）
+            return series
         
-        return f"""
-            <!-- 総合判断サマリー（3点整理） -->
-            <section class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl shadow-md p-6 mb-6 border-l-4 border-blue-500">
-                <h2 class="text-xl font-bold text-gray-900 mb-4">総合判断サマリー</h2>
-                <div class="space-y-3">
-                    <div class="flex items-start">
-                        <span class="text-blue-600 font-bold mr-3">•</span>
-                        <p class="text-gray-800 flex-1"><strong>現在の市場局面：</strong>{market_situation}。</p>
-                    </div>
-                    <div class="flex items-start">
-                        <span class="text-blue-600 font-bold mr-3">•</span>
-                        <p class="text-gray-800 flex-1"><strong>判断の主因：</strong>{main_factor}。</p>
-                    </div>
-                    <div class="flex items-start">
-                        <span class="text-blue-600 font-bold mr-3">•</span>
-                        <p class="text-gray-800 flex-1"><strong>投資スタンスの方向性：</strong>{stance}のスタンスが適切と考えられます。</p>
-                    </div>
-                </div>
-            </section>
-"""
+        filtered = []
+        for item in series:
+            try:
+                item_date = datetime.strptime(item["date"], "%Y-%m-%d")
+                if item_date >= cutoff_date:
+                    filtered.append(item)
+            except (ValueError, KeyError):
+                continue
+        
+        return filtered
     
     def _generate_conclusion_block(self, country_name: str, timeframe_name: str, direction_label: str, summary) -> str:
         """
@@ -1217,11 +1182,15 @@ class HTMLGenerator:
         Returns:
             チャートセクションのHTML
         """
-        html = """
+        # 期間表記を取得
+        period_text = self._get_period_text(timeframe_code)
+        
+        html = f"""
             <!-- ② 方向感の根拠（チャート） -->
             <section class="bg-white rounded-2xl shadow-md p-6 mb-6">
                 <h2 class="text-2xl font-bold text-gray-900 mb-6">方向感の根拠（チャート）</h2>
-                <p class="text-sm text-gray-600 mb-6">以下のチャートは判断の証拠として表示しています。新たな判断を生まない補助情報です。</p>
+                <p class="text-sm text-gray-600 mb-4">以下のチャートは判断の証拠として表示しています。新たな判断を生まない補助情報です。</p>
+                <p class="text-sm font-medium text-gray-700 mb-6">表示期間: <span class="text-blue-600">{period_text}</span></p>
                 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
 """
@@ -1254,9 +1223,6 @@ class HTMLGenerator:
                         <h3 class="text-lg font-semibold text-gray-900 mb-2">{index_name} 価格トレンド</h3>
                         <canvas id="{chart_id}"></canvas>
                         <p class="text-xs text-gray-600 mt-2">{caption}</p>
-                        <p class="text-xs text-gray-500 mt-2 italic">
-                            トレンド系指標（移動平均）は市場参加者の心理を反映します。短期MA（20日）は直近の動き、長期MA（200日）は長期的なトレンドを示します。
-                        </p>
                     </div>
 """
         
@@ -1264,87 +1230,30 @@ class HTMLGenerator:
         macro = data.get("macro", {})
         financial = data.get("financial", {})
         
-        if timeframe_code == "short":
-            # 短期：金利、CPI
-            # 【改善②】長期金利チャート（時系列データ表示）
-            if financial.get("long_term_rate") is not None:
-                rate = financial.get("long_term_rate")
-                rate_series = financial.get("long_term_rate_series")  # 時系列データ
-                chart_id = f"rateChart_{country_code}_{timeframe_code}"
-                has_rate_series = rate_series and rate_series.get("dates") and rate_series.get("values")
-                
-                # 期間表記を自動生成
-                period_text = ""
-                if has_rate_series:
-                    dates = rate_series["dates"]
-                    if dates:
-                        period_text = f"{dates[0]} ～ {dates[-1]}"
-                
-                html += f"""
+        # 長期金利＋政策金利チャート（全期間で表示）
+        if financial.get("long_term_rate") is not None or financial.get("policy_rate") is not None:
+            chart_id = f"rateChart_{country_code}_{timeframe_code}"
+            # 期間表記を取得
+            period_text = self._get_period_text(timeframe_code)
+            html += f"""
                     <div class="bg-gray-50 p-4 rounded-lg">
-                        <h3 class="text-lg font-semibold text-gray-900 mb-2">長期金利（10年債）</h3>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">長期金利＋政策金利</h3>
                         <canvas id="{chart_id}"></canvas>
-                        <div class="mt-3 pt-3 border-t border-gray-200">
-                            <div class="grid grid-cols-2 gap-2 text-xs text-gray-600">
-                                <div>
-                                    <span class="font-semibold">指標名：</span>長期金利（10年債）
-                                </div>
-                                <div>
-                                    <span class="font-semibold">系列：</span>利回り
-                                </div>
-                                <div>
-                                    <span class="font-semibold">期間：</span>{period_text if period_text else '取得可能な最大期間'}
-                                </div>
-                                <div>
-                                    <span class="font-semibold">取得元：</span>FRED / 各国中央銀行
-                                </div>
-                            </div>
-                        </div>
-                        <p class="text-xs text-gray-600 mt-2">現在の長期金利は{rate:.2f}%です。</p>
-                        <p class="text-xs text-gray-500 mt-2 italic">
-                            長期金利は株式市場のバリュエーションに影響します。金利上昇は将来キャッシュフローの割引率を高め、株式の理論価値を下げる傾向があります。一方、金利低下は逆の効果をもたらします。
-                        </p>
+                        <p class="text-xs text-gray-600 mt-2">表示期間: {period_text}</p>
+                        <p class="text-xs text-gray-500 mt-1">長期金利（10Y）と政策金利の関係性と推移を示しています。</p>
                     </div>
 """
-            
-            # 【改善②】CPIチャート（前年比YoY表示）
+        
+        # CPIチャート（短期のみ）
+        if timeframe_code == "short":
             if macro.get("CPI") is not None:
                 cpi = macro.get("CPI")
-                cpi_series = macro.get("cpi_series")  # 時系列データ
                 chart_id = f"cpiChart_{country_code}_{timeframe_code}"
-                has_cpi_series = cpi_series and cpi_series.get("dates") and cpi_series.get("values")
-                
-                # 期間表記を自動生成
-                period_text = ""
-                if has_cpi_series:
-                    dates = cpi_series["dates"]
-                    if dates:
-                        period_text = f"{dates[0]} ～ {dates[-1]}"
-                
                 html += f"""
                     <div class="bg-gray-50 p-4 rounded-lg">
-                        <h3 class="text-lg font-semibold text-gray-900 mb-2">CPI（前年比・YoY）</h3>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">CPI（消費者物価指数）</h3>
                         <canvas id="{chart_id}"></canvas>
-                        <div class="mt-3 pt-3 border-t border-gray-200">
-                            <div class="grid grid-cols-2 gap-2 text-xs text-gray-600">
-                                <div>
-                                    <span class="font-semibold">指標名：</span>CPI（消費者物価指数）
-                                </div>
-                                <div>
-                                    <span class="font-semibold">系列：</span>前年比（YoY）
-                                </div>
-                                <div>
-                                    <span class="font-semibold">期間：</span>{period_text if period_text else '取得可能な最大期間'}
-                                </div>
-                                <div>
-                                    <span class="font-semibold">取得元：</span>FRED / 各国統計機関
-                                </div>
-                            </div>
-                        </div>
                         <p class="text-xs text-gray-600 mt-2">CPI前年同月比は{cpi:.2f}%です。</p>
-                        <p class="text-xs text-gray-500 mt-2 italic">
-                            CPIの前年比（YoY）は金融政策判断で重視されます。中央銀行は一般的に2%前後を目標としており、この水準との関係が金融政策の方向性に影響します。
-                        </p>
                     </div>
 """
         
@@ -1362,45 +1271,17 @@ class HTMLGenerator:
                     </div>
 """
         
-        # 【改善】構造リスク可視化（トップ10銘柄集中度、時価総額ベース、米国・日本共通）
+        # ③ 構造リスク可視化（簡易）
         if indices:
             first_index = list(indices.values())[0]
             concentration = first_index.get("top_stocks_concentration", 0)
             if concentration > 0:
                 chart_id = f"concentrationChart_{country_code}_{timeframe_code}"
-                # 指数名を取得
-                index_name_map = {
-                    ("US", "SPX"): "S&P500",
-                    ("JP", "TPX"): "TOPIX",
-                    ("JP", "N225"): "日経平均"
-                }
-                first_index_code = list(indices.keys())[0] if indices else None
-                index_name = index_name_map.get((country_code, first_index_code), "指数")
-                
                 html += f"""
                     <div class="bg-gray-50 p-4 rounded-lg">
-                        <h3 class="text-lg font-semibold text-gray-900 mb-2">トップ10銘柄集中度（時価総額ベース）</h3>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">トップ銘柄集中度</h3>
                         <canvas id="{chart_id}"></canvas>
-                        <div class="mt-3 pt-3 border-t border-gray-200">
-                            <div class="grid grid-cols-2 gap-2 text-xs text-gray-600">
-                                <div>
-                                    <span class="font-semibold">指標名：</span>トップ10銘柄集中度（{index_name}構成比）
-                                </div>
-                                <div>
-                                    <span class="font-semibold">取得元：</span>Yahoo Finance
-                                </div>
-                                <div>
-                                    <span class="font-semibold">対象範囲：</span>{index_name}全体
-                                </div>
-                            </div>
-                        </div>
-                        <p class="text-xs text-gray-600 mt-2 mb-2">
-                            指数全体に占める、時価総額上位10銘柄の割合
-                        </p>
-                        <p class="text-xs text-gray-600">上位10銘柄の構成比は{concentration*100:.1f}%です。</p>
-                        <p class="text-xs text-gray-500 mt-2 italic">
-                            集中度が高い市場は、特定銘柄の動きが指数全体に大きく影響する「強さ」と、その銘柄の変動リスクが指数全体に波及する「脆さ」の両面を持ちます。構造分析として市場の依存構造を把握するために有効です。
-                        </p>
+                        <p class="text-xs text-gray-600 mt-2">上位銘柄の集中度は{concentration*100:.1f}%です。</p>
                     </div>
 """
         
@@ -1434,78 +1315,52 @@ class HTMLGenerator:
                 Chart.defaults.font.size = 12;
 """
         
-        # 【改善①】価格トレンドチャート（MA見切れ対応）
+        # 価格トレンドチャート
         indices = data.get("indices", {})
         if indices:
             first_index = list(indices.values())[0]
-            historical_prices = first_index.get("historical_prices", [])
-            historical_dates = first_index.get("historical_dates", [])
-            historical_ma20 = first_index.get("historical_ma20", [])
-            historical_ma75 = first_index.get("historical_ma75", [])
-            historical_ma200 = first_index.get("historical_ma200", [])
+            latest_price = first_index.get("latest_price", 0)
+            ma20 = first_index.get("ma20", 0)
+            ma75 = first_index.get("ma75", 0)
+            ma200 = first_index.get("ma200", 0)
             
-            # 時系列データが存在する場合のみチャートを生成
-            if historical_prices and historical_dates and len(historical_prices) == len(historical_dates):
-                # MA時系列データが存在しない場合は、単一値から配列を生成（後方互換性）
-                ma20 = first_index.get("ma20", 0)
-                ma75 = first_index.get("ma75", 0)
-                ma200 = first_index.get("ma200", 0)
-                
-                if not historical_ma20 or len(historical_ma20) != len(historical_prices):
-                    historical_ma20 = [ma20] * len(historical_prices)
-                if not historical_ma75 or len(historical_ma75) != len(historical_prices):
-                    historical_ma75 = [ma75] * len(historical_prices)
-                if not historical_ma200 or len(historical_ma200) != len(historical_prices):
-                    historical_ma200 = [ma200] * len(historical_prices)
-                
-                chart_id = f"priceChart_{country_code}_{timeframe_code}"
-                labels_js = json.dumps(historical_dates, ensure_ascii=False)
-                prices_js = json.dumps(historical_prices, ensure_ascii=False)
-                ma20_js = json.dumps(historical_ma20, ensure_ascii=False)
-                ma75_js = json.dumps(historical_ma75, ensure_ascii=False)
-                ma200_js = json.dumps(historical_ma200, ensure_ascii=False)
-                
-                scripts += f"""
-                // 価格トレンドチャート（改善①：MAを時系列配列として表示、y-axis自動スケール）
+            chart_id = f"priceChart_{country_code}_{timeframe_code}"
+            scripts += f"""
+                // 価格トレンドチャート
                 const ctx_{chart_id.replace('-', '_')} = document.getElementById('{chart_id}');
                 if (ctx_{chart_id.replace('-', '_')}) {{
                     new Chart(ctx_{chart_id.replace('-', '_')}, {{
                         type: 'line',
                         data: {{
-                            labels: {labels_js},
+                            labels: ['現在'],
                             datasets: [
                                 {{
                                     label: '終値',
-                                    data: {prices_js},
+                                    data: [{latest_price}],
                                     borderColor: 'rgb(59, 130, 246)',
                                     backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                                    tension: 0.1,
-                                    pointRadius: 2,
-                                    pointHoverRadius: 4
+                                    tension: 0.1
                                 }},
                                 {{
                                     label: 'MA20',
-                                    data: {ma20_js},
+                                    data: [{ma20}],
                                     borderColor: 'rgb(34, 197, 94)',
                                     borderDash: [5, 5],
-                                    tension: 0.1,
-                                    pointRadius: 0
+                                    tension: 0.1
                                 }},
                                 {{
                                     label: 'MA75',
-                                    data: {ma75_js},
+                                    data: [{ma75}],
                                     borderColor: 'rgb(251, 191, 36)',
                                     borderDash: [5, 5],
-                                    tension: 0.1,
-                                    pointRadius: 0
+                                    tension: 0.1
                                 }},
                                 {{
                                     label: 'MA200',
-                                    data: {ma200_js},
+                                    data: [{ma200}],
                                     borderColor: 'rgb(239, 68, 68)',
                                     borderDash: [5, 5],
-                                    tension: 0.1,
-                                    pointRadius: 0
+                                    tension: 0.1
                                 }}
                             ]
                         }},
@@ -1516,24 +1371,11 @@ class HTMLGenerator:
                                 legend: {{
                                     display: true,
                                     position: 'top'
-                                }},
-                                tooltip: {{
-                                    mode: 'index',
-                                    intersect: false
                                 }}
                             }},
                             scales: {{
-                                x: {{
-                                    ticks: {{
-                                        maxRotation: 45,
-                                        minRotation: 45
-                                    }}
-                                }},
                                 y: {{
-                                    beginAtZero: false,
-                                    // 価格とMAの両方を含む範囲で自動スケール
-                                    suggestedMin: Math.min(...{prices_js}, ...{ma200_js}) * 0.95,
-                                    suggestedMax: Math.max(...{prices_js}, ...{ma200_js}) * 1.05
+                                    beginAtZero: false
                                 }}
                             }}
                         }}
@@ -1541,96 +1383,77 @@ class HTMLGenerator:
                 }}
 """
         
-        # 【改善②】CPIチャート（前年比YoY表示）
-        macro = data.get("macro", {})
-        if macro.get("cpi_series"):
-            cpi_series = macro.get("cpi_series")
-            if cpi_series.get("dates") and cpi_series.get("values"):
-                chart_id = f"cpiChart_{country_code}_{timeframe_code}"
-                labels_js = json.dumps(cpi_series["dates"], ensure_ascii=False)
-                values_js = json.dumps(cpi_series["values"], ensure_ascii=False)
-                
-                scripts += f"""
-                // CPIチャート（改善②：前年比YoYを表示）
-                const ctx_cpi_{chart_id.replace('-', '_')} = document.getElementById('{chart_id}');
-                if (ctx_cpi_{chart_id.replace('-', '_')}) {{
-                    new Chart(ctx_cpi_{chart_id.replace('-', '_')}, {{
-                        type: 'line',
-                        data: {{
-                            labels: {labels_js},
-                            datasets: [
-                                {{
-                                    label: 'CPI前年比（YoY）',
-                                    data: {values_js},
-                                    borderColor: 'rgb(236, 72, 153)',
-                                    backgroundColor: 'rgba(236, 72, 153, 0.1)',
-                                    tension: 0.1,
-                                    pointRadius: 2,
-                                    pointHoverRadius: 4
-                                }}
-                            ]
-                        }},
-                        options: {{
-                            responsive: true,
-                            maintainAspectRatio: true,
-                            plugins: {{
-                                legend: {{
-                                    display: true,
-                                    position: 'top'
-                                }},
-                                tooltip: {{
-                                    mode: 'index',
-                                    intersect: false
-                                }}
-                            }},
-                            scales: {{
-                                x: {{
-                                    ticks: {{
-                                        maxRotation: 45,
-                                        minRotation: 45
-                                    }}
-                                }},
-                                y: {{
-                                    beginAtZero: false,
-                                    title: {{
-                                        display: true,
-                                        text: '前年比 (%)'
-                                    }}
-                                }}
-                            }}
-                        }}
-                    }});
-                }}
-"""
-        
-        # 【改善②】長期金利チャート（時系列データ表示）
+        # 長期金利＋政策金利チャート
         financial = data.get("financial", {})
-        if financial.get("long_term_rate_series"):
-            rate_series = financial.get("long_term_rate_series")
-            if rate_series.get("dates") and rate_series.get("values"):
-                chart_id = f"rateChart_{country_code}_{timeframe_code}"
-                labels_js = json.dumps(rate_series["dates"], ensure_ascii=False)
-                values_js = json.dumps(rate_series["values"], ensure_ascii=False)
-                
-                scripts += f"""
-                // 長期金利チャート（改善②：時系列データを表示）
+        chart_id = f"rateChart_{country_code}_{timeframe_code}"
+        
+        long_term_rate_series = financial.get("long_term_rate_series")
+        policy_rate_series = financial.get("policy_rate_series")
+        
+        if long_term_rate_series or policy_rate_series:
+            # 期間に応じてフィルタリング
+            if long_term_rate_series:
+                filtered_long_term = self._filter_series_by_period(long_term_rate_series, timeframe_code)
+            else:
+                filtered_long_term = []
+            
+            if policy_rate_series:
+                filtered_policy = self._filter_series_by_period(policy_rate_series, timeframe_code)
+            else:
+                filtered_policy = []
+            
+            # 日付ラベルの統合（両方の系列からユニークな日付を取得）
+            all_dates = set()
+            if filtered_long_term:
+                all_dates.update([item["date"] for item in filtered_long_term])
+            if filtered_policy:
+                all_dates.update([item["date"] for item in filtered_policy])
+            sorted_dates = sorted(all_dates)
+            
+            # データをマッピング（日付をキーに）
+            long_term_map = {item["date"]: item["value"] for item in filtered_long_term} if filtered_long_term else {}
+            policy_map = {item["date"]: item["value"] for item in filtered_policy} if filtered_policy else {}
+            
+            # JavaScript用のデータ配列を生成
+            long_term_data = [long_term_map.get(date, None) for date in sorted_dates]
+            policy_data = [policy_map.get(date, None) for date in sorted_dates]
+            
+            scripts += f"""
+                // 長期金利＋政策金利チャート
                 const ctx_rate_{chart_id.replace('-', '_')} = document.getElementById('{chart_id}');
                 if (ctx_rate_{chart_id.replace('-', '_')}) {{
                     new Chart(ctx_rate_{chart_id.replace('-', '_')}, {{
                         type: 'line',
                         data: {{
-                            labels: {labels_js},
+                            labels: {json.dumps(sorted_dates)},
                             datasets: [
-                                {{
-                                    label: '長期金利（10年債）',
-                                    data: {values_js},
-                                    borderColor: 'rgb(168, 85, 247)',
-                                    backgroundColor: 'rgba(168, 85, 247, 0.1)',
+"""
+            
+            # 長期金利データセット
+            if filtered_long_term:
+                scripts += f"""                                {{
+                                    label: '長期金利（10Y）',
+                                    data: {json.dumps(long_term_data)},
+                                    borderColor: 'rgb(59, 130, 246)',
+                                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
                                     tension: 0.1,
-                                    pointRadius: 2,
-                                    pointHoverRadius: 4
+                                    spanGaps: true
+                                }},
+"""
+            
+            # 政策金利データセット
+            if filtered_policy:
+                scripts += f"""                                {{
+                                    label: '政策金利',
+                                    data: {json.dumps(policy_data)},
+                                    borderColor: 'rgb(239, 68, 68)',
+                                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                    tension: 0.1,
+                                    spanGaps: true
                                 }}
-                            ]
+"""
+            
+            scripts += f"""                            ]
                         }},
                         options: {{
                             responsive: true,
@@ -1639,102 +1462,20 @@ class HTMLGenerator:
                                 legend: {{
                                     display: true,
                                     position: 'top'
-                                }},
-                                tooltip: {{
-                                    mode: 'index',
-                                    intersect: false
                                 }}
                             }},
                             scales: {{
-                                x: {{
-                                    ticks: {{
-                                        maxRotation: 45,
-                                        minRotation: 45
-                                    }}
-                                }},
                                 y: {{
                                     beginAtZero: false,
                                     title: {{
                                         display: true,
-                                        text: '利回り (%)'
+                                        text: '利回り（%）'
                                     }}
-                                }}
-                            }}
-                        }}
-                    }});
-                }}
-"""
-        
-        # 【改善】トップ10銘柄集中度（時価総額ベース、米国・日本共通）
-        if indices:
-            first_index = list(indices.values())[0]
-            composition = first_index.get("top_stocks_composition")  # 構成比データ
-            concentration = first_index.get("top_stocks_concentration", 0)
-            
-            if composition and concentration > 0:
-                chart_id = f"concentrationChart_{country_code}_{timeframe_code}"
-                
-                # 構成比データから「その他」を除外し、上位銘柄をソート
-                # 「その他」は最後に追加
-                sorted_items = sorted(
-                    [(name, ratio) for name, ratio in composition.items() if name != "その他"],
-                    key=lambda x: x[1],
-                    reverse=True
-                )
-                other_ratio = composition.get("その他", 0) * 100
-                
-                # ラベルとデータ配列を生成
-                labels = [name for name, _ in sorted_items] + ["その他"]
-                data_values = [ratio * 100 for _, ratio in sorted_items] + [other_ratio]
-                
-                # カラーパレット（最大11色：上位10 + その他）
-                color_palette = [
-                    'rgb(59, 130, 246)',   # Blue
-                    'rgb(34, 197, 94)',    # Green
-                    'rgb(251, 191, 36)',   # Yellow
-                    'rgb(239, 68, 68)',    # Red
-                    'rgb(168, 85, 247)',   # Purple
-                    'rgb(236, 72, 153)',   # Pink
-                    'rgb(249, 115, 22)',   # Orange
-                    'rgb(20, 184, 166)',   # Teal
-                    'rgb(139, 92, 246)',   # Indigo
-                    'rgb(245, 158, 11)',   # Amber
-                    'rgb(156, 163, 175)'   # Gray (その他)
-                ]
-                
-                # JavaScriptの配列として生成
-                labels_js = json.dumps(labels, ensure_ascii=False)
-                data_js = json.dumps(data_values, ensure_ascii=False)
-                colors_js = json.dumps(color_palette[:len(labels)], ensure_ascii=False)
-                
-                scripts += f"""
-                // トップ10銘柄集中度（時価総額ベース、米国・日本共通）
-                const ctx_conc_{chart_id.replace('-', '_')} = document.getElementById('{chart_id}');
-                if (ctx_conc_{chart_id.replace('-', '_')}) {{
-                    new Chart(ctx_conc_{chart_id.replace('-', '_')}, {{
-                        type: 'doughnut',
-                        data: {{
-                            labels: {labels_js},
-                            datasets: [
-                                {{
-                                    data: {data_js},
-                                    backgroundColor: {colors_js}
-                                }}
-                            ]
-                        }},
-                        options: {{
-                            responsive: true,
-                            maintainAspectRatio: true,
-                            plugins: {{
-                                legend: {{
-                                    display: true,
-                                    position: 'right'
                                 }},
-                                tooltip: {{
-                                    callbacks: {{
-                                        label: function(context) {{
-                                            return context.label + ': ' + context.parsed.toFixed(1) + '%';
-                                        }}
+                                x: {{
+                                    title: {{
+                                        display: true,
+                                        text: '日付'
                                     }}
                                 }}
                             }}
@@ -1859,13 +1600,20 @@ class HTMLGenerator:
             </div>
 """
         
+        # 期間表記を表示
+        period_text = self._get_period_text(timeframe_code)
+        html += f"""
+            <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded-lg">
+                <p class="text-sm text-blue-800">
+                    <strong>表示期間:</strong> {period_text}
+                </p>
+            </div>
+"""
+        
         # 結論ブロック
         direction_label = analysis.get("direction_label", analysis.get("label", "中立"))
         summary = analysis.get("summary", "")
         html += self._generate_conclusion_block(country_name, timeframe_name, direction_label, summary)
-        
-        # ① 総合判断サマリー（ChatGPT的3点整理）
-        html += self._generate_summary_3points(data, analysis, country_name, timeframe_name)
         
         # ② 方向感の根拠（チャート）
         html += self._generate_charts_section(data, analysis, country_code, timeframe_code)
@@ -2132,19 +1880,6 @@ class HTMLGenerator:
                         </div>
 """
         
-        # 構造的指標スコアの読み方ガイドを追加（常に表示）
-        if rule_components:
-            html += """
-                    <div class="mt-4 p-4 bg-yellow-50 rounded-lg border-l-4 border-yellow-400">
-                        <p class="text-sm text-yellow-800 font-semibold mb-2">構造的指標スコアの読み方</p>
-                        <ul class="text-xs text-yellow-700 space-y-1 list-disc list-inside">
-                            <li>このスコアは売買シグナルではありません</li>
-                            <li>個別指標を要約した参考指標です</li>
-                            <li>スコア単体ではなく、内訳指標と併せて解釈すべきです</li>
-                        </ul>
-                    </div>
-"""
-        
         direction_label = analysis.get('direction_label', analysis.get('label', '中立'))
         score = analysis.get('score', 0)
         html += f"""
@@ -2156,15 +1891,6 @@ class HTMLGenerator:
                     </div>
                 </div>
             </section>
-"""
-        
-        # ChatGPT視点との整合性コメント
-        html += """
-            <div class="bg-gray-50 border-l-4 border-gray-400 p-4 mb-6 rounded-lg">
-                <p class="text-sm text-gray-700">
-                    本レポートは一般的なマクロ・テクニカル分析の枠組みと整合的だが、最終的な投資判断は個別リスク許容度を考慮する必要がある。
-                </p>
-            </div>
 """
         
         html += self._generate_footer()

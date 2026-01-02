@@ -6,6 +6,7 @@ APIからデータを取得し、統一フォーマットで返す
 import yaml
 import os
 import json
+import math
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 import logging
@@ -103,10 +104,17 @@ class DataFetcher:
             for attempt in range(max_retries):
                 try:
                     stock = yf.Ticker(ticker)
-                    # 【改善①】MA200計算用に最低200営業日以上のデータを取得
-                    # 表示期間が6か月でも、MA計算用データは内部的に拡張して保持
-                    # 1年分（約252営業日）を取得してMA200計算に使用
-                    period = "1y"  # MA200計算用に最低1年分を取得
+                    # periodパラメータを使用（より確実）
+                    if days <= 30:
+                        period = "1mo"
+                    elif days <= 90:
+                        period = "3mo"
+                    elif days <= 180:
+                        period = "6mo"
+                    elif days <= 365:
+                        period = "1y"
+                    else:
+                        period = "2y"
                     
                     hist = stock.history(period=period)
                     
@@ -170,49 +178,6 @@ class DataFetcher:
             avg_volume_30 = float(hist['Volume'].tail(30).mean())
             latest_volume = float(hist['Volume'].iloc[-1])
             
-            # 【改善①】表示用データ（直近6か月分、約130営業日）とMA計算用データを分離
-            # 表示期間は6か月だが、MA計算用データは全期間を使用
-            display_days = min(130, len(hist))  # 6か月分（約130営業日）
-            hist_display = hist.tail(display_days)
-            
-            # 表示用の価格データと日付
-            historical_prices = hist_display['Close'].tolist()
-            historical_dates = [date.strftime('%Y-%m-%d') for date in hist_display.index]
-            
-            # 【改善①】MAを時系列配列として計算（全期間のhistを使用して計算）
-            # MA20, MA75, MA200の時系列データを生成
-            ma20_series = hist['Close'].rolling(window=20, min_periods=1).mean().tail(display_days).tolist()
-            ma75_series = hist['Close'].rolling(window=75, min_periods=1).mean().tail(display_days).tolist()
-            ma200_series = hist['Close'].rolling(window=200, min_periods=1).mean().tail(display_days).tolist()
-            
-            # データ数が不足している場合は、最新値で埋める
-            if len(ma20_series) < len(historical_prices):
-                ma20_series = [ma20] * (len(historical_prices) - len(ma20_series)) + ma20_series
-            if len(ma75_series) < len(historical_prices):
-                ma75_series = [ma75] * (len(historical_prices) - len(ma75_series)) + ma75_series
-            if len(ma200_series) < len(historical_prices):
-                ma200_series = [ma200] * (len(historical_prices) - len(ma200_series)) + ma200_series
-            
-            # 【改善】トップ10銘柄集中度を時価総額ベースで計算（米国・日本共通）
-            # 集中度 = (上位10銘柄の時価総額合計) ÷ (指数全体の時価総額) × 100（%）
-            concentration = None
-            composition_ratios = None
-            
-            # 米国（S&P500）または日本（TOPIX/日経平均）の場合、実際の時価総額データから構成比を計算
-            if (index_code == "SPX" and country_code == "US") or (country_code == "JP" and (index_code == "TPX" or index_code == "N225")):
-                top10_composition = self._calculate_top10_concentration(index_code, country_code)
-                if top10_composition:
-                    composition_ratios = top10_composition["ratios"]
-                    concentration = top10_composition["top10_ratio"]
-            
-            # データ取得に失敗した場合は簡易計算を使用（後方互換性）
-            if concentration is None:
-                concentration = min(0.4, max(0.1, volatility / 100.0))  # 0.1～0.4の範囲に正規化（構造スコア計算用）
-                # 簡易フォールバック：固定比率を使用
-                composition_ratios = {
-                    "その他": 1.0 - concentration
-                }
-            
             data = {
                 "index_code": index_code,
                 "country_code": country_code,
@@ -227,13 +192,7 @@ class DataFetcher:
                 "volatility": volatility,
                 "volume_ratio": latest_volume / avg_volume_30 if avg_volume_30 > 0 else 1.0,
                 "date": datetime.now().isoformat(),
-                "historical_prices": historical_prices,  # 【改善①】直近6か月分の終値
-                "historical_dates": historical_dates,  # 【改善①】直近6か月分の日付
-                "historical_ma20": ma20_series,  # 【改善①】MA20の時系列配列
-                "historical_ma75": ma75_series,  # 【改善①】MA75の時系列配列
-                "historical_ma200": ma200_series,  # 【改善①】MA200の時系列配列
-                "top_stocks_concentration": concentration,  # 構造スコア計算用の集中度（後方互換性）
-                "top_stocks_composition": composition_ratios  # 【改善】トップ10銘柄構成比（時価総額ベース、指数全体に対する比率）
+                "historical_prices": hist['Close'].tail(30).tolist()  # 直近30日
             }
             
             # フォールバックデータとして保存
@@ -278,57 +237,58 @@ class DataFetcher:
         logger.error(f"FRED API取得最終失敗 ({series_id}, {country_code})")
         return None
     
-    def _get_fred_series_data(self, series_id: str, country_code: str, days: int = 730, max_retries: int = 3, is_daily: bool = False) -> Optional[Dict]:
+    def _get_fred_series_data(self, series_id: str, country_code: str, start_date: Optional[datetime] = None, max_retries: int = 3) -> Optional[List[Dict[str, Any]]]:
         """
         FRED APIから時系列データを取得（リトライ付き）
         
         Args:
             series_id: FREDシリーズID
             country_code: 国コード
-            days: 取得日数（日次データの場合は営業日数、月次データの場合は月数）
+            start_date: 開始日（Noneの場合は取得可能な最大期間）
             max_retries: 最大リトライ回数
-            is_daily: Trueの場合は日次データ、Falseの場合は月次データとして扱う
         
         Returns:
-            {"dates": List[str], "values": List[float], "latest": float} またはNone
+            時系列データのリスト [{"date": str, "value": float}, ...] またはNone
         """
         if not self.fred_client:
             logger.warning(f"FRED APIクライアントが初期化されていません ({series_id}, {country_code})")
             return None
         
-        # データタイプに応じてlimitを計算
-        if is_daily:
-            # 日次データの場合（長期金利など）：営業日数ベースで約252日/年
-            limit = min(365, days)  # 最大365日分
-        else:
-            # 月次データの場合（CPIなど）：約24ヶ月分を取得
-            limit = min(36, days // 30) if days > 30 else 24  # 最大36ヶ月分
-        
         for attempt in range(max_retries):
             try:
-                # FRED APIから時系列データを取得
-                data = self.fred_client.get_series(series_id, limit=limit)
+                if start_date:
+                    data = self.fred_client.get_series(series_id, start=start_date)
+                else:
+                    # 取得可能な最大期間を取得（limit指定なし）
+                    data = self.fred_client.get_series(series_id)
+                
                 if not data.empty:
-                    # 最新から指定期間分を取得
-                    data_tail = data.tail(min(limit, len(data)))
-                    dates = [date.strftime('%Y-%m-%d') for date in data_tail.index]
-                    values = [float(val) for val in data_tail.values]
-                    latest = float(data_tail.iloc[-1])
-                    
-                    logger.debug(f"FRED API時系列データ取得成功 ({series_id}, {country_code}): {len(values)}件")
-                    return {
-                        "dates": dates,
-                        "values": values,
-                        "latest": latest
-                    }
+                    # 日付と値をリストに変換（pandas Seriesから）
+                    series_list = []
+                    for date in data.index:
+                        value = data[date]
+                        # NaNチェック
+                        try:
+                            # pandasのNaNチェック（math.isnan()でNaNをチェック）
+                            if value is not None and not (isinstance(value, float) and math.isnan(value)):
+                                series_list.append({
+                                    "date": date.strftime("%Y-%m-%d") if hasattr(date, 'strftime') else str(date),
+                                    "value": float(value)
+                                })
+                        except (ValueError, TypeError, OverflowError):
+                            continue
+                    # 日付でソート（既にソートされているはずだが念のため）
+                    series_list.sort(key=lambda x: x["date"])
+                    logger.debug(f"FRED API時系列データ取得成功 ({series_id}, {country_code}): {len(series_list)}件")
+                    return series_list
                 else:
                     logger.warning(f"FRED API時系列データが空です ({series_id}, {country_code}, 試行 {attempt + 1}/{max_retries})")
             except Exception as e:
-                logger.warning(f"FRED API時系列データ取得エラー ({series_id}, {country_code}, 試行 {attempt + 1}/{max_retries}): {e}")
+                logger.warning(f"FRED API時系列取得エラー ({series_id}, {country_code}, 試行 {attempt + 1}/{max_retries}): {e}")
                 if attempt < max_retries - 1:
                     time.sleep(2 ** attempt)  # 指数バックオフ
         
-        logger.error(f"FRED API時系列データ取得最終失敗 ({series_id}, {country_code})")
+        logger.error(f"FRED API時系列取得最終失敗 ({series_id}, {country_code})")
         return None
     
     def get_macro_indicators(self, country_code: str, index_data: Optional[Dict] = None) -> Dict:
@@ -354,47 +314,24 @@ class DataFetcher:
             }
         }
         
-        # 【改善②】CPI: FRED APIから取得（最新値と時系列データ）
+        # CPI: FRED APIから取得
         cpi = None
-        cpi_series = None  # CPIの時系列データ（前年比YoY）
-        
         if country_code == "US":
             if not self.fred_client:
                 logger.error(f"FRED APIクライアントが初期化されていません。CPIを取得できません ({country_code})")
             else:
-                # CPIの時系列データを取得（過去1年～2年分、月次データ）
-                cpi_raw_series = self._get_fred_series_data(fred_series["US"]["CPI"], country_code, days=730)
-                if cpi_raw_series:
+                cpi_raw = self._get_fred_data(fred_series["US"]["CPI"], country_code)
+                if cpi_raw is not None:
+                    # 前年同月比を計算（最新値と12ヶ月前の値を比較）
                     try:
-                        # 前年比（YoY）を計算（各月について12ヶ月前との比較）
-                        raw_values = cpi_raw_series["values"]
-                        raw_dates = cpi_raw_series["dates"]
-                        
-                        # 前年比を計算（簡易実装：最新値と12ヶ月前の値を比較）
-                        if len(raw_values) >= 13:
-                            current = raw_values[-1]
-                            previous = raw_values[-13] if len(raw_values) >= 13 else raw_values[0]
+                        data = self.fred_client.get_series(fred_series["US"]["CPI"], limit=13)
+                        if len(data) >= 13:
+                            current = float(data.iloc[-1])
+                            previous = float(data.iloc[0])
                             cpi = ((current / previous) - 1) * 100  # 年率換算（%）
-                            
-                            # 時系列データも生成（各月について前年比を計算）
-                            cpi_yoy_values = []
-                            cpi_yoy_dates = []
-                            for i in range(len(raw_values)):
-                                if i >= 12:
-                                    # 12ヶ月前の値と比較
-                                    yoy = ((raw_values[i] / raw_values[i-12]) - 1) * 100
-                                    cpi_yoy_values.append(yoy)
-                                    cpi_yoy_dates.append(raw_dates[i])
-                            
-                            cpi_series = {
-                                "dates": cpi_yoy_dates,
-                                "values": cpi_yoy_values,
-                                "latest": cpi
-                            }
-                            
                             logger.info(f"CPI取得成功 ({country_code}): {cpi:.2f}%")
                         else:
-                            logger.warning(f"CPIデータが不足しています ({country_code}): {len(raw_values)}件")
+                            logger.warning(f"CPIデータが不足しています ({country_code}): {len(data)}件")
                     except Exception as e:
                         logger.error(f"CPI計算エラー ({country_code}): {e}")
                 else:
@@ -405,31 +342,15 @@ class DataFetcher:
             
             # e-Stat APIが失敗した場合はFRED APIをフォールバックとして使用
             if cpi is None and fred_series["JP"]["CPI"]:
-                cpi_raw_series = self._get_fred_series_data(fred_series["JP"]["CPI"], country_code, days=730)
-                if cpi_raw_series:
+                cpi_raw = self._get_fred_data(fred_series["JP"]["CPI"], country_code)
+                if cpi_raw is not None:
+                    # 前年同月比を計算
                     try:
-                        raw_values = cpi_raw_series["values"]
-                        raw_dates = cpi_raw_series["dates"]
-                        
-                        if len(raw_values) >= 13:
-                            current = raw_values[-1]
-                            previous = raw_values[-13] if len(raw_values) >= 13 else raw_values[0]
+                        data = self.fred_client.get_series(fred_series["JP"]["CPI"], limit=13)
+                        if len(data) >= 13:
+                            current = float(data.iloc[-1])
+                            previous = float(data.iloc[0])
                             cpi = ((current / previous) - 1) * 100  # 年率換算（%）
-                            
-                            # 時系列データも生成
-                            cpi_yoy_values = []
-                            cpi_yoy_dates = []
-                            for i in range(len(raw_values)):
-                                if i >= 12:
-                                    yoy = ((raw_values[i] / raw_values[i-12]) - 1) * 100
-                                    cpi_yoy_values.append(yoy)
-                                    cpi_yoy_dates.append(raw_dates[i])
-                            
-                            cpi_series = {
-                                "dates": cpi_yoy_dates,
-                                "values": cpi_yoy_values,
-                                "latest": cpi
-                            }
                     except Exception as e:
                         logger.warning(f"日本のCPI計算エラー (FRED API): {e}")
         
@@ -470,8 +391,7 @@ class DataFetcher:
             "PMI": pmi,
             "CPI": cpi,
             "employment_rate": employment_rate,
-            "date": datetime.now().isoformat(),
-            "cpi_series": cpi_series  # 【改善②】CPIの時系列データ（前年比YoY）
+            "date": datetime.now().isoformat()
         }
         # 返り値をログ出力（nullチェック）
         logger.info(f"get_macro_indicators返り値 ({country_code}): PMI={pmi}, CPI={cpi}, employment_rate={employment_rate}")
@@ -544,7 +464,7 @@ class DataFetcher:
             index_data: インデックスデータ（クレジットスプレッド推測に使用）
         
         Returns:
-            金融指標の辞書
+            金融指標の辞書（最新値と時系列データを含む）
         """
         # FRED APIシリーズIDマッピング
         fred_series = {
@@ -558,8 +478,9 @@ class DataFetcher:
             }
         }
         
-        # 政策金利: FRED APIから取得
+        # 政策金利: FRED APIから取得（最新値と時系列データ）
         policy_rate = None
+        policy_rate_series = None
         if country_code == "US":
             if not self.fred_client:
                 logger.error(f"FRED APIクライアントが初期化されていません。政策金利を取得できません ({country_code})")
@@ -567,54 +488,48 @@ class DataFetcher:
                 policy_rate = self._get_fred_data(fred_series["US"]["policy_rate"], country_code)
                 if policy_rate is not None:
                     logger.info(f"政策金利取得成功 ({country_code}): {policy_rate:.2f}%")
+                    # 時系列データも取得
+                    policy_rate_series = self._get_fred_series_data(fred_series["US"]["policy_rate"], country_code)
                 else:
                     logger.error(f"政策金利取得失敗 ({country_code})")
         elif country_code == "JP":
             # 日本: FRED APIから取得を試行（無担保コール翌日物金利の代替指標）
             if fred_series["JP"]["policy_rate"]:
                 policy_rate = self._get_fred_data(fred_series["JP"]["policy_rate"], country_code)
+                if policy_rate is not None:
+                    policy_rate_series = self._get_fred_series_data(fred_series["JP"]["policy_rate"], country_code)
             
             # FRED APIが失敗した場合は別の方法を試行
             if policy_rate is None:
                 policy_rate = self._get_japan_policy_rate()
         
-        # 【改善②】長期金利: FRED APIまたはyfinanceから取得（時系列データ含む）
+        # 長期金利: FRED APIまたはyfinanceから取得（最新値と時系列データ）
         long_term_rate = None
-        long_term_rate_series = None  # 時系列データ
-        
+        long_term_rate_series = None
         if country_code == "US":
-            # FRED APIから時系列データを取得（過去6か月～1年、日次データ）
-            if self.fred_client:
-                long_term_rate_series = self._get_fred_series_data(fred_series["US"]["long_term_rate"], country_code, days=365, is_daily=True)
-                if long_term_rate_series:
-                    long_term_rate = long_term_rate_series["latest"]
-            
-            # FRED APIが失敗した場合はyfinanceから取得
+            # FRED APIから取得
+            long_term_rate = self._get_fred_data(fred_series["US"]["long_term_rate"], country_code)
+            if long_term_rate is not None:
+                # 時系列データも取得
+                long_term_rate_series = self._get_fred_series_data(fred_series["US"]["long_term_rate"], country_code)
+            # FRED APIが失敗した場合はyfinanceから取得（最新値のみ）
             if long_term_rate is None and yf:
                 try:
                     rate_stock = yf.Ticker("^TNX")
-                    hist = rate_stock.history(period="6mo")
+                    hist = rate_stock.history(period="5d")
                     if not hist.empty:
                         long_term_rate = float(hist['Close'].iloc[-1])
-                        # yfinanceから時系列データも取得
-                        hist_tail = hist.tail(min(130, len(hist)))
-                        long_term_rate_series = {
-                            "dates": [date.strftime('%Y-%m-%d') for date in hist_tail.index],
-                            "values": hist_tail['Close'].tolist(),
-                            "latest": long_term_rate
-                        }
                 except Exception as e:
                     logger.warning(f"長期金利取得エラー (yfinance, {country_code}): {e}")
         elif country_code == "JP":
-            # 日本: FRED APIから時系列データを取得（日次データ）
-            if self.fred_client and fred_series["JP"]["long_term_rate"]:
-                long_term_rate_series = self._get_fred_series_data(fred_series["JP"]["long_term_rate"], country_code, days=365, is_daily=True)
-                if long_term_rate_series:
-                    long_term_rate = long_term_rate_series["latest"]
+            # 日本: 日本銀行統計データAPIから取得を試行（公式データを優先）
+            long_term_rate = self._get_japan_long_term_rate()
             
-            # FRED APIが失敗した場合は日本銀行統計データAPIから取得を試行
-            if long_term_rate is None:
-                long_term_rate = self._get_japan_long_term_rate()
+            # 日本銀行統計データAPIが失敗した場合はFRED APIをフォールバックとして使用
+            if long_term_rate is None and fred_series["JP"]["long_term_rate"]:
+                long_term_rate = self._get_fred_data(fred_series["JP"]["long_term_rate"], country_code)
+                if long_term_rate is not None:
+                    long_term_rate_series = self._get_fred_series_data(fred_series["JP"]["long_term_rate"], country_code)
         
         # クレジットスプレッド: インデックスデータから推測（実データ取得が困難なため）
         credit_spread = None
@@ -631,8 +546,9 @@ class DataFetcher:
             "policy_rate": policy_rate,
             "long_term_rate": long_term_rate,
             "credit_spread": credit_spread,
-            "date": datetime.now().isoformat(),
-            "long_term_rate_series": long_term_rate_series  # 【改善②】長期金利の時系列データ
+            "policy_rate_series": policy_rate_series,  # 時系列データ
+            "long_term_rate_series": long_term_rate_series,  # 時系列データ
+            "date": datetime.now().isoformat()
         }
         # 返り値をログ出力（nullチェック）
         logger.info(f"get_financial_indicators返り値 ({country_code}): policy_rate={policy_rate}, long_term_rate={long_term_rate}, credit_spread={credit_spread}")
@@ -640,6 +556,10 @@ class DataFetcher:
             logger.warning(f"政策金利がnullです ({country_code})")
         if long_term_rate is None:
             logger.warning(f"長期金利がnullです ({country_code})")
+        if policy_rate_series:
+            logger.info(f"政策金利時系列データ取得成功 ({country_code}): {len(policy_rate_series)}件")
+        if long_term_rate_series:
+            logger.info(f"長期金利時系列データ取得成功 ({country_code}): {len(long_term_rate_series)}件")
         return result
     
     def _get_japan_policy_rate(self) -> Optional[float]:
@@ -800,162 +720,6 @@ class DataFetcher:
             
         except Exception as e:
             logger.error(f"銘柄データ取得エラー ({ticker}): {e}")
-            return None
-    
-    def _calculate_top10_concentration(self, index_code: str, country_code: str) -> Optional[Dict]:
-        """
-        時価総額上位10銘柄の指数ベース構成比を計算（米国・日本共通）
-        
-        Args:
-            index_code: インデックスコード（SPX, TPX, N225等）
-            country_code: 国コード（US, JP）
-        
-        Returns:
-            {"ratios": Dict, "top10_ratio": float, "top10_stocks": List[Dict]} またはNone
-        """
-        if not yf:
-            logger.warning("yfinanceが利用できません。トップ10銘柄集中度を計算できません。")
-            return None
-        
-        # 主要銘柄リスト（指数構成銘柄の代表的な銘柄）
-        # 実際の実装では、指数の全構成銘柄リストから取得するのが理想だが、
-        # ここでは主要銘柄から時価総額上位10銘柄を抽出
-        if country_code == "US" and index_code == "SPX":
-            # S&P500の主要構成銘柄（上位50銘柄程度を想定）
-            major_stocks = [
-                ("AAPL", "Apple"), ("MSFT", "Microsoft"), ("NVDA", "Nvidia"), ("AMZN", "Amazon"),
-                ("META", "Meta"), ("GOOGL", "Alphabet"), ("GOOG", "Alphabet"), ("TSLA", "Tesla"),
-                ("BRK-B", "Berkshire Hathaway"), ("V", "Visa"), ("JNJ", "Johnson & Johnson"),
-                ("WMT", "Walmart"), ("JPM", "JPMorgan Chase"), ("MA", "Mastercard"), ("PG", "Procter & Gamble"),
-                ("UNH", "UnitedHealth"), ("HD", "Home Depot"), ("DIS", "Disney"), ("BAC", "Bank of America"),
-                ("ADBE", "Adobe"), ("NFLX", "Netflix"), ("AVGO", "Broadcom"), ("COST", "Costco"),
-                ("CRM", "Salesforce"), ("PYPL", "PayPal"), ("ABBV", "AbbVie"), ("MRK", "Merck"),
-                ("TMO", "Thermo Fisher"), ("CSCO", "Cisco"), ("ACN", "Accenture"), ("PEP", "PepsiCo"),
-                ("NKE", "Nike"), ("TXN", "Texas Instruments"), ("ABT", "Abbott"), ("CVX", "Chevron"),
-                ("LIN", "Linde"), ("NEE", "NextEra Energy"), ("ORCL", "Oracle"), ("AMD", "AMD"),
-                ("HON", "Honeywell"), ("PM", "Philip Morris"), ("INTU", "Intuit"), ("UNP", "Union Pacific"),
-                ("LOW", "Lowe's"), ("RTX", "Raytheon Technologies"), ("UPS", "UPS"), ("SPGI", "S&P Global"),
-                ("QCOM", "Qualcomm"), ("DE", "Deere"), ("CAT", "Caterpillar"), ("MDT", "Medtronic"),
-                ("GE", "GE"), ("BKNG", "Booking Holdings"), ("AXP", "American Express")
-            ]
-        elif country_code == "JP":
-            # 日本株の主要銘柄（日経225/TOPIX主要構成銘柄）
-            if index_code == "N225" or index_code == "TPX":
-                major_stocks = [
-                    ("7203.T", "トヨタ自動車"), ("6758.T", "ソニーグループ"), ("6861.T", "キーエンス"),
-                    ("9984.T", "ソフトバンクグループ"), ("8035.T", "東京エレクトロン"), ("4063.T", "信越化学工業"),
-                    ("6098.T", "リクルートホールディングス"), ("4519.T", "中外製薬"), ("6501.T", "日立製作所"),
-                    ("8306.T", "三菱UFJフィナンシャル・グループ"), ("7267.T", "ホンダ"), ("8058.T", "三菱商事"),
-                    ("6752.T", "パナソニック"), ("7733.T", "オリンパス"), ("4503.T", "アステラス製薬"),
-                    ("4901.T", "富士フイルムホールディングス"), ("9434.T", "ソフトバンク"), ("6367.T", "ダイキン工業"),
-                    ("4543.T", "テルモ"), ("7741.T", "HOYA"), ("9022.T", "東日本旅客鉄道"), ("8802.T", "三菱地所"),
-                    ("2914.T", "日本たばこ産業"), ("8766.T", "東京海上ホールディングス"), ("8411.T", "みずほフィナンシャルグループ"),
-                    ("4661.T", "オリエンタルランド"), ("3382.T", "セブン&アイ・ホールディングス"), ("6954.T", "ファナック"),
-                    ("8001.T", "伊藤忠商事"), ("7974.T", "任天堂"), ("9433.T", "KDDI"), ("6971.T", "京セラ"),
-                    ("9020.T", "東日本旅客鉄道"), ("7201.T", "日産自動車"), ("4502.T", "武田薬品工業"),
-                    ("3405.T", "クラレ"), ("5201.T", "AGC"), ("6471.T", "日本精工"), ("4452.T", "花王"),
-                    ("7743.T", "セイコーエプソン"), ("7732.T", "トプコン"), ("6902.T", "デンソー"),
-                    ("5401.T", "日本製鉄"), ("3401.T", "帝人"), ("4061.T", "デンカ"), ("5411.T", "JFEホールディングス"),
-                    ("5801.T", "古河電気工業"), ("5108.T", "ブリヂストン"), ("5713.T", "住友金属鉱山"),
-                    ("5714.T", "DOWAホールディングス"), ("5233.T", "太平洋セメント"), ("3402.T", "東レ")
-                ]
-            else:
-                logger.warning(f"未対応の指数コード: {index_code}")
-                return None
-        else:
-            logger.warning(f"未対応の指数・国コード: {index_code}, {country_code}")
-            return None
-        
-        try:
-            # 各銘柄の時価総額を取得
-            stock_market_caps = []
-            alphabet_cap = None  # Alphabet（GOOGL + GOOG）の合算時価総額
-            
-            for ticker, name in major_stocks:
-                # Alphabet（GOOGL + GOOG）を特別に処理
-                if name == "Alphabet":
-                    if ticker == "GOOGL":
-                        try:
-                            googl_stock = yf.Ticker("GOOGL")
-                            googl_info = googl_stock.info
-                            googl_cap = googl_info.get("marketCap")
-                            
-                            goog_stock = yf.Ticker("GOOG")
-                            goog_info = goog_stock.info
-                            goog_cap = goog_info.get("marketCap")
-                            
-                            if googl_cap and goog_cap:
-                                alphabet_cap = googl_cap + goog_cap
-                            elif googl_cap:
-                                alphabet_cap = googl_cap
-                            elif goog_cap:
-                                alphabet_cap = goog_cap
-                            
-                            if alphabet_cap and alphabet_cap > 0:
-                                stock_market_caps.append({
-                                    "ticker": "GOOGL+GOOG",
-                                    "name": "Alphabet",
-                                    "market_cap": alphabet_cap
-                                })
-                        except Exception as e:
-                            logger.debug(f"Alphabet ({ticker}) 時価総額取得エラー: {e}")
-                    # GOOGはスキップ（GOOGLで既に処理済み）
-                    continue
-                
-                try:
-                    stock = yf.Ticker(ticker)
-                    info = stock.info
-                    market_cap = info.get("marketCap")
-                    if market_cap and market_cap > 0:
-                        stock_market_caps.append({
-                            "ticker": ticker,
-                            "name": name,
-                            "market_cap": market_cap
-                        })
-                except Exception as e:
-                    logger.debug(f"{name} ({ticker}) 時価総額取得エラー: {e}")
-                    continue
-            
-            if len(stock_market_caps) < 10:
-                logger.warning(f"時価総額データが10銘柄未満です（{len(stock_market_caps)}銘柄）。トップ10銘柄集中度を計算できません。")
-                return None
-            
-            # 時価総額でソート（降順）
-            stock_market_caps.sort(key=lambda x: x["market_cap"], reverse=True)
-            
-            # 上位10銘柄を抽出
-            top10_stocks = stock_market_caps[:10]
-            top10_total_market_cap = sum(stock["market_cap"] for stock in top10_stocks)
-            
-            # 指数全体の時価総額を推定
-            # 上位50銘柄程度の時価総額合計から、指数全体を推定
-            # 一般的に上位50銘柄で指数の約80-85%をカバーするため、その逆算で全体を推定
-            top50_stocks = stock_market_caps[:min(50, len(stock_market_caps))]
-            top50_total_market_cap = sum(stock["market_cap"] for stock in top50_stocks)
-            
-            # 上位50銘柄が指数全体の約82.5%を占めると仮定（80-85%の中間値）
-            index_total_market_cap = top50_total_market_cap / 0.825
-            
-            # 構成比を計算
-            composition_ratios = {}
-            for stock in top10_stocks:
-                ratio = stock["market_cap"] / index_total_market_cap
-                composition_ratios[stock["name"]] = ratio
-            
-            # その他は残り
-            top10_ratio = top10_total_market_cap / index_total_market_cap
-            composition_ratios["その他"] = 1.0 - top10_ratio
-            
-            logger.info(f"トップ10銘柄集中度計算完了 ({country_code}, {index_code}): {top10_ratio*100:.2f}%")
-            
-            return {
-                "ratios": composition_ratios,
-                "top10_ratio": top10_ratio,
-                "top10_stocks": [{"name": s["name"], "ticker": s["ticker"]} for s in top10_stocks]
-            }
-            
-        except Exception as e:
-            logger.error(f"トップ10銘柄集中度計算エラー ({country_code}, {index_code}): {e}")
             return None
     
     def _save_fallback_data(self, key: str, data: Dict):
