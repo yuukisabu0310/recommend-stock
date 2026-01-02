@@ -5,7 +5,7 @@ HTML生成モジュール
 
 import yaml
 import json
-from typing import Dict, List
+from typing import Dict, List, Any
 from datetime import datetime
 from pathlib import Path
 import logging
