@@ -149,6 +149,75 @@ class HTMLGenerator:
         
         return filtered
     
+    def _filter_price_series_by_period(self, prices: List[float], dates: List[str], timeframe_code: str) -> tuple:
+        """
+        価格時系列データを期間に応じてフィルタリング
+        
+        Args:
+            prices: 価格のリスト
+            dates: 日付のリスト（YYYY-MM-DD形式）
+            timeframe_code: 期間コード（short, medium, long）
+        
+        Returns:
+            (フィルタリングされた価格リスト, フィルタリングされた日付リスト)
+        """
+        if not prices or not dates or len(prices) != len(dates):
+            return [], []
+        
+        from datetime import datetime, timedelta
+        
+        today = datetime.now()
+        
+        if timeframe_code == "short":
+            # 直近1年（365日）
+            cutoff_date = today - timedelta(days=365)
+        elif timeframe_code == "medium":
+            # 直近5年（1825日）
+            cutoff_date = today - timedelta(days=1825)
+        elif timeframe_code == "long":
+            # 直近10年（3650日）
+            cutoff_date = today - timedelta(days=3650)
+        else:
+            # デフォルト: 全期間
+            return prices, dates
+        
+        filtered_prices = []
+        filtered_dates = []
+        
+        for i, date_str in enumerate(dates):
+            try:
+                item_date = datetime.strptime(date_str, "%Y-%m-%d")
+                if item_date >= cutoff_date:
+                    filtered_prices.append(prices[i])
+                    filtered_dates.append(date_str)
+            except (ValueError, KeyError, IndexError):
+                continue
+        
+        return filtered_prices, filtered_dates
+    
+    def _calculate_ma_series(self, prices: List[float], period: int) -> List:
+        """
+        移動平均時系列を計算
+        
+        Args:
+            prices: 価格のリスト
+            period: MA期間（例：20, 50, 200）
+        
+        Returns:
+            MA時系列（期間未満の位置はNone）
+        """
+        if not prices or len(prices) < period:
+            return [None] * len(prices)
+        
+        ma_series = [None] * (period - 1)  # 最初のperiod-1個は計算不可
+        
+        for i in range(period - 1, len(prices)):
+            window = prices[i - period + 1:i + 1]
+            ma_value = sum(window) / period
+            ma_series.append(ma_value)
+        
+        return ma_series
+    
     def _generate_conclusion_block(self, country_name: str, timeframe_name: str, direction_label: str, summary) -> str:
         """
         結論ブロックを生成（2行固定）
@@ -1263,12 +1332,14 @@ class HTMLGenerator:
                 caption = f"価格は200日移動平均（{ma200:.2f}）付近で推移しています。"
             
             chart_id = f"priceChart_{country_code}_{timeframe_code}"
+            period_text = self._get_period_text(timeframe_code)
             html += f"""
                     <!-- 価格トレンドチャート -->
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <h3 class="text-lg font-semibold text-gray-900 mb-2">{index_name} 価格トレンド</h3>
                         <canvas id="{chart_id}"></canvas>
-                        <p class="text-xs text-gray-600 mt-2">{caption}</p>
+                        <p class="text-xs text-gray-600 mt-2">表示期間: {period_text}</p>
+                        <p class="text-xs text-gray-500 mt-1">{caption}</p>
                     </div>
 """
         
@@ -1366,48 +1437,58 @@ class HTMLGenerator:
         indices = data.get("indices", {})
         if indices:
             first_index = list(indices.values())[0]
-            latest_price = first_index.get("latest_price", 0)
-            ma20 = first_index.get("ma20", 0)
-            ma75 = first_index.get("ma75", 0)
-            ma200 = first_index.get("ma200", 0)
+            index_code = list(indices.keys())[0]
+            index_name = {"SPX": "S&P500", "NDX": "NASDAQ100", "N225": "日経225", "TPX": "TOPIX"}.get(index_code, index_code)
             
-            chart_id = f"priceChart_{country_code}_{timeframe_code}"
-            scripts += f"""
+            # 時系列データを取得
+            historical_prices = first_index.get("historical_prices", [])
+            historical_dates = first_index.get("historical_dates", [])
+            
+            if historical_prices and historical_dates and len(historical_prices) == len(historical_dates):
+                # 期間に応じてフィルタリング
+                filtered_prices, filtered_dates = self._filter_price_series_by_period(
+                    historical_prices, historical_dates, timeframe_code
+                )
+                
+                if filtered_prices and filtered_dates:
+                    # MA期間を決定（期間に応じて）
+                    ma_period_map = {
+                        "short": 20,
+                        "medium": 50,
+                        "long": 200
+                    }
+                    ma_period = ma_period_map.get(timeframe_code, 20)
+                    
+                    # MA時系列を計算
+                    ma_series = self._calculate_ma_series(filtered_prices, ma_period)
+                    
+                    chart_id = f"priceChart_{country_code}_{timeframe_code}"
+                    scripts += f"""
                 // 価格トレンドチャート
                 const ctx_{chart_id.replace('-', '_')} = document.getElementById('{chart_id}');
                 if (ctx_{chart_id.replace('-', '_')}) {{
                     new Chart(ctx_{chart_id.replace('-', '_')}, {{
                         type: 'line',
                         data: {{
-                            labels: ['現在'],
+                            labels: {json.dumps(filtered_dates)},
                             datasets: [
                                 {{
                                     label: '終値',
-                                    data: [{latest_price}],
+                                    data: {json.dumps(filtered_prices)},
                                     borderColor: 'rgb(59, 130, 246)',
                                     backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                                    tension: 0.1
+                                    tension: 0.1,
+                                    pointRadius: 0,
+                                    pointHoverRadius: 3
                                 }},
                                 {{
-                                    label: 'MA20',
-                                    data: [{ma20}],
+                                    label: 'MA{ma_period}',
+                                    data: {json.dumps(ma_series)},
                                     borderColor: 'rgb(34, 197, 94)',
                                     borderDash: [5, 5],
-                                    tension: 0.1
-                                }},
-                                {{
-                                    label: 'MA75',
-                                    data: [{ma75}],
-                                    borderColor: 'rgb(251, 191, 36)',
-                                    borderDash: [5, 5],
-                                    tension: 0.1
-                                }},
-                                {{
-                                    label: 'MA200',
-                                    data: [{ma200}],
-                                    borderColor: 'rgb(239, 68, 68)',
-                                    borderDash: [5, 5],
-                                    tension: 0.1
+                                    tension: 0.1,
+                                    pointRadius: 0,
+                                    pointHoverRadius: 3
                                 }}
                             ]
                         }},
@@ -1423,6 +1504,11 @@ class HTMLGenerator:
                             scales: {{
                                 y: {{
                                     beginAtZero: false
+                                }},
+                                x: {{
+                                    ticks: {{
+                                        maxTicksLimit: 10
+                                    }}
                                 }}
                             }}
                         }}

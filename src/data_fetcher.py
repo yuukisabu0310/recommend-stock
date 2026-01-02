@@ -105,7 +105,11 @@ class DataFetcher:
             for attempt in range(max_retries):
                 try:
                     stock = yf.Ticker(ticker)
-                    # periodパラメータを使用（より確実）
+                    # 期間に応じたデータ取得（start/endを使用して正確な期間を指定）
+                    end_date = datetime.now()
+                    start_date = end_date - timedelta(days=days)
+                    
+                    # Yahoo Financeのperiodパラメータも試行（フォールバック用）
                     if days <= 30:
                         period = "1mo"
                     elif days <= 90:
@@ -114,19 +118,22 @@ class DataFetcher:
                         period = "6mo"
                     elif days <= 365:
                         period = "1y"
-                    else:
+                    elif days <= 730:
                         period = "2y"
+                    elif days <= 1825:
+                        period = "5y"
+                    else:
+                        period = "10y"
                     
-                    hist = stock.history(period=period)
+                    # start/endで取得を試行（より正確）
+                    hist = stock.history(start=start_date, end=end_date)
                     
                     if not hist.empty:
                         break
                     
-                    # 空の場合はstart/endで再試行
+                    # 空の場合はperiodパラメータで再試行
                     if attempt < max_retries - 1:
-                        end_date = datetime.now()
-                        start_date = end_date - timedelta(days=min(days, 365))
-                        hist = stock.history(start=start_date, end=end_date)
+                        hist = stock.history(period=period)
                         if not hist.empty:
                             break
                     
@@ -146,10 +153,14 @@ class DataFetcher:
                 logger.warning(f"データが空です ({index_code})")
                 return self._load_fallback_data(f"{country_code}_{index_code}")
             
-            # 最新価格と移動平均の計算（20日、75日、200日）
+            # 最新価格
             latest_price = float(hist['Close'].iloc[-1])
             
-            # 移動平均の計算
+            # 時系列データを取得（日次終値と日付）
+            historical_prices = [float(x) for x in hist['Close'].tolist()]
+            historical_dates = [d.strftime("%Y-%m-%d") if hasattr(d, 'strftime') else str(d) for d in hist.index]
+            
+            # 移動平均の計算（20日、75日、200日）- 最新値のみ（既存ロジック維持）
             ma20 = float(hist['Close'].tail(20).mean()) if len(hist) >= 20 else latest_price
             ma75 = float(hist['Close'].tail(75).mean()) if len(hist) >= 75 else latest_price
             ma200 = float(hist['Close'].tail(200).mean()) if len(hist) >= 200 else latest_price
@@ -193,7 +204,8 @@ class DataFetcher:
                 "volatility": volatility,
                 "volume_ratio": latest_volume / avg_volume_30 if avg_volume_30 > 0 else 1.0,
                 "date": datetime.now().isoformat(),
-                "historical_prices": hist['Close'].tail(30).tolist()  # 直近30日
+                "historical_prices": historical_prices,  # 時系列データ（全期間）
+                "historical_dates": historical_dates  # 時系列日付データ
             }
             
             # フォールバックデータとして保存
@@ -794,9 +806,10 @@ class DataFetcher:
             country_name = country_config['name']
             
             # インデックスデータを先に取得（マクロ・金融指標の推測に使用）
+            # 最大期間（10年=3650日）で取得し、html_generatorで期間フィルタリング
             indices_data = {}
             for index_code in country_config['indices']:
-                index_data = self.get_index_data(index_code, country_code)
+                index_data = self.get_index_data(index_code, country_code, days=3650)
                 if index_data:
                     indices_data[index_code] = index_data
             
