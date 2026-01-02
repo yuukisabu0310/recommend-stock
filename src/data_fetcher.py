@@ -13,6 +13,7 @@ import logging
 from pathlib import Path
 import time
 
+
 try:
     import yfinance as yf
 except ImportError:
@@ -291,6 +292,44 @@ class DataFetcher:
         logger.error(f"FRED API時系列取得最終失敗 ({series_id}, {country_code})")
         return None
     
+    def _calculate_cpi_yoy_series(self, cpi_raw_series: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        CPI生データから前年比（YoY）時系列を計算
+        
+        Args:
+            cpi_raw_series: CPI生データの時系列 [{"date": str, "value": float}, ...]（月次データ）
+        
+        Returns:
+            前年比（YoY）時系列 [{"date": str, "value": float}, ...]
+        """
+        if not cpi_raw_series or len(cpi_raw_series) < 13:
+            return []
+        
+        # 日付でソート（月次データなので、時系列順に並んでいることを前提）
+        sorted_series = sorted(cpi_raw_series, key=lambda x: x["date"])
+        
+        yoy_series = []
+        # 12ヶ月前のデータと比較（月次データなので、インデックスで12個前を参照）
+        for i in range(12, len(sorted_series)):
+            current_item = sorted_series[i]
+            prev_item = sorted_series[i - 12]  # 12ヶ月前
+            
+            try:
+                current_value = float(current_item["value"])
+                prev_value = float(prev_item["value"])
+                
+                if prev_value > 0:
+                    yoy = ((current_value / prev_value) - 1) * 100
+                    yoy_series.append({
+                        "date": current_item["date"],
+                        "value": yoy
+                    })
+            except (ValueError, KeyError, TypeError) as e:
+                logger.debug(f"CPI YoY計算エラー ({current_item.get('date', 'unknown')}): {e}")
+                continue
+        
+        return yoy_series
+    
     def get_macro_indicators(self, country_code: str, index_data: Optional[Dict] = None) -> Dict:
         """
         マクロ経済指標を取得（実データ）
@@ -300,7 +339,7 @@ class DataFetcher:
             index_data: インデックスデータ（PMI推測に使用）
         
         Returns:
-            マクロ指標の辞書
+            マクロ指標の辞書（CPI時系列データを含む）
         """
         # FRED APIシリーズIDマッピング
         fred_series = {
@@ -314,45 +353,35 @@ class DataFetcher:
             }
         }
         
-        # CPI: FRED APIから取得
+        # CPI: FRED APIから取得（最新値と時系列データ）
         cpi = None
+        cpi_series = None
         if country_code == "US":
             if not self.fred_client:
                 logger.error(f"FRED APIクライアントが初期化されていません。CPIを取得できません ({country_code})")
             else:
-                cpi_raw = self._get_fred_data(fred_series["US"]["CPI"], country_code)
-                if cpi_raw is not None:
-                    # 前年同月比を計算（最新値と12ヶ月前の値を比較）
-                    try:
-                        data = self.fred_client.get_series(fred_series["US"]["CPI"], limit=13)
-                        if len(data) >= 13:
-                            current = float(data.iloc[-1])
-                            previous = float(data.iloc[0])
-                            cpi = ((current / previous) - 1) * 100  # 年率換算（%）
-                            logger.info(f"CPI取得成功 ({country_code}): {cpi:.2f}%")
-                        else:
-                            logger.warning(f"CPIデータが不足しています ({country_code}): {len(data)}件")
-                    except Exception as e:
-                        logger.error(f"CPI計算エラー ({country_code}): {e}")
-                else:
-                    logger.error(f"CPI取得失敗 ({country_code})")
+                # 時系列データを取得（最大10年分）
+                cpi_raw_series = self._get_fred_series_data(fred_series["US"]["CPI"], country_code, start_date=None)
+                if cpi_raw_series:
+                    # 前年比（YoY）時系列を計算
+                    cpi_series = self._calculate_cpi_yoy_series(cpi_raw_series)
+                    # 最新値（時系列の最後の値）
+                    if cpi_series:
+                        cpi = cpi_series[-1]["value"]
+                        logger.info(f"CPI時系列データ取得成功 ({country_code}): {len(cpi_series)}件, 最新値: {cpi:.2f}%")
         elif country_code == "JP":
-            # 日本: e-Stat APIから取得を試行（公式データを優先）
-            cpi = self._get_japan_cpi()
+            # 日本: FRED APIから取得を試行
+            if fred_series["JP"]["CPI"] and self.fred_client:
+                cpi_raw_series = self._get_fred_series_data(fred_series["JP"]["CPI"], country_code, start_date=None)
+                if cpi_raw_series:
+                    cpi_series = self._calculate_cpi_yoy_series(cpi_raw_series)
+                    if cpi_series:
+                        cpi = cpi_series[-1]["value"]
+                        logger.info(f"CPI時系列データ取得成功 ({country_code}): {len(cpi_series)}件, 最新値: {cpi:.2f}%")
             
-            # e-Stat APIが失敗した場合はFRED APIをフォールバックとして使用
-            if cpi is None and fred_series["JP"]["CPI"]:
-                cpi_raw = self._get_fred_data(fred_series["JP"]["CPI"], country_code)
-                if cpi_raw is not None:
-                    # 前年同月比を計算
-                    try:
-                        data = self.fred_client.get_series(fred_series["JP"]["CPI"], limit=13)
-                        if len(data) >= 13:
-                            current = float(data.iloc[-1])
-                            previous = float(data.iloc[0])
-                            cpi = ((current / previous) - 1) * 100  # 年率換算（%）
-                    except Exception as e:
-                        logger.warning(f"日本のCPI計算エラー (FRED API): {e}")
+            # FRED APIが失敗した場合はe-Stat APIから取得を試行（最新値のみ）
+            if cpi is None:
+                cpi = self._get_japan_cpi()
         
         # 雇用率: FRED APIから取得
         employment_rate = None
@@ -390,6 +419,7 @@ class DataFetcher:
             "country_code": country_code,
             "PMI": pmi,
             "CPI": cpi,
+            "CPI_series": cpi_series,  # 時系列データ（前年比YoY）
             "employment_rate": employment_rate,
             "date": datetime.now().isoformat()
         }
@@ -397,6 +427,8 @@ class DataFetcher:
         logger.info(f"get_macro_indicators返り値 ({country_code}): PMI={pmi}, CPI={cpi}, employment_rate={employment_rate}")
         if cpi is None:
             logger.warning(f"CPIがnullです ({country_code})")
+        if cpi_series:
+            logger.info(f"CPI時系列データ ({country_code}): {len(cpi_series)}件")
         if employment_rate is None:
             logger.warning(f"雇用率がnullです ({country_code})")
         return result

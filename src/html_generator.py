@@ -58,9 +58,9 @@ class HTMLGenerator:
             期間表記（文字列）
         """
         period_map = {
-            "short": "直近6か月",
-            "medium": "直近2〜3年",
-            "long": "取得可能な最大期間（年単位）"
+            "short": "直近1年",
+            "medium": "直近5年",
+            "long": "直近10年"
         }
         return period_map.get(timeframe_code, "")
     
@@ -83,13 +83,59 @@ class HTMLGenerator:
         today = datetime.now()
         
         if timeframe_code == "short":
-            # 直近6か月
-            cutoff_date = today - timedelta(days=180)
+            # 直近1年（365日）
+            cutoff_date = today - timedelta(days=365)
         elif timeframe_code == "medium":
-            # 直近2〜3年（2.5年 = 約912日）
-            cutoff_date = today - timedelta(days=912)
-        else:  # long
-            # 取得可能な最大期間（フィルタリングなし）
+            # 直近5年（1825日）
+            cutoff_date = today - timedelta(days=1825)
+        elif timeframe_code == "long":
+            # 直近10年（3650日）
+            cutoff_date = today - timedelta(days=3650)
+        else:
+            # デフォルト: 全期間
+            return series
+        
+        filtered = []
+        for item in series:
+            try:
+                item_date = datetime.strptime(item["date"], "%Y-%m-%d")
+                if item_date >= cutoff_date:
+                    filtered.append(item)
+            except (ValueError, KeyError):
+                continue
+        
+        return filtered
+    
+    def _filter_series_by_period_cpi(self, series: List[Dict[str, Any]], timeframe_code: str) -> List[Dict[str, Any]]:
+        """
+        CPI時系列データを期間に応じてフィルタリング（CPI専用ルール）
+        
+        Args:
+            series: CPI時系列データのリスト [{"date": str, "value": float}, ...]
+            timeframe_code: 期間コード（short, medium, long）
+                          short: 直近2年、medium: 直近5年、long: 直近10年
+        
+        Returns:
+            フィルタリングされた時系列データのリスト
+        """
+        if not series:
+            return []
+        
+        from datetime import datetime, timedelta
+        
+        today = datetime.now()
+        
+        if timeframe_code == "short":
+            # 直近2年（730日）
+            cutoff_date = today - timedelta(days=730)
+        elif timeframe_code == "medium":
+            # 直近5年（1825日）
+            cutoff_date = today - timedelta(days=1825)
+        elif timeframe_code == "long":
+            # 直近10年（3650日）
+            cutoff_date = today - timedelta(days=3650)
+        else:
+            # デフォルト: 全期間
             return series
         
         filtered = []
@@ -1163,7 +1209,7 @@ class HTMLGenerator:
         # 金融指標から観測事実を抽出
         financial = data.get("financial", {})
         if financial.get("policy_rate") is not None:
-            facts.append(f"政策金利は{financial['policy_rate']:.2f}%です")
+            facts.append(f"政策金利（名目）は{financial['policy_rate']:.2f}%です")
         if financial.get("long_term_rate") is not None:
             facts.append(f"長期金利（10年債）は{financial['long_term_rate']:.2f}%です")
         
@@ -1244,20 +1290,21 @@ class HTMLGenerator:
                     </div>
 """
         
-        # CPIチャート（短期のみ）
-        if timeframe_code == "short":
-            if macro.get("CPI") is not None:
-                cpi = macro.get("CPI")
-                chart_id = f"cpiChart_{country_code}_{timeframe_code}"
-                html += f"""
+        # CPIチャート（短期・中期・長期で表示）
+        if macro.get("CPI") is not None:
+            cpi = macro.get("CPI")
+            chart_id = f"cpiChart_{country_code}_{timeframe_code}"
+            period_text_cpi = self._get_period_text(timeframe_code)
+            html += f"""
                     <div class="bg-gray-50 p-4 rounded-lg">
-                        <h3 class="text-lg font-semibold text-gray-900 mb-2">CPI（消費者物価指数）</h3>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">CPI（消費者物価指数・前年比）</h3>
                         <canvas id="{chart_id}"></canvas>
-                        <p class="text-xs text-gray-600 mt-2">CPI前年同月比は{cpi:.2f}%です。</p>
+                        <p class="text-xs text-gray-600 mt-2">表示期間: {period_text_cpi}</p>
+                        <p class="text-xs text-gray-500 mt-1">CPI前年同月比（YoY）です。値が取得できない場合は欠損として処理されます。</p>
                     </div>
 """
         
-        elif timeframe_code == "medium":
+        if timeframe_code == "medium":
             # 中期：PMI、CPI（YoY）
             if macro.get("PMI") is not None:
                 pmi = macro.get("PMI")
@@ -1444,7 +1491,7 @@ class HTMLGenerator:
             # 政策金利データセット
             if filtered_policy:
                 scripts += f"""                                {{
-                                    label: '政策金利',
+                                    label: '政策金利（名目）',
                                     data: {json.dumps(policy_data)},
                                     borderColor: 'rgb(239, 68, 68)',
                                     backgroundColor: 'rgba(239, 68, 68, 0.1)',
@@ -1470,6 +1517,66 @@ class HTMLGenerator:
                                     title: {{
                                         display: true,
                                         text: '利回り（%）'
+                                    }}
+                                }},
+                                x: {{
+                                    title: {{
+                                        display: true,
+                                        text: '日付'
+                                    }}
+                                }}
+                            }}
+                        }}
+                    }});
+                }}
+"""
+        
+        # CPIチャート
+        macro = data.get("macro", {})
+        cpi_series = macro.get("CPI_series")
+        if cpi_series:
+            chart_id = f"cpiChart_{country_code}_{timeframe_code}"
+            # CPI専用期間フィルタリング
+            filtered_cpi = self._filter_series_by_period_cpi(cpi_series, timeframe_code)
+            
+            if filtered_cpi:
+                cpi_dates = [item["date"] for item in filtered_cpi]
+                cpi_values = [item["value"] for item in filtered_cpi]
+                
+                scripts += f"""
+                // CPIチャート
+                const ctx_cpi_{chart_id.replace('-', '_')} = document.getElementById('{chart_id}');
+                if (ctx_cpi_{chart_id.replace('-', '_')}) {{
+                    new Chart(ctx_cpi_{chart_id.replace('-', '_')}, {{
+                        type: 'line',
+                        data: {{
+                            labels: {json.dumps(cpi_dates)},
+                            datasets: [
+                                {{
+                                    label: 'CPI（前年比YoY）',
+                                    data: {json.dumps(cpi_values)},
+                                    borderColor: 'rgb(168, 85, 247)',
+                                    backgroundColor: 'rgba(168, 85, 247, 0.1)',
+                                    tension: 0.1,
+                                    spanGaps: false
+                                }}
+                            ]
+                        }},
+                        options: {{
+                            responsive: true,
+                            maintainAspectRatio: true,
+                            plugins: {{
+                                legend: {{
+                                    display: true,
+                                    position: 'top'
+                                }}
+                            }},
+                            scales: {{
+                                y: {{
+                                    beginAtZero: false,
+                                    title: {{
+                                        display: true,
+                                        text: '前年比（%）'
                                     }}
                                 }},
                                 x: {{
@@ -1568,7 +1675,7 @@ class HTMLGenerator:
             comment = "高水準" if policy_rate > 3.0 else ("低水準" if policy_rate < 1.0 else "中程度")
             html += f"""
                     <div class="bg-gray-50 p-3 rounded-lg border-l-4 border-gray-300">
-                        <p class="text-xs text-gray-600 mb-1">政策金利</p>
+                        <p class="text-xs text-gray-600 mb-1">政策金利（名目）</p>
                         <p class="text-lg font-bold text-gray-900">{policy_rate:.2f}%</p>
                         <p class="text-xs text-gray-500 mt-1">{comment}の水準</p>
                     </div>
