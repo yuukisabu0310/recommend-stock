@@ -1,0 +1,419 @@
+/* v2 Market Report - Main Stylesheet */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', 'Noto Sans JP', sans-serif;
+    background: #f8fafc;
+    color: #1e293b;
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+}
+
+header {
+    background: white;
+    padding: 2rem;
+    border-radius: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+}
+
+h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 0.5rem;
+}
+
+.subtitle {
+    color: #64748b;
+    font-size: 1rem;
+}
+
+.section {
+    background: white;
+    padding: 2rem;
+    border-radius: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+}
+
+.section-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.chart-container {
+    margin: 1.5rem 0;
+}
+
+.interpretation {
+    background: #f1f5f9;
+    padding: 1.5rem;
+    border-radius: 0.75rem;
+    margin-top: 1rem;
+    color: #475569;
+    line-height: 1.8;
+}
+
+.period-selector {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.period-btn {
+    padding: 0.75rem 1.5rem;
+    min-height: 44px;
+    border: 1px solid #cbd5e1;
+    background: white;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s;
+    color: #1e293b;
+}
+
+.period-btn:hover {
+    background: #f1f5f9;
+    border-color: #2563eb;
+}
+
+.period-btn.active {
+    background: #2563eb;
+    color: white;
+    border-color: #2563eb;
+}
+
+.period-btn:focus {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+}
+
+/* 市場・期間選択UI */
+.market-selector,
+.timeframe-selector {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.market-btn,
+.timeframe-btn {
+    padding: 0.75rem 1.5rem;
+    min-height: 44px;
+    border: 1px solid #cbd5e1;
+    background: white;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s;
+    color: #1e293b;
+}
+
+.market-btn:hover,
+.timeframe-btn:hover {
+    background: #f1f5f9;
+    border-color: #2563eb;
+}
+
+.market-btn.active,
+.timeframe-btn.active {
+    background: #2563eb;
+    color: white;
+    border-color: #2563eb;
+}
+
+.market-btn:focus,
+.timeframe-btn:focus {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+}
+
+/* 詳細トグル */
+.details-toggle {
+    margin-top: 1rem;
+    padding: 0.75rem 1.5rem;
+    min-height: 44px;
+    width: 100%;
+    border: 1px solid #cbd5e1;
+    background: white;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #2563eb;
+    transition: all 0.2s;
+}
+
+.details-toggle:hover {
+    background: #f1f5f9;
+    border-color: #2563eb;
+}
+
+.details-content {
+    display: none;
+    margin-top: 1rem;
+}
+
+.details-content.expanded {
+    display: block;
+}
+
+/* スケルトンローディング */
+.skeleton {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 2rem;
+}
+
+.skeleton.hidden {
+    display: none;
+}
+
+.skel-card {
+    height: 140px;
+    border-radius: 12px;
+    background: #e5e7eb;
+    animation: pulse 1.5s infinite ease-in-out;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 0.6;
+    }
+    50% {
+        opacity: 0.3;
+    }
+    100% {
+        opacity: 0.6;
+    }
+}
+
+/* 旧スケルトン（後方互換性のため残す） */
+.skeleton-loading {
+    background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s ease-in-out infinite;
+    border-radius: 0.5rem;
+    min-height: 200px;
+}
+
+@keyframes loading {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+/* ランクカードUI */
+.rank-card {
+    border-radius: 16px;
+    padding: 16px;
+    background: white;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 96px;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.rank-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.rank-letter {
+    font-size: 36px;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.rank-card .symbol {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.rank-A {
+    border-left: 6px solid #10b981;
+}
+
+.rank-B {
+    border-left: 6px solid #38bdf8;
+}
+
+.rank-C {
+    border-left: 6px solid #71717a;
+}
+
+.rank-D {
+    border-left: 6px solid #f59e0b;
+}
+
+.rank-E {
+    border-left: 6px solid #f43f5e;
+}
+
+/* ランクカードグリッド */
+.rank-cards-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 2rem;
+}
+
+/* 該当銘柄なし */
+.empty-card {
+    padding: 32px;
+    text-align: center;
+    color: #6b7280;
+    border: 2px dashed #e5e7eb;
+    border-radius: 16px;
+    background: white;
+    margin-bottom: 2rem;
+}
+
+/* 市場ヒートマップ */
+.heatmap-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+    margin-bottom: 2rem;
+}
+
+.heat-tile {
+    padding: 12px;
+    border-radius: 12px;
+    color: white;
+    font-weight: 600;
+    text-align: center;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.heat-tile:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.heat-up-weak {
+    background: #6ee7b7;
+}
+
+.heat-up-mid {
+    background: #10b981;
+}
+
+.heat-up-strong {
+    background: #047857;
+}
+
+.heat-down-weak {
+    background: #fca5a5;
+}
+
+.heat-down-mid {
+    background: #ef4444;
+}
+
+.heat-down-strong {
+    background: #7f1d1d;
+}
+
+/* 経済指標方向矢印 */
+.econ-arrow {
+    font-weight: 800;
+    margin-left: 6px;
+    display: inline-block;
+    font-size: 0.875rem;
+}
+
+.econ-arrow.up {
+    color: #10b981;
+}
+
+.econ-arrow.down {
+    color: #ef4444;
+}
+
+.econ-arrow.flat {
+    color: #9ca3af;
+}
+
+/* レポートリンク */
+.report-list {
+    list-style: none;
+    padding: 0;
+}
+
+.report-link {
+    color: #2563eb;
+    text-decoration: none;
+    font-weight: 500;
+    display: block;
+    padding: 0.75rem 1rem;
+    min-height: 44px;
+    border-radius: 0.5rem;
+    transition: background 0.2s;
+}
+
+.report-link:hover {
+    background: #f1f5f9;
+}
+
+/* モバイル対応 */
+@media (max-width: 768px) {
+    .container {
+        padding: 1rem 0.5rem;
+    }
+    
+    header {
+        padding: 1.5rem;
+    }
+    
+    h1 {
+        font-size: 1.5rem;
+    }
+    
+    .section {
+        padding: 1.5rem;
+    }
+    
+    .section-title {
+        font-size: 1.25rem;
+    }
+    
+    .period-btn,
+    .market-btn,
+    .timeframe-btn {
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .chart-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+}
+
