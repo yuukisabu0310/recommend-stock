@@ -39,7 +39,7 @@ class SectionRenderer:
             period_selector
         )
         # block-1クラスを追加（全幅表示）
-        return section_html.replace('<div class="card section">', '<div class="card section block-1">')
+        return section_html.replace('<section class="card">', '<section class="card block-1">')
     
     @staticmethod
     def render_rate_section(page_data: Dict[str, Any]) -> str:
@@ -82,7 +82,7 @@ class SectionRenderer:
             period_selector
         )
         # block-2クラスを追加
-        return section_html.replace('<div class="card section">', '<div class="card section block-2">')
+        return section_html.replace('<section class="card">', '<section class="card block-2">')
     
     @staticmethod
     def render_cpi_section(page_data: Dict[str, Any]) -> str:
@@ -116,7 +116,7 @@ class SectionRenderer:
             period_selector
         )
         # block-3クラスを追加
-        return section_html.replace('<div class="card section">', '<div class="card section block-3">')
+        return section_html.replace('<section class="card">', '<section class="card block-3">')
     
     @staticmethod
     def render_eps_per_section(page_data: Dict[str, Any]) -> str:
@@ -135,7 +135,7 @@ class SectionRenderer:
             ""
         )
         # block-4クラスを追加
-        return section_html.replace('<div class="card section">', '<div class="card section block-4">')
+        return section_html.replace('<section class="card">', '<section class="card block-4">')
     
     @staticmethod
     def _format_fact_list(text: str) -> str:

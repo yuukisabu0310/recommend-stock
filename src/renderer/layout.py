@@ -99,7 +99,7 @@ class Layout:
         
         chart_container_attr = f' data-chart-type="{chart_type}"' if chart_type else ""
         
-        return f"""<div class="card section">
+        return f"""<section class="card">
             <h2 class="section-title">{title}</h2>
             {period_selector}
             <div class="chart-container"{chart_container_attr}>
@@ -108,7 +108,7 @@ class Layout:
             <div class="interpretation">
                 {interpretation}
             </div>
-        </div>"""
+        </section>"""
     
     @staticmethod
     def get_period_selector(years: int, switchable_years: list, chart_id: str) -> str:

@@ -20,7 +20,7 @@ body {
     padding: 2rem 1rem;
 }
 
-/* ダッシュボード型レイアウト */
+/* ダッシュボード型レイアウト（唯一のグリッド親） */
 .dashboard {
     display: grid;
     grid-template-columns: 1fr;
@@ -31,22 +31,9 @@ body {
 @media (min-width: 992px) {
     .dashboard {
         grid-template-columns: 1fr 1fr;
-        grid-auto-flow: row dense;
     }
     .block-1 {
-        grid-column: 1 / -1; /* ① 全幅 */
-    }
-    .block-2 {
-        /* ② 左側 */
-    }
-    .block-3 {
-        /* ③ 右側 */
-    }
-    .block-4 {
-        /* ④ 左側 */
-    }
-    .block-5 {
-        /* ⑤ 右側 */
+        grid-column: 1 / -1;
     }
 }
 
@@ -70,9 +57,6 @@ h1 {
     font-size: 1rem;
 }
 
-.section {
-    margin-bottom: 0;
-}
 
 /* カードUI */
 .card {
