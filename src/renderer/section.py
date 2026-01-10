@@ -8,13 +8,157 @@ class SectionRenderer:
     """セクションをレンダリングするクラス"""
     
     @staticmethod
+    def _get_price_fact_list(page_data: Dict[str, Any]) -> str:
+        """株価指数のfact-listを生成"""
+        facts = page_data.get("facts", {})
+        price_fact = facts.get("price")
+        if price_fact and price_fact.get("is_valid"):
+            price_data = price_fact.get("data")
+            if price_data is not None and not price_data.empty and "Close" in price_data.columns:
+                values = price_data["Close"].dropna()
+                if len(values) >= 2:
+                    current = float(values.iloc[-1])
+                    previous = float(values.iloc[-2])
+                    prev_diff_pct = ((current - previous) / previous) * 100 if previous != 0 else 0
+                    mid_diff_pct = None
+                    if len(values) >= 126:
+                        mid_value = float(values.iloc[-126])
+                        mid_diff_pct = ((current - mid_value) / mid_value) * 100 if mid_value != 0 else 0
+                    
+                    indicator_name = "S&P500" if page_data.get("market_code") == "US" else "日経平均"
+                    prev_str = f" | 前期比 {prev_diff_pct:+.2f}%"
+                    mid_str = f" | 中期差分 {mid_diff_pct:+.2f}%" if mid_diff_pct is not None else ""
+                    item = f"{indicator_name}：{current:.2f}{prev_str}{mid_str}"
+                    return f'<ul class="fact-list">\n<li>{item}</li>\n</ul>'
+        return '<ul class="fact-list"><li>データが取得できません。</li></ul>'
+    
+    @staticmethod
+    def _get_rate_fact_list(page_data: Dict[str, Any]) -> str:
+        """政策金利・長期金利のfact-listを生成"""
+        facts = page_data.get("facts", {})
+        fact_items = []
+        
+        # 政策金利
+        policy_fact = facts.get("policy_rate")
+        if policy_fact and policy_fact.get("is_valid"):
+            policy_data = policy_fact.get("data")
+            if policy_data is not None and not policy_data.empty and "policy_rate" in policy_data.columns:
+                values = policy_data["policy_rate"].dropna()
+                if len(values) >= 2:
+                    current = float(values.iloc[-1])
+                    previous = float(values.iloc[-2])
+                    prev_diff_pct = ((current - previous) / previous) * 100 if previous != 0 else 0
+                    mid_diff_pct = None
+                    if len(values) >= 6:
+                        mid_value = float(values.iloc[-6])
+                        mid_diff_pct = ((current - mid_value) / mid_value) * 100 if mid_value != 0 else 0
+                    
+                    prev_str = f" | 前期比 {prev_diff_pct:+.2f}%"
+                    mid_str = f" | 中期差分 {mid_diff_pct:+.2f}%" if mid_diff_pct is not None else ""
+                    fact_items.append(f"政策金利：{current:.2f}%{prev_str}{mid_str}")
+        
+        # 長期金利
+        long_rate_fact = facts.get("long_rate")
+        if long_rate_fact and long_rate_fact.get("is_valid"):
+            long_rate_data = long_rate_fact.get("data")
+            if long_rate_data is not None and not long_rate_data.empty and "long_rate_10y" in long_rate_data.columns:
+                values = long_rate_data["long_rate_10y"].dropna()
+                if len(values) >= 2:
+                    current = float(values.iloc[-1])
+                    previous = float(values.iloc[-2])
+                    prev_diff_pct = ((current - previous) / previous) * 100 if previous != 0 else 0
+                    mid_diff_pct = None
+                    if len(values) >= 6:
+                        mid_value = float(values.iloc[-6])
+                        mid_diff_pct = ((current - mid_value) / mid_value) * 100 if mid_value != 0 else 0
+                    
+                    prev_str = f" | 前期比 {prev_diff_pct:+.2f}%"
+                    mid_str = f" | 中期差分 {mid_diff_pct:+.2f}%" if mid_diff_pct is not None else ""
+                    fact_items.append(f"長期金利（10年）：{current:.2f}%{prev_str}{mid_str}")
+        
+        if fact_items:
+            list_items = "\n".join([f"<li>{item}</li>" for item in fact_items])
+            return f'<ul class="fact-list">\n{list_items}\n</ul>'
+        return '<ul class="fact-list"><li>データが取得できません。</li></ul>'
+    
+    @staticmethod
+    def _get_cpi_fact_list(page_data: Dict[str, Any]) -> str:
+        """CPIのfact-listを生成"""
+        facts = page_data.get("facts", {})
+        cpi_fact = facts.get("cpi")
+        if cpi_fact and cpi_fact.get("is_valid"):
+            cpi_data = cpi_fact.get("data")
+            if cpi_data is not None and not cpi_data.empty and "CPI_YoY" in cpi_data.columns:
+                values = cpi_data["CPI_YoY"].dropna()
+                if len(values) >= 2:
+                    current = float(values.iloc[-1])
+                    previous = float(values.iloc[-2])
+                    prev_diff_pp = current - previous
+                    mid_diff_pp = None
+                    if len(values) >= 6:
+                        mid_value = float(values.iloc[-6])
+                        mid_diff_pp = current - mid_value
+                    
+                    prev_str = f" | 前期比 {prev_diff_pp:+.2f}%ポイント"
+                    mid_str = f" | 中期差分 {mid_diff_pp:+.2f}%ポイント" if mid_diff_pp is not None else ""
+                    item = f"CPI前年比：{current:.2f}%{prev_str}{mid_str}"
+                    return f'<ul class="fact-list">\n<li>{item}</li>\n</ul>'
+        return '<ul class="fact-list"><li>データが取得できません。</li></ul>'
+    
+    @staticmethod
+    def _get_eps_per_fact_list(page_data: Dict[str, Any]) -> str:
+        """EPS+PERのfact-listを生成"""
+        facts = page_data.get("facts", {})
+        eps_per_fact = facts.get("eps_per")
+        fact_items = []
+        
+        if eps_per_fact and eps_per_fact.get("is_valid"):
+            eps_per_data = eps_per_fact.get("data")
+            if eps_per_data is not None and not eps_per_data.empty:
+                # EPS
+                if "EPS" in eps_per_data.columns:
+                    eps_values = eps_per_data["EPS"].dropna()
+                    if len(eps_values) >= 2:
+                        current = float(eps_values.iloc[-1])
+                        previous = float(eps_values.iloc[-2])
+                        prev_diff_pct = ((current - previous) / previous) * 100 if previous != 0 else 0
+                        mid_diff_pct = None
+                        if len(eps_values) >= 2:
+                            mid_value = float(eps_values.iloc[-2])
+                            mid_diff_pct = ((current - mid_value) / mid_value) * 100 if mid_value != 0 else 0
+                        
+                        prev_str = f" | 前期比 {prev_diff_pct:+.2f}%"
+                        mid_str = f" | 中期差分 {mid_diff_pct:+.2f}%" if mid_diff_pct is not None else ""
+                        fact_items.append(f"EPS：{current:.2f}{prev_str}{mid_str}")
+                
+                # PER
+                if "PER" in eps_per_data.columns:
+                    per_values = eps_per_data["PER"].dropna()
+                    if len(per_values) >= 2:
+                        current = float(per_values.iloc[-1])
+                        previous = float(per_values.iloc[-2])
+                        prev_diff_pct = ((current - previous) / previous) * 100 if previous != 0 else 0
+                        mid_diff_pct = None
+                        if len(per_values) >= 2:
+                            mid_value = float(per_values.iloc[-2])
+                            mid_diff_pct = ((current - mid_value) / mid_value) * 100 if mid_value != 0 else 0
+                        
+                        prev_str = f" | 前期比 {prev_diff_pct:+.2f}%"
+                        mid_str = f" | 中期差分 {mid_diff_pct:+.2f}%" if mid_diff_pct is not None else ""
+                        fact_items.append(f"PER：{current:.2f}{prev_str}{mid_str}")
+        
+        if fact_items:
+            list_items = "\n".join([f"<li>{item}</li>" for item in fact_items])
+            return f'<ul class="fact-list">\n{list_items}\n</ul>'
+        return '<ul class="fact-list"><li>データが取得できません。</li></ul>'
+    
+    @staticmethod
     def render_price_section(page_data: Dict[str, Any]) -> str:
         """株価指数セクションをレンダリング"""
         chart_html = page_data.get("charts", {}).get("price", "<p>この指標は現在データを取得できません</p>")
-        interpretation = page_data.get("interpretations", {}).get("price", "データが取得できません。")
         
-        # Factを箇条書きに変換
-        interpretation = SectionRenderer._format_fact_list(interpretation)
+        # Factを新しいフォーマットで生成
+        interpretation = SectionRenderer._get_price_fact_list(page_data)
         
         # 経済指標方向矢印を追加
         price_data = page_data.get("facts", {}).get("price")
@@ -45,10 +189,9 @@ class SectionRenderer:
     def render_rate_section(page_data: Dict[str, Any]) -> str:
         """政策金利・長期金利セクションをレンダリング"""
         chart_html = page_data.get("charts", {}).get("rate", "<p>この指標は現在データを取得できません</p>")
-        interpretation = page_data.get("interpretations", {}).get("rate", "データが取得できません。")
         
-        # Factを箇条書きに変換
-        interpretation = SectionRenderer._format_fact_list(interpretation)
+        # Factを新しいフォーマットで生成
+        interpretation = SectionRenderer._get_rate_fact_list(page_data)
         
         # 経済指標方向矢印を追加（政策金利と長期金利の両方）
         policy_data = page_data.get("facts", {}).get("policy_rate")
@@ -88,10 +231,9 @@ class SectionRenderer:
     def render_cpi_section(page_data: Dict[str, Any]) -> str:
         """CPIセクションをレンダリング"""
         chart_html = page_data.get("charts", {}).get("cpi", "<p>この指標は現在データを取得できません</p>")
-        interpretation = page_data.get("interpretations", {}).get("cpi", "データが取得できません。")
         
-        # Factを箇条書きに変換
-        interpretation = SectionRenderer._format_fact_list(interpretation)
+        # Factを新しいフォーマットで生成
+        interpretation = SectionRenderer._get_cpi_fact_list(page_data)
         
         # 経済指標方向矢印を追加
         cpi_data = page_data.get("facts", {}).get("cpi")
@@ -122,10 +264,9 @@ class SectionRenderer:
     def render_eps_per_section(page_data: Dict[str, Any]) -> str:
         """EPS + PERセクションをレンダリング"""
         chart_html = page_data.get("charts", {}).get("eps_per", "<p>この指標は現在データを取得できません</p>")
-        interpretation = page_data.get("interpretations", {}).get("eps_per", "データが取得できません。")
         
-        # Factを箇条書きに変換
-        interpretation = SectionRenderer._format_fact_list(interpretation)
+        # Factを新しいフォーマットで生成
+        interpretation = SectionRenderer._get_eps_per_fact_list(page_data)
         
         from .layout import Layout
         section_html = Layout.get_section(
@@ -176,7 +317,7 @@ class SectionRenderer:
     @staticmethod
     def _auto_summarize_facts(page_data: Dict[str, Any]) -> str:
         """
-        Factデータから自動要約を生成（指標名：数値の形式）
+        Factデータから自動要約を生成（指標名：現在値 | 前期比 ±X.XX | 中期差分 ±X.XXの形式）
         
         Args:
             page_data: ページデータ
@@ -195,10 +336,24 @@ class SectionRenderer:
             price_data = price_fact.get("data")
             if price_data is not None and not price_data.empty and "Close" in price_data.columns:
                 values = price_data["Close"].dropna()
-                if len(values) >= 1:
+                if len(values) >= 2:
                     current = float(values.iloc[-1])
+                    previous = float(values.iloc[-2])
+                    # 前期比（前回値との差分）
+                    prev_diff = current - previous
+                    prev_diff_pct = (prev_diff / previous) * 100 if previous != 0 else 0
+                    # 中期差分（6ヶ月前との差分、データが十分にある場合）
+                    mid_diff = None
+                    mid_diff_pct = None
+                    if len(values) >= 126:  # 約6ヶ月分のデータ（営業日ベース）
+                        mid_value = float(values.iloc[-126])
+                        mid_diff = current - mid_value
+                        mid_diff_pct = (mid_diff / mid_value) * 100 if mid_value != 0 else 0
+                    
                     indicator_name = "S&P500" if page_data.get("market_code") == "US" else "日経平均"
-                    fact_items.append(f"{indicator_name}：{current:.2f}")
+                    prev_str = f" | 前期比 {prev_diff_pct:+.2f}%"
+                    mid_str = f" | 中期差分 {mid_diff_pct:+.2f}%" if mid_diff_pct is not None else ""
+                    fact_items.append(f"{indicator_name}：{current:.2f}{prev_str}{mid_str}")
         
         # 政策金利のFact
         policy_fact = facts.get("policy_rate")
@@ -206,9 +361,21 @@ class SectionRenderer:
             policy_data = policy_fact.get("data")
             if policy_data is not None and not policy_data.empty and "policy_rate" in policy_data.columns:
                 values = policy_data["policy_rate"].dropna()
-                if len(values) >= 1:
+                if len(values) >= 2:
                     current = float(values.iloc[-1])
-                    fact_items.append(f"政策金利：{current:.2f}%")
+                    previous = float(values.iloc[-2])
+                    prev_diff = current - previous
+                    prev_diff_pct = (prev_diff / previous) * 100 if previous != 0 else 0
+                    # 中期差分（6ヶ月前との差分）
+                    mid_diff_pct = None
+                    if len(values) >= 6:  # 月次データなので6ヶ月
+                        mid_value = float(values.iloc[-6])
+                        mid_diff = current - mid_value
+                        mid_diff_pct = (mid_diff / mid_value) * 100 if mid_value != 0 else 0
+                    
+                    prev_str = f" | 前期比 {prev_diff_pct:+.2f}%"
+                    mid_str = f" | 中期差分 {mid_diff_pct:+.2f}%" if mid_diff_pct is not None else ""
+                    fact_items.append(f"政策金利：{current:.2f}%{prev_str}{mid_str}")
         
         # 長期金利のFact
         long_rate_fact = facts.get("long_rate")
@@ -216,9 +383,21 @@ class SectionRenderer:
             long_rate_data = long_rate_fact.get("data")
             if long_rate_data is not None and not long_rate_data.empty and "long_rate_10y" in long_rate_data.columns:
                 values = long_rate_data["long_rate_10y"].dropna()
-                if len(values) >= 1:
+                if len(values) >= 2:
                     current = float(values.iloc[-1])
-                    fact_items.append(f"長期金利（10年）：{current:.2f}%")
+                    previous = float(values.iloc[-2])
+                    prev_diff = current - previous
+                    prev_diff_pct = (prev_diff / previous) * 100 if previous != 0 else 0
+                    # 中期差分（6ヶ月前との差分）
+                    mid_diff_pct = None
+                    if len(values) >= 6:  # 月次データなので6ヶ月
+                        mid_value = float(values.iloc[-6])
+                        mid_diff = current - mid_value
+                        mid_diff_pct = (mid_diff / mid_value) * 100 if mid_value != 0 else 0
+                    
+                    prev_str = f" | 前期比 {prev_diff_pct:+.2f}%"
+                    mid_str = f" | 中期差分 {mid_diff_pct:+.2f}%" if mid_diff_pct is not None else ""
+                    fact_items.append(f"長期金利（10年）：{current:.2f}%{prev_str}{mid_str}")
         
         # CPIのFact
         cpi_fact = facts.get("cpi")
@@ -226,9 +405,20 @@ class SectionRenderer:
             cpi_data = cpi_fact.get("data")
             if cpi_data is not None and not cpi_data.empty and "CPI_YoY" in cpi_data.columns:
                 values = cpi_data["CPI_YoY"].dropna()
-                if len(values) >= 1:
+                if len(values) >= 2:
                     current = float(values.iloc[-1])
-                    fact_items.append(f"CPI前年比：{current:.2f}%")
+                    previous = float(values.iloc[-2])
+                    # CPI YoYは既に%なので、差分を%ポイントで表示
+                    prev_diff_pp = current - previous
+                    # 中期差分（6ヶ月前との差分）
+                    mid_diff_pp = None
+                    if len(values) >= 6:  # 月次データなので6ヶ月
+                        mid_value = float(values.iloc[-6])
+                        mid_diff_pp = current - mid_value
+                    
+                    prev_str = f" | 前期比 {prev_diff_pp:+.2f}%ポイント"
+                    mid_str = f" | 中期差分 {mid_diff_pp:+.2f}%ポイント" if mid_diff_pp is not None else ""
+                    fact_items.append(f"CPI前年比：{current:.2f}%{prev_str}{mid_str}")
         
         # EPS+PERのFact
         eps_per_fact = facts.get("eps_per")
@@ -238,16 +428,40 @@ class SectionRenderer:
                 # EPS
                 if "EPS" in eps_per_data.columns:
                     eps_values = eps_per_data["EPS"].dropna()
-                    if len(eps_values) >= 1:
+                    if len(eps_values) >= 2:
                         current = float(eps_values.iloc[-1])
-                        fact_items.append(f"EPS：{current:.2f}")
+                        previous = float(eps_values.iloc[-2])
+                        prev_diff = current - previous
+                        prev_diff_pct = (prev_diff / previous) * 100 if previous != 0 else 0
+                        # 中期差分（6ヶ月前との差分、四半期データなので2四半期）
+                        mid_diff_pct = None
+                        if len(eps_values) >= 2:
+                            mid_value = float(eps_values.iloc[-2])
+                            mid_diff = current - mid_value
+                            mid_diff_pct = (mid_diff / mid_value) * 100 if mid_value != 0 else 0
+                        
+                        prev_str = f" | 前期比 {prev_diff_pct:+.2f}%"
+                        mid_str = f" | 中期差分 {mid_diff_pct:+.2f}%" if mid_diff_pct is not None else ""
+                        fact_items.append(f"EPS：{current:.2f}{prev_str}{mid_str}")
                 
                 # PER
                 if "PER" in eps_per_data.columns:
                     per_values = eps_per_data["PER"].dropna()
-                    if len(per_values) >= 1:
+                    if len(per_values) >= 2:
                         current = float(per_values.iloc[-1])
-                        fact_items.append(f"PER：{current:.2f}")
+                        previous = float(per_values.iloc[-2])
+                        prev_diff = current - previous
+                        prev_diff_pct = (prev_diff / previous) * 100 if previous != 0 else 0
+                        # 中期差分（6ヶ月前との差分、四半期データなので2四半期）
+                        mid_diff_pct = None
+                        if len(per_values) >= 2:
+                            mid_value = float(per_values.iloc[-2])
+                            mid_diff = current - mid_value
+                            mid_diff_pct = (mid_diff / mid_value) * 100 if mid_value != 0 else 0
+                        
+                        prev_str = f" | 前期比 {prev_diff_pct:+.2f}%"
+                        mid_str = f" | 中期差分 {mid_diff_pct:+.2f}%" if mid_diff_pct is not None else ""
+                        fact_items.append(f"PER：{current:.2f}{prev_str}{mid_str}")
         
         # 箇条書きHTMLに変換
         if fact_items:
