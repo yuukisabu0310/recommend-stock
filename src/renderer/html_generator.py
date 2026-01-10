@@ -28,24 +28,24 @@ class HTMLGenerator:
         # ヘッダー（市場・期間選択UIを含む）
         header = Layout.get_header(market_name, timeframe_name, market_code, timeframe_code)
         
-        # セクション
+        # セクション（すべて常時表示）
         sections = []
         
-        # ① 株価指数チャート（ファーストビューに表示）
-        sections.append(SectionRenderer.render_price_section(page_data, is_details=False))
+        # ① 株価指数チャート
+        sections.append(SectionRenderer.render_price_section(page_data))
         
-        # ② 政策金利 + 長期金利（詳細に折りたたみ）
-        sections.append(SectionRenderer.render_rate_section(page_data, is_details=True))
+        # ② 政策金利 + 長期金利
+        sections.append(SectionRenderer.render_rate_section(page_data))
         
-        # ③ CPI（詳細に折りたたみ）
-        sections.append(SectionRenderer.render_cpi_section(page_data, is_details=True))
+        # ③ CPI
+        sections.append(SectionRenderer.render_cpi_section(page_data))
         
-        # ④ EPS + PER（詳細に折りたたみ）
-        sections.append(SectionRenderer.render_eps_per_section(page_data, is_details=True))
+        # ④ EPS + PER
+        sections.append(SectionRenderer.render_eps_per_section(page_data))
         
-        # コンテンツ結合（Gridレイアウト用にコンテナで囲む）
+        # コンテンツ結合（ダッシュボード型レイアウト）
         sections_html = "\n".join(sections)
-        content = header + f'<div class="report-sections">\n{sections_html}\n</div>'
+        content = header + f'<div class="dashboard">\n{sections_html}\n</div>'
         
         # FactデータをJSON形式で埋め込み（ヒートマップ用）
         import json

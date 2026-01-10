@@ -8,10 +8,13 @@ class SectionRenderer:
     """セクションをレンダリングするクラス"""
     
     @staticmethod
-    def render_price_section(page_data: Dict[str, Any], is_details: bool = False) -> str:
+    def render_price_section(page_data: Dict[str, Any]) -> str:
         """株価指数セクションをレンダリング"""
         chart_html = page_data.get("charts", {}).get("price", "<p>この指標は現在データを取得できません</p>")
         interpretation = page_data.get("interpretations", {}).get("price", "データが取得できません。")
+        
+        # Factを箇条書きに変換
+        interpretation = SectionRenderer._format_fact_list(interpretation)
         
         # 経済指標方向矢印を追加
         price_data = page_data.get("facts", {}).get("price")
@@ -33,17 +36,19 @@ class SectionRenderer:
             title,
             chart_html,
             interpretation,
-            period_selector,
-            is_details
+            period_selector
         )
-        # セクション1にクラスを追加
-        return section_html.replace('<div class="section">', '<div class="section section-1">')
+        # block-1クラスを追加（全幅表示）
+        return section_html.replace('<div class="card section">', '<div class="card section block-1">')
     
     @staticmethod
-    def render_rate_section(page_data: Dict[str, Any], is_details: bool = False) -> str:
+    def render_rate_section(page_data: Dict[str, Any]) -> str:
         """政策金利・長期金利セクションをレンダリング"""
         chart_html = page_data.get("charts", {}).get("rate", "<p>この指標は現在データを取得できません</p>")
         interpretation = page_data.get("interpretations", {}).get("rate", "データが取得できません。")
+        
+        # Factを箇条書きに変換
+        interpretation = SectionRenderer._format_fact_list(interpretation)
         
         # 経済指標方向矢印を追加（政策金利と長期金利の両方）
         policy_data = page_data.get("facts", {}).get("policy_rate")
@@ -74,17 +79,19 @@ class SectionRenderer:
             title,
             chart_html,
             interpretation,
-            period_selector,
-            is_details
+            period_selector
         )
-        # セクション2にクラスを追加
-        return section_html.replace('<div class="section">', '<div class="section section-2">')
+        # block-2クラスを追加
+        return section_html.replace('<div class="card section">', '<div class="card section block-2">')
     
     @staticmethod
-    def render_cpi_section(page_data: Dict[str, Any], is_details: bool = False) -> str:
+    def render_cpi_section(page_data: Dict[str, Any]) -> str:
         """CPIセクションをレンダリング"""
         chart_html = page_data.get("charts", {}).get("cpi", "<p>この指標は現在データを取得できません</p>")
         interpretation = page_data.get("interpretations", {}).get("cpi", "データが取得できません。")
+        
+        # Factを箇条書きに変換
+        interpretation = SectionRenderer._format_fact_list(interpretation)
         
         # 経済指標方向矢印を追加
         cpi_data = page_data.get("facts", {}).get("cpi")
@@ -106,28 +113,65 @@ class SectionRenderer:
             title,
             chart_html,
             interpretation,
-            period_selector,
-            is_details
+            period_selector
         )
-        # セクション3にクラスを追加
-        return section_html.replace('<div class="section">', '<div class="section section-3">')
+        # block-3クラスを追加
+        return section_html.replace('<div class="card section">', '<div class="card section block-3">')
     
     @staticmethod
-    def render_eps_per_section(page_data: Dict[str, Any], is_details: bool = False) -> str:
+    def render_eps_per_section(page_data: Dict[str, Any]) -> str:
         """EPS + PERセクションをレンダリング"""
         chart_html = page_data.get("charts", {}).get("eps_per", "<p>この指標は現在データを取得できません</p>")
         interpretation = page_data.get("interpretations", {}).get("eps_per", "データが取得できません。")
+        
+        # Factを箇条書きに変換
+        interpretation = SectionRenderer._format_fact_list(interpretation)
         
         from .layout import Layout
         section_html = Layout.get_section(
             "④ EPS + PER（20年固定）",
             chart_html,
             interpretation,
-            "",
-            is_details
+            ""
         )
-        # セクション4にクラスを追加（全幅表示用）
-        return section_html.replace('<div class="section">', '<div class="section section-4">')
+        # block-4クラスを追加
+        return section_html.replace('<div class="card section">', '<div class="card section block-4">')
+    
+    @staticmethod
+    def _format_fact_list(text: str) -> str:
+        """
+        Fact文章を箇条書き形式に変換
+        
+        Args:
+            text: Fact文章
+        
+        Returns:
+            str: 箇条書きHTML
+        """
+        if not text or text.strip() == "" or text == "データが取得できません。":
+            return text
+        
+        # 文章を文単位で分割（句点で区切る）
+        sentences = [s.strip() for s in text.split('。') if s.strip()]
+        
+        if not sentences:
+            return text
+        
+        # 最後の文が空でない場合は句点を追加
+        formatted_sentences = []
+        for i, sentence in enumerate(sentences):
+            if i < len(sentences) - 1:
+                formatted_sentences.append(sentence + '。')
+            else:
+                # 最後の文は句点があればそのまま、なければ追加
+                if not sentence.endswith('。'):
+                    formatted_sentences.append(sentence + '。')
+                else:
+                    formatted_sentences.append(sentence)
+        
+        # 箇条書きHTMLに変換
+        list_items = "\n".join([f"<li>{s}</li>" for s in formatted_sentences])
+        return f'<ul class="fact-list">\n{list_items}\n</ul>'
     
     @staticmethod
     def _get_direction_arrow(fact_data: Dict[str, Any], column_name: str) -> str:

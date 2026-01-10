@@ -73,16 +73,15 @@ class Layout:
     
     @staticmethod
     def get_section(title: str, chart_html: str, interpretation: str, 
-                   period_selector: str = "", is_details: bool = False) -> str:
+                   period_selector: str = "") -> str:
         """
-        セクションを生成（詳細は折りたたみ可能）
+        セクションを生成（カード形式、常時表示）
         
         Args:
             title: セクションタイトル
             chart_html: チャートHTML
-            interpretation: 解釈文章
+            interpretation: 解釈文章（Fact箇条書き）
             period_selector: 期間選択UI（オプション）
-            is_details: 詳細セクションかどうか（折りたたみ対象）
         
         Returns:
             str: HTML文字列
@@ -100,31 +99,16 @@ class Layout:
         
         chart_container_attr = f' data-chart-type="{chart_type}"' if chart_type else ""
         
-        if is_details:
-            return f"""<div class="section">
-                <button class="details-toggle">詳細を見る</button>
-                <div class="details-content">
-                    <h2 class="section-title">{title}</h2>
-                    {period_selector}
-                    <div class="chart-container"{chart_container_attr}>
-                        {chart_html}
-                    </div>
-                    <div class="interpretation">
-                        {interpretation}
-                    </div>
-                </div>
-            </div>"""
-        else:
-            return f"""<div class="section">
-                <h2 class="section-title">{title}</h2>
-                {period_selector}
-                <div class="chart-container"{chart_container_attr}>
-                    {chart_html}
-                </div>
-                <div class="interpretation">
-                    {interpretation}
-                </div>
-            </div>"""
+        return f"""<div class="card section">
+            <h2 class="section-title">{title}</h2>
+            {period_selector}
+            <div class="chart-container"{chart_container_attr}>
+                {chart_html}
+            </div>
+            <div class="interpretation">
+                {interpretation}
+            </div>
+        </div>"""
     
     @staticmethod
     def get_period_selector(years: int, switchable_years: list, chart_id: str) -> str:

@@ -12,7 +12,6 @@
         initPeriodButtons();
         initMarketSelector();
         initTimeframeSelector();
-        initDetailsToggle();
         restoreState();
         initHeatmap();
     });
@@ -191,20 +190,6 @@
             hideSkeleton();
             saveState(getCurrentMarket(), timeframe);
         }
-    }
-    
-    // 詳細トグルの初期化
-    function initDetailsToggle() {
-        const toggleButtons = document.querySelectorAll('.details-toggle');
-        toggleButtons.forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                const content = btn.nextElementSibling;
-                if (content && content.classList.contains('details-content')) {
-                    content.classList.toggle('expanded');
-                    btn.textContent = content.classList.contains('expanded') ? '詳細を閉じる' : '詳細を見る';
-                }
-            });
-        });
     }
     
     // 現在の市場を取得
