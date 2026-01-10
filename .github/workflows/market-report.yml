@@ -4,6 +4,14 @@ on:
   schedule:
     # 毎日日本時間08:00（UTC 23:00）に実行
     - cron: '0 23 * * *'
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - 'scripts/**'
+      - 'config/**'
+      - '.github/workflows/**'
   workflow_dispatch:  # 手動実行も可能
 
 jobs:
