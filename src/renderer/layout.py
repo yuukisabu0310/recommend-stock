@@ -10,7 +10,7 @@ class Layout:
     @staticmethod
     def get_base_html(title: str, content: str) -> str:
         """
-        ベースHTMLを生成
+        ベースHTMLを生成（CSP準拠：外部CSS/JSファイルを使用）
         
         Args:
             title: ページタイトル
@@ -24,185 +24,91 @@ class Layout:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.plot.ly; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://api.github.com;">
     <title>{title}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        * {{
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }}
-        
-        body {{
-            font-family: 'Inter', 'Noto Sans JP', sans-serif;
-            background: #f8fafc;
-            color: #1e293b;
-            line-height: 1.6;
-        }}
-        
-        .container {{
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 2rem 1rem;
-        }}
-        
-        header {{
-            background: white;
-            padding: 2rem;
-            border-radius: 1rem;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            margin-bottom: 2rem;
-        }}
-        
-        h1 {{
-            font-size: 2rem;
-            font-weight: 700;
-            color: #1e293b;
-            margin-bottom: 0.5rem;
-        }}
-        
-        .subtitle {{
-            color: #64748b;
-            font-size: 1rem;
-        }}
-        
-        .section {{
-            background: white;
-            padding: 2rem;
-            border-radius: 1rem;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            margin-bottom: 2rem;
-        }}
-        
-        .section-title {{
-            font-size: 1.5rem;
-            font-weight: 600;
-            color: #1e293b;
-            margin-bottom: 1rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 2px solid #e2e8f0;
-        }}
-        
-        .chart-container {{
-            margin: 1.5rem 0;
-        }}
-        
-        .interpretation {{
-            background: #f1f5f9;
-            padding: 1.5rem;
-            border-radius: 0.75rem;
-            margin-top: 1rem;
-            color: #475569;
-            line-height: 1.8;
-        }}
-        
-        .period-selector {{
-            display: flex;
-            gap: 0.5rem;
-            margin-bottom: 1rem;
-            flex-wrap: wrap;
-        }}
-        
-        .period-btn {{
-            padding: 0.5rem 1rem;
-            border: 1px solid #cbd5e1;
-            background: white;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            font-size: 0.875rem;
-            transition: all 0.2s;
-        }}
-        
-        .period-btn:hover {{
-            background: #f1f5f9;
-            border-color: #2563eb;
-        }}
-        
-        .period-btn.active {{
-            background: #2563eb;
-            color: white;
-            border-color: #2563eb;
-        }}
-        
-        @media (max-width: 768px) {{
-            .container {{
-                padding: 1rem 0.5rem;
-            }}
-            
-            header {{
-                padding: 1.5rem;
-            }}
-            
-            h1 {{
-                font-size: 1.5rem;
-            }}
-            
-            .section {{
-                padding: 1.5rem;
-            }}
-            
-            .section-title {{
-                font-size: 1.25rem;
-            }}
-        }}
-    </style>
+    <link rel="stylesheet" href="../assets/css/main.css">
 </head>
 <body>
     <div class="container">
         {content}
     </div>
+    <script src="../assets/js/main.js"></script>
 </body>
 </html>"""
     
     @staticmethod
-    def get_header(market_name: str, timeframe_name: str) -> str:
+    def get_header(market_name: str, timeframe_name: str, market_code: str, timeframe_code: str) -> str:
         """
-        ヘッダーを生成
+        ヘッダーを生成（市場・期間選択UIを含む）
         
         Args:
             market_name: 市場名
             timeframe_name: 期間名
+            market_code: 市場コード（"US" or "JP"）
+            timeframe_code: 期間コード（"short", "medium", "long"）
         
         Returns:
             str: HTML文字列
         """
+        market_selector = Layout.get_market_selector(market_code)
+        timeframe_selector = Layout.get_timeframe_selector(timeframe_code)
+        
         return f"""<header>
             <h1>{market_name} - {timeframe_name}市場レポート</h1>
             <p class="subtitle">実データに基づく市場分析（判断材料の提供のみ）</p>
+            {market_selector}
+            {timeframe_selector}
         </header>"""
     
     @staticmethod
     def get_section(title: str, chart_html: str, interpretation: str, 
-                   period_selector: str = "") -> str:
+                   period_selector: str = "", is_details: bool = False) -> str:
         """
-        セクションを生成
+        セクションを生成（詳細は折りたたみ可能）
         
         Args:
             title: セクションタイトル
             chart_html: チャートHTML
             interpretation: 解釈文章
             period_selector: 期間選択UI（オプション）
+            is_details: 詳細セクションかどうか（折りたたみ対象）
         
         Returns:
             str: HTML文字列
         """
-        return f"""<div class="section">
-            <h2 class="section-title">{title}</h2>
-            {period_selector}
-            <div class="chart-container">
-                {chart_html}
-            </div>
-            <div class="interpretation">
-                {interpretation}
-            </div>
-        </div>"""
+        if is_details:
+            return f"""<div class="section">
+                <button class="details-toggle">詳細を見る</button>
+                <div class="details-content">
+                    <h2 class="section-title">{title}</h2>
+                    {period_selector}
+                    <div class="chart-container">
+                        {chart_html}
+                    </div>
+                    <div class="interpretation">
+                        {interpretation}
+                    </div>
+                </div>
+            </div>"""
+        else:
+            return f"""<div class="section">
+                <h2 class="section-title">{title}</h2>
+                {period_selector}
+                <div class="chart-container">
+                    {chart_html}
+                </div>
+                <div class="interpretation">
+                    {interpretation}
+                </div>
+            </div>"""
     
     @staticmethod
     def get_period_selector(years: int, switchable_years: list, chart_id: str) -> str:
         """
-        期間選択UIを生成
+        期間選択UIを生成（CSP準拠：data属性のみ使用）
         
         Args:
             years: 現在の年数
@@ -225,4 +131,55 @@ class Layout:
             )
         
         return f'<div class="period-selector">{"".join(buttons)}</div>'
+    
+    @staticmethod
+    def get_market_selector(current_market: str) -> str:
+        """
+        市場選択UIを生成
+        
+        Args:
+            current_market: 現在の市場（"US" or "JP"）
+        
+        Returns:
+            str: HTML文字列
+        """
+        markets = [
+            ("US", "米国"),
+            ("JP", "日本")
+        ]
+        
+        buttons = []
+        for market_code, market_name in markets:
+            active_class = "active" if market_code == current_market else ""
+            buttons.append(
+                f'<button class="market-btn {active_class}" data-market="{market_code}">{market_name}</button>'
+            )
+        
+        return f'<div class="market-selector">{"".join(buttons)}</div>'
+    
+    @staticmethod
+    def get_timeframe_selector(current_timeframe: str) -> str:
+        """
+        期間選択UIを生成
+        
+        Args:
+            current_timeframe: 現在の期間（"short", "medium", "long"）
+        
+        Returns:
+            str: HTML文字列
+        """
+        timeframes = [
+            ("short", "短期"),
+            ("medium", "中期"),
+            ("long", "長期")
+        ]
+        
+        buttons = []
+        for timeframe_code, timeframe_name in timeframes:
+            active_class = "active" if timeframe_code == current_timeframe else ""
+            buttons.append(
+                f'<button class="timeframe-btn {active_class}" data-timeframe="{timeframe_code}">{timeframe_name}</button>'
+            )
+        
+        return f'<div class="timeframe-selector">{"".join(buttons)}</div>'
 

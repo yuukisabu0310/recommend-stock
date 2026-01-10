@@ -12,7 +12,7 @@ class HTMLGenerator:
     @staticmethod
     def generate_page_html(page_data: Dict[str, Any]) -> str:
         """
-        ページHTMLを生成
+        ページHTMLを生成（CSP準拠、UI改善版）
         
         Args:
             page_data: ページデータ
@@ -22,24 +22,26 @@ class HTMLGenerator:
         """
         market_name = page_data.get("market_name", "")
         timeframe_name = page_data.get("timeframe_name", "")
+        market_code = page_data.get("market_code", "US")
+        timeframe_code = page_data.get("timeframe_code", "short")
         
-        # ヘッダー
-        header = Layout.get_header(market_name, timeframe_name)
+        # ヘッダー（市場・期間選択UIを含む）
+        header = Layout.get_header(market_name, timeframe_name, market_code, timeframe_code)
         
         # セクション
         sections = []
         
-        # ① 株価指数チャート
-        sections.append(SectionRenderer.render_price_section(page_data))
+        # ① 株価指数チャート（ファーストビューに表示）
+        sections.append(SectionRenderer.render_price_section(page_data, is_details=False))
         
-        # ② 政策金利 + 長期金利
-        sections.append(SectionRenderer.render_rate_section(page_data))
+        # ② 政策金利 + 長期金利（詳細に折りたたみ）
+        sections.append(SectionRenderer.render_rate_section(page_data, is_details=True))
         
-        # ③ CPI
-        sections.append(SectionRenderer.render_cpi_section(page_data))
+        # ③ CPI（詳細に折りたたみ）
+        sections.append(SectionRenderer.render_cpi_section(page_data, is_details=True))
         
-        # ④ EPS + PER
-        sections.append(SectionRenderer.render_eps_per_section(page_data))
+        # ④ EPS + PER（詳細に折りたたみ）
+        sections.append(SectionRenderer.render_eps_per_section(page_data, is_details=True))
         
         # コンテンツ結合
         content = header + "\n".join(sections)
@@ -53,7 +55,7 @@ class HTMLGenerator:
     @staticmethod
     def generate_index_html() -> str:
         """
-        インデックスページを生成
+        インデックスページを生成（CSP準拠）
         
         Returns:
             str: HTML文字列
@@ -68,7 +70,7 @@ class HTMLGenerator:
         ]
         
         link_items = "\n".join([
-            f'<li><a href="logs/{filename}" style="color: #2563eb; text-decoration: none; font-weight: 500;">{name}</a></li>'
+            f'<li><a href="logs/{filename}" class="report-link">{name}</a></li>'
             for filename, name in links
         ])
         
@@ -78,10 +80,14 @@ class HTMLGenerator:
         </header>
         <div class="section">
             <h2 class="section-title">レポート一覧</h2>
-            <ul style="list-style: none; padding: 0;">
+            <ul class="report-list">
                 {link_items}
             </ul>
         </div>"""
         
-        return Layout.get_base_html("v2 Market Report - インデックス", content)
+        # インデックスページはルートなので、パスを調整
+        html = Layout.get_base_html("v2 Market Report - インデックス", content)
+        # インデックスページ用にパスを修正
+        html = html.replace('../assets/', 'assets/')
+        return html
 
