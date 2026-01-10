@@ -174,47 +174,225 @@ class SectionRenderer:
         return f'<ul class="fact-list">\n{list_items}\n</ul>'
     
     @staticmethod
-    def render_fact_section(page_data: Dict[str, Any]) -> str:
-        """① 観測事実セクションをレンダリング"""
-        from .layout import Layout
+    def _determine_status_word(change_pct: float, prev_change_pct: Optional[float] = None, values: Optional[list] = None) -> str:
+        """
+        変化率から状態語を決定（直近N期間の傾き・変化率で定量分類）
         
-        # すべてのFactを収集して箇条書きに変換
+        Args:
+            change_pct: 変化率（%）
+            prev_change_pct: 前回の変化率（%）
+            values: 直近の値のリスト（トレンド判定用）
+        
+        Returns:
+            str: 状態語
+        """
+        # 強上昇: 変化率 > 5%
+        if change_pct > 5.0:
+            return "強上昇"
+        
+        # 急落: 変化率 < -5%
+        if change_pct < -5.0:
+            return "急落"
+        
+        # 横ばい: 変化率が-0.5%〜0.5%
+        if -0.5 <= change_pct <= 0.5:
+            return "横ばい"
+        
+        # 前回の変化率がある場合の判定
+        if prev_change_pct is not None:
+            # 反発: 前回が下落で今回が上昇（変化率 > 0.5%）
+            if prev_change_pct < 0 and change_pct > 0.5:
+                return "反発"
+            
+            # 回復: 前回が下落で今回が上昇（変化率 > 1%）
+            if prev_change_pct < 0 and change_pct > 1.0:
+                return "回復"
+            
+            # 底打ち: 前回が下落で今回が上昇（変化率 > 0.5% かつ <= 1%）
+            if prev_change_pct < 0 and 0.5 < change_pct <= 1.0:
+                return "底打ち"
+            
+            # 高止まり: 前回が上昇で今回が横ばい〜小幅上昇（変化率が0.5%〜1%）
+            if prev_change_pct > 0 and 0.5 <= change_pct <= 1.0:
+                return "高止まり"
+        
+        # 上昇: 変化率 > 1% かつ <= 5%
+        if change_pct > 1.0:
+            return "上昇"
+        
+        # 下落: 変化率が-3%〜-1%
+        if change_pct < -3.0:
+            return "下落"
+        
+        # 軟化: 変化率が-1%〜-0.5%
+        if change_pct < -0.5:
+            return "軟化"
+        
+        # デフォルト: 上昇（変化率 > 0.5%）
+        if change_pct > 0.5:
+            return "上昇"
+        
+        # デフォルト: 下落
+        return "下落"
+    
+    @staticmethod
+    def _auto_summarize_facts(page_data: Dict[str, Any]) -> str:
+        """
+        Factデータから自動要約を生成（指標名：数値 → 状態語の形式）
+        
+        Args:
+            page_data: ページデータ
+        
+        Returns:
+            str: 箇条書きHTML
+        """
+        import pandas as pd
+        
         facts = page_data.get("facts", {})
         fact_items = []
         
         # 株価指数のFact
         price_fact = facts.get("price")
         if price_fact and price_fact.get("is_valid"):
-            price_interp = page_data.get("interpretations", {}).get("price", "")
-            if price_interp:
-                fact_items.append(price_interp)
+            price_data = price_fact.get("data")
+            if price_data is not None and not price_data.empty and "Close" in price_data.columns:
+                values = price_data["Close"].dropna()
+                if len(values) >= 2:
+                    current = float(values.iloc[-1])
+                    previous = float(values.iloc[-2])
+                    prev_previous = float(values.iloc[-3]) if len(values) >= 3 else None
+                    
+                    change_pct = ((current - previous) / previous) * 100 if previous != 0 else 0
+                    prev_change_pct = ((previous - prev_previous) / prev_previous) * 100 if prev_previous and prev_previous != 0 else None
+                    
+                    # 直近5期間の値リストを取得（トレンド判定用）
+                    recent_values = [float(v) for v in values.iloc[-5:].tolist()] if len(values) >= 5 else None
+                    
+                    status = SectionRenderer._determine_status_word(change_pct, prev_change_pct, recent_values)
+                    indicator_name = "S&P500" if page_data.get("market_code") == "US" else "日経平均"
+                    fact_items.append(f"{indicator_name}：{current:.2f} → {status}")
         
         # 政策金利のFact
         policy_fact = facts.get("policy_rate")
         if policy_fact and policy_fact.get("is_valid"):
-            rate_interp = page_data.get("interpretations", {}).get("rate", "")
-            if rate_interp:
-                fact_items.append(rate_interp)
+            policy_data = policy_fact.get("data")
+            if policy_data is not None and not policy_data.empty and "policy_rate" in policy_data.columns:
+                values = policy_data["policy_rate"].dropna()
+                if len(values) >= 2:
+                    current = float(values.iloc[-1])
+                    previous = float(values.iloc[-2])
+                    prev_previous = float(values.iloc[-3]) if len(values) >= 3 else None
+                    
+                    change_pct = ((current - previous) / previous) * 100 if previous != 0 else 0
+                    prev_change_pct = ((previous - prev_previous) / prev_previous) * 100 if prev_previous and prev_previous != 0 else None
+                    
+                    # 直近5期間の値リストを取得（トレンド判定用）
+                    recent_values = [float(v) for v in values.iloc[-5:].tolist()] if len(values) >= 5 else None
+                    
+                    status = SectionRenderer._determine_status_word(change_pct, prev_change_pct, recent_values)
+                    fact_items.append(f"政策金利：{current:.2f}% → {status}")
+        
+        # 長期金利のFact
+        long_rate_fact = facts.get("long_rate")
+        if long_rate_fact and long_rate_fact.get("is_valid"):
+            long_rate_data = long_rate_fact.get("data")
+            if long_rate_data is not None and not long_rate_data.empty and "long_rate_10y" in long_rate_data.columns:
+                values = long_rate_data["long_rate_10y"].dropna()
+                if len(values) >= 2:
+                    current = float(values.iloc[-1])
+                    previous = float(values.iloc[-2])
+                    prev_previous = float(values.iloc[-3]) if len(values) >= 3 else None
+                    
+                    change_pct = ((current - previous) / previous) * 100 if previous != 0 else 0
+                    prev_change_pct = ((previous - prev_previous) / prev_previous) * 100 if prev_previous and prev_previous != 0 else None
+                    
+                    # 直近5期間の値リストを取得（トレンド判定用）
+                    recent_values = [float(v) for v in values.iloc[-5:].tolist()] if len(values) >= 5 else None
+                    
+                    status = SectionRenderer._determine_status_word(change_pct, prev_change_pct, recent_values)
+                    fact_items.append(f"長期金利（10年）：{current:.2f}% → {status}")
         
         # CPIのFact
         cpi_fact = facts.get("cpi")
         if cpi_fact and cpi_fact.get("is_valid"):
-            cpi_interp = page_data.get("interpretations", {}).get("cpi", "")
-            if cpi_interp:
-                fact_items.append(cpi_interp)
+            cpi_data = cpi_fact.get("data")
+            if cpi_data is not None and not cpi_data.empty and "CPI_YoY" in cpi_data.columns:
+                values = cpi_data["CPI_YoY"].dropna()
+                if len(values) >= 2:
+                    current = float(values.iloc[-1])
+                    previous = float(values.iloc[-2])
+                    prev_previous = float(values.iloc[-3]) if len(values) >= 3 else None
+                    
+                    change_pct = current - previous  # CPI YoYは既に%なので差分を取る
+                    prev_change_pct = previous - prev_previous if prev_previous is not None else None
+                    
+                    # CPI YoYの変化率判定（%ポイント差で判定）
+                    if change_pct > 0.5:
+                        status = "上昇"
+                    elif change_pct < -0.5:
+                        status = "下落"
+                    else:
+                        status = "横ばい"
+                    
+                    # 前回が下落で今回が上昇の場合
+                    if prev_change_pct is not None and prev_change_pct < 0 and change_pct > 0:
+                        status = "反発"
+                    
+                    fact_items.append(f"CPI前年比：{current:.2f}% → {status}")
         
         # EPS+PERのFact
         eps_per_fact = facts.get("eps_per")
         if eps_per_fact and eps_per_fact.get("is_valid"):
-            eps_per_interp = page_data.get("interpretations", {}).get("eps_per", "")
-            if eps_per_interp:
-                fact_items.append(eps_per_interp)
+            eps_per_data = eps_per_fact.get("data")
+            if eps_per_data is not None and not eps_per_data.empty:
+                # EPS
+                if "EPS" in eps_per_data.columns:
+                    eps_values = eps_per_data["EPS"].dropna()
+                    if len(eps_values) >= 2:
+                        current = float(eps_values.iloc[-1])
+                        previous = float(eps_values.iloc[-2])
+                        prev_previous = float(eps_values.iloc[-3]) if len(eps_values) >= 3 else None
+                        
+                        change_pct = ((current - previous) / previous) * 100 if previous != 0 else 0
+                        prev_change_pct = ((previous - prev_previous) / prev_previous) * 100 if prev_previous and prev_previous != 0 else None
+                        
+                        # 直近5期間の値リストを取得（トレンド判定用）
+                        recent_values = [float(v) for v in eps_values.iloc[-5:].tolist()] if len(eps_values) >= 5 else None
+                        
+                        status = SectionRenderer._determine_status_word(change_pct, prev_change_pct, recent_values)
+                        fact_items.append(f"EPS：{current:.2f} → {status}")
+                
+                # PER
+                if "PER" in eps_per_data.columns:
+                    per_values = eps_per_data["PER"].dropna()
+                    if len(per_values) >= 2:
+                        current = float(per_values.iloc[-1])
+                        previous = float(per_values.iloc[-2])
+                        prev_previous = float(per_values.iloc[-3]) if len(per_values) >= 3 else None
+                        
+                        change_pct = ((current - previous) / previous) * 100 if previous != 0 else 0
+                        prev_change_pct = ((previous - prev_previous) / prev_previous) * 100 if prev_previous and prev_previous != 0 else None
+                        
+                        # 直近5期間の値リストを取得（トレンド判定用）
+                        recent_values = [float(v) for v in per_values.iloc[-5:].tolist()] if len(per_values) >= 5 else None
+                        
+                        status = SectionRenderer._determine_status_word(change_pct, prev_change_pct, recent_values)
+                        fact_items.append(f"PER：{current:.2f} → {status}")
         
-        # Factを箇条書きに変換
+        # 箇条書きHTMLに変換
         if fact_items:
-            fact_content = SectionRenderer._format_fact_list("\n".join(fact_items))
+            list_items = "\n".join([f"<li>{item}</li>" for item in fact_items])
+            return f'<ul class="fact-list">\n{list_items}\n</ul>'
         else:
-            fact_content = "<ul class=\"fact-list\"><li>データが取得できません。</li></ul>"
+            return '<ul class="fact-list"><li>データが取得できません。</li></ul>'
+    
+    @staticmethod
+    def render_fact_section(page_data: Dict[str, Any]) -> str:
+        """① 観測事実セクションをレンダリング"""
+        from .layout import Layout
+        
+        # Factデータから自動要約を生成（指標名：数値 → 状態語の形式）
+        fact_content = SectionRenderer._auto_summarize_facts(page_data)
         
         section_html = Layout.get_section(
             "① 観測事実",
