@@ -12,7 +12,6 @@
         initPeriodButtons();
         initMarketSelector();
         initTimeframeSelector();
-        initDetailsToggle();
         restoreState();
         initHeatmap();
     });
@@ -42,15 +41,7 @@
             clickedBtn.classList.add('active');
         }
         
-        // Lightweight Chartsの更新（price-chartの場合）
-        if (chartId === 'price-chart' && typeof window.updateChart === 'function') {
-            let period = 'short';
-            if (years === 5) period = 'medium';
-            if (years === 10) period = 'long';
-            window.updateChart(period);
-        }
-        
-        // チャートの再描画処理（Plotly用）
+        // チャートの再描画処理
         updateChartsForPeriod(years, chartId);
     }
     
@@ -199,20 +190,6 @@
             hideSkeleton();
             saveState(getCurrentMarket(), timeframe);
         }
-    }
-    
-    // 詳細トグルの初期化
-    function initDetailsToggle() {
-        const toggleButtons = document.querySelectorAll('.details-toggle');
-        toggleButtons.forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                const content = btn.nextElementSibling;
-                if (content && content.classList.contains('details-content')) {
-                    content.classList.toggle('expanded');
-                    btn.textContent = content.classList.contains('expanded') ? '詳細を閉じる' : '詳細を見る';
-                }
-            });
-        });
     }
     
     // 現在の市場を取得
