@@ -86,8 +86,25 @@ class HTMLGenerator:
         </div>"""
         
         # インデックスページはルートなので、パスを調整
-        html = Layout.get_base_html("v2 Market Report - インデックス", content)
-        # インデックスページ用にパスを修正
-        html = html.replace('../assets/', 'assets/')
+        # Skeleton UIを含まないベースHTMLを生成
+        html = f"""<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.plot.ly; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://api.github.com;">
+    <title>v2 Market Report - インデックス</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/main.css">
+</head>
+<body>
+    <div class="container">
+        {content}
+    </div>
+    <script src="assets/js/main.js"></script>
+</body>
+</html>"""
         return html
 

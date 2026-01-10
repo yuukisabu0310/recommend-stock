@@ -33,6 +33,12 @@ class Layout:
 </head>
 <body>
     <div class="container">
+        <!-- Skeleton UI -->
+        <div id="skeleton" class="skeleton hidden">
+            <div class="skel-card"></div>
+            <div class="skel-card"></div>
+            <div class="skel-card"></div>
+        </div>
         {content}
     </div>
     <script src="../assets/js/main.js"></script>
@@ -182,4 +188,31 @@ class Layout:
             )
         
         return f'<div class="timeframe-selector">{"".join(buttons)}</div>'
+    
+    @staticmethod
+    def get_rank_cards(rank_data: list) -> str:
+        """
+        ランクカードUIを生成
+        
+        Args:
+            rank_data: ランクデータのリスト [{"rank": "A", "symbol": "AAPL"}, ...]
+        
+        Returns:
+            str: HTML文字列
+        """
+        if not rank_data:
+            return '<div class="empty-card">該当銘柄なし</div>'
+        
+        cards = []
+        for item in rank_data:
+            rank = item.get("rank", "C").upper()
+            symbol = item.get("symbol", "")
+            cards.append(
+                f'<div class="rank-card rank-{rank}">'
+                f'<div class="rank-letter">{rank}</div>'
+                f'<div class="symbol">{symbol}</div>'
+                f'</div>'
+            )
+        
+        return f'<div class="rank-cards-container">{"".join(cards)}</div>'
 
