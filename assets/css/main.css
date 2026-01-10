@@ -79,6 +79,15 @@ h1 {
     margin: 1.5rem 0;
 }
 
+/* Lightweight Charts用スタイル */
+.tv-chart {
+    width: 100%;
+    height: 420px;
+    border-radius: 16px;
+    overflow: hidden;
+    background: #0b0f19;
+}
+
 .interpretation {
     background: #f1f5f9;
     padding: 1.5rem;

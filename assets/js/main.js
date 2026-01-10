@@ -42,7 +42,15 @@
             clickedBtn.classList.add('active');
         }
         
-        // チャートの再描画処理
+        // Lightweight Chartsの更新（price-chartの場合）
+        if (chartId === 'price-chart' && typeof window.updateChart === 'function') {
+            let period = 'short';
+            if (years === 5) period = 'medium';
+            if (years === 10) period = 'long';
+            window.updateChart(period);
+        }
+        
+        // チャートの再描画処理（Plotly用）
         updateChartsForPeriod(years, chartId);
     }
     
