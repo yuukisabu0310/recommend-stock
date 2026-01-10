@@ -1,0 +1,20 @@
+# 期間区分定義
+timeframes:
+  - name: "短期"
+    code: "short"
+    default_years: 1
+    switchable_years: [5, 10]
+  
+  - name: "中期"
+    code: "medium"
+    default_years: 5
+    switchable_years: [1, 10]
+  
+  - name: "長期"
+    code: "long"
+    default_years: 10
+    switchable_years: [1, 5]
+
+# EPS + PERチャートの期間（固定）
+eps_per_years: 20
+

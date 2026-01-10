@@ -1,0 +1,37 @@
+# 取得する指標一覧
+indicators:
+  # 株価指数
+  price:
+    source: "yfinance"
+    frequency: "daily"
+  
+  # 政策金利
+  policy_rate:
+    source: "fred"  # FRED API
+    frequency: "monthly"
+    series_id:
+      US: "DFF"  # Federal Funds Effective Rate
+      JP: "IRLTLT01JPM156N"  # Long-Term Government Bond Yields: 10-year: Main (Including Benchmark) for Japan
+  
+  # 長期金利（10年国債利回り）
+  long_rate_10y:
+    source: "fred"
+    frequency: "daily"
+    series_id:
+      US: "DGS10"  # 10-Year Treasury Constant Maturity Rate
+      JP: "IRLTLT01JPM156N"  # Long-Term Government Bond Yields: 10-year: Main (Including Benchmark) for Japan
+  
+  # CPI（消費者物価指数）前年比
+  cpi_yoy:
+    source: "fred"
+    frequency: "monthly"
+    series_id:
+      US: "CPIAUCSL"  # Consumer Price Index for All Urban Consumers: All Items in U.S. City Average
+      JP: "JPNCPIALLMINMEI"  # Consumer Price Index: Total All Items for Japan
+  
+  # EPS + PER
+  eps_per:
+    source: "yfinance"
+    frequency: "quarterly"
+    # S&P500と日経平均の指数ベースで取得
+

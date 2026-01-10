@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>v2 Market Report - インデックス</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+        
+        header {
+            background: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+        
+        h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+        }
+        
+        .subtitle {
+            color: #64748b;
+            font-size: 1rem;
+        }
+        
+        .section {
+            background: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+        
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        
+        .chart-container {
+            margin: 1.5rem 0;
+        }
+        
+        .interpretation {
+            background: #f1f5f9;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            margin-top: 1rem;
+            color: #475569;
+            line-height: 1.8;
+        }
+        
+        .period-selector {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .period-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid #cbd5e1;
+            background: white;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+        
+        .period-btn:hover {
+            background: #f1f5f9;
+            border-color: #2563eb;
+        }
+        
+        .period-btn.active {
+            background: #2563eb;
+            color: white;
+            border-color: #2563eb;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem 0.5rem;
+            }
+            
+            header {
+                padding: 1.5rem;
+            }
+            
+            h1 {
+                font-size: 1.5rem;
+            }
+            
+            .section {
+                padding: 1.5rem;
+            }
+            
+            .section-title {
+                font-size: 1.25rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>v2 Market Report</h1>
+            <p class="subtitle">実データに基づく市場分析レポート</p>
+        </header>
+        <div class="section">
+            <h2 class="section-title">レポート一覧</h2>
+            <ul style="list-style: none; padding: 0;">
+                <li><a href="logs/US-short.html" style="color: #2563eb; text-decoration: none; font-weight: 500;">米国 - 短期</a></li>
+<li><a href="logs/US-medium.html" style="color: #2563eb; text-decoration: none; font-weight: 500;">米国 - 中期</a></li>
+<li><a href="logs/US-long.html" style="color: #2563eb; text-decoration: none; font-weight: 500;">米国 - 長期</a></li>
+<li><a href="logs/JP-short.html" style="color: #2563eb; text-decoration: none; font-weight: 500;">日本 - 短期</a></li>
+<li><a href="logs/JP-medium.html" style="color: #2563eb; text-decoration: none; font-weight: 500;">日本 - 中期</a></li>
+<li><a href="logs/JP-long.html" style="color: #2563eb; text-decoration: none; font-weight: 500;">日本 - 長期</a></li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,21 @@
+# 市場定義
+markets:
+  - name: "米国"
+    code: "US"
+    indices:
+      - name: "S&P500"
+        symbol: "^GSPC"
+        display_name: "S&P500"
+      - name: "NASDAQ100"
+        symbol: "^NDX"
+        display_name: "NASDAQ100"
+    price_index: "S&P500"  # 株価指数チャートで使用する指数
+  
+  - name: "日本"
+    code: "JP"
+    indices:
+      - name: "日経平均"
+        symbol: "^N225"
+        display_name: "日経平均"
+    price_index: "日経平均"  # 株価指数チャートで使用する指数
+
