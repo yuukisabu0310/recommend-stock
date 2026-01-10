@@ -43,8 +43,9 @@ class HTMLGenerator:
         # ④ EPS + PER（詳細に折りたたみ）
         sections.append(SectionRenderer.render_eps_per_section(page_data, is_details=True))
         
-        # コンテンツ結合
-        content = header + "\n".join(sections)
+        # コンテンツ結合（Gridレイアウト用にコンテナで囲む）
+        sections_html = "\n".join(sections)
+        content = header + f'<div class="report-sections">\n{sections_html}\n</div>'
         
         # FactデータをJSON形式で埋め込み（ヒートマップ用）
         import json
@@ -87,12 +88,29 @@ class HTMLGenerator:
         heatmap_json = json.dumps(heatmap_data, ensure_ascii=False)
         heatmap_script = f'<script>window.heatmapData = {heatmap_json};</script>'
         
+        # チャートデータをJSON形式で埋め込み（期間切替用）
+        chart_data = {}
+        for chart_type in ["price", "rate", "cpi"]:
+            fact = facts.get(chart_type)
+            if fact and fact.get("is_valid"):
+                fact_data = fact.get("data")
+                if fact_data is not None and not fact_data.empty:
+                    # DataFrameをJSON形式に変換（日付と値のみ）
+                    chart_data[chart_type] = {
+                        "dates": fact_data.index.strftime("%Y-%m-%d").tolist(),
+                        "columns": fact_data.columns.tolist(),
+                        "values": fact_data.values.tolist()
+                    }
+        
+        chart_data_json = json.dumps(chart_data, ensure_ascii=False, default=str)
+        chart_data_script = f'<script>window.chartData = {chart_data_json};</script>'
+        
         # ベースHTML生成
         title = f"{market_name} - {timeframe_name}市場レポート"
         html = Layout.get_base_html(title, content)
         
         # スクリプトタグをbodyの最後に追加
-        html = html.replace('</body>', f'{heatmap_script}</body>')
+        html = html.replace('</body>', f'{heatmap_script}\n{chart_data_script}</body>')
         
         return html
     

@@ -87,13 +87,26 @@ class Layout:
         Returns:
             str: HTML文字列
         """
+        # チャートタイプを判定（タイトルから）
+        chart_type = ""
+        if "株価指数" in title or "①" in title:
+            chart_type = "price"
+        elif "政策金利" in title or "長期金利" in title or "②" in title:
+            chart_type = "rate"
+        elif "CPI" in title or "③" in title:
+            chart_type = "cpi"
+        elif "EPS" in title or "PER" in title or "④" in title:
+            chart_type = "eps_per"
+        
+        chart_container_attr = f' data-chart-type="{chart_type}"' if chart_type else ""
+        
         if is_details:
             return f"""<div class="section">
                 <button class="details-toggle">詳細を見る</button>
                 <div class="details-content">
                     <h2 class="section-title">{title}</h2>
                     {period_selector}
-                    <div class="chart-container">
+                    <div class="chart-container"{chart_container_attr}>
                         {chart_html}
                     </div>
                     <div class="interpretation">
@@ -105,7 +118,7 @@ class Layout:
             return f"""<div class="section">
                 <h2 class="section-title">{title}</h2>
                 {period_selector}
-                <div class="chart-container">
+                <div class="chart-container"{chart_container_attr}>
                     {chart_html}
                 </div>
                 <div class="interpretation">

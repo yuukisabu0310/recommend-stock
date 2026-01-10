@@ -29,13 +29,15 @@ class SectionRenderer:
         
         from .layout import Layout
         title = f"① 株価指数チャート{arrow_html}"
-        return Layout.get_section(
+        section_html = Layout.get_section(
             title,
             chart_html,
             interpretation,
             period_selector,
             is_details
         )
+        # セクション1にクラスを追加
+        return section_html.replace('<div class="section">', '<div class="section section-1">')
     
     @staticmethod
     def render_rate_section(page_data: Dict[str, Any], is_details: bool = False) -> str:
@@ -68,13 +70,15 @@ class SectionRenderer:
             period_selector = Layout.get_period_selector(years, switchable_years, "rate-chart")
         
         from .layout import Layout
-        return Layout.get_section(
+        section_html = Layout.get_section(
             title,
             chart_html,
             interpretation,
             period_selector,
             is_details
         )
+        # セクション2にクラスを追加
+        return section_html.replace('<div class="section">', '<div class="section section-2">')
     
     @staticmethod
     def render_cpi_section(page_data: Dict[str, Any], is_details: bool = False) -> str:
@@ -98,13 +102,15 @@ class SectionRenderer:
         
         from .layout import Layout
         title = f"③ CPI（消費者物価指数）前年比{arrow_html}"
-        return Layout.get_section(
+        section_html = Layout.get_section(
             title,
             chart_html,
             interpretation,
             period_selector,
             is_details
         )
+        # セクション3にクラスを追加
+        return section_html.replace('<div class="section">', '<div class="section section-3">')
     
     @staticmethod
     def render_eps_per_section(page_data: Dict[str, Any], is_details: bool = False) -> str:
@@ -113,13 +119,15 @@ class SectionRenderer:
         interpretation = page_data.get("interpretations", {}).get("eps_per", "データが取得できません。")
         
         from .layout import Layout
-        return Layout.get_section(
+        section_html = Layout.get_section(
             "④ EPS + PER（20年固定）",
             chart_html,
             interpretation,
             "",
             is_details
         )
+        # セクション4にクラスを追加（全幅表示用）
+        return section_html.replace('<div class="section">', '<div class="section section-4">')
     
     @staticmethod
     def _get_direction_arrow(fact_data: Dict[str, Any], column_name: str) -> str:

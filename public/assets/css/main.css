@@ -7,16 +7,35 @@
 }
 
 body {
-    font-family: 'Inter', 'Noto Sans JP', sans-serif;
+    font-family: 'Inter', 'Noto Sans JP', system-ui, sans-serif;
     background: #f8fafc;
     color: #1e293b;
     line-height: 1.6;
+    padding: 16px;
 }
 
 .container {
     max-width: 1200px;
     margin: 0 auto;
     padding: 2rem 1rem;
+}
+
+/* レポートセクションのGridレイアウト */
+.report-sections {
+    display: grid;
+    grid-template-columns: 1fr; /* モバイル縦並び */
+    gap: 24px;
+}
+
+/* PC以上（992px以上）で2列レイアウト */
+@media (min-width: 992px) {
+    .report-sections {
+        grid-template-columns: 1fr 1fr; /* 2列に変更 */
+    }
+    /* 4番目のセクションは全幅 */
+    .report-sections .section-4 {
+        grid-column: 1 / -1;
+    }
 }
 
 header {
@@ -48,10 +67,10 @@ h1 {
 }
 
 .section-title {
-    font-size: 1.5rem;
-    font-weight: 600;
+    font-size: 1.25rem;
+    font-weight: 700;
     color: #1e293b;
-    margin-bottom: 1rem;
+    margin-bottom: 8px;
     padding-bottom: 0.5rem;
     border-bottom: 2px solid #e2e8f0;
 }
@@ -77,15 +96,15 @@ h1 {
 }
 
 .period-btn {
-    padding: 0.75rem 1.5rem;
+    padding: 8px 16px;
     min-height: 44px;
     border: 1px solid #cbd5e1;
     background: white;
-    border-radius: 0.5rem;
+    border-radius: 6px;
     cursor: pointer;
     font-size: 0.875rem;
     font-weight: 500;
-    transition: all 0.2s;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
     color: #1e293b;
 }
 
@@ -95,7 +114,7 @@ h1 {
 }
 
 .period-btn.active {
-    background: #2563eb;
+    background-color: #2563eb;
     color: white;
     border-color: #2563eb;
 }
@@ -384,6 +403,10 @@ h1 {
 
 /* モバイル対応 */
 @media (max-width: 768px) {
+    body {
+        padding: 8px;
+    }
+    
     .container {
         padding: 1rem 0.5rem;
     }
@@ -400,10 +423,6 @@ h1 {
         padding: 1.5rem;
     }
     
-    .section-title {
-        font-size: 1.25rem;
-    }
-    
     .period-btn,
     .market-btn,
     .timeframe-btn {
@@ -414,6 +433,13 @@ h1 {
     .chart-container {
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
+    }
+}
+
+/* モバイル時の見出しサイズ調整 */
+@media (max-width: 575px) {
+    .section-title {
+        font-size: 1.1rem;
     }
 }
 
