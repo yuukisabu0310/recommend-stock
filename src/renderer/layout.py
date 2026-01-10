@@ -67,6 +67,8 @@ class Layout:
             <p class="subtitle">実データに基づく市場分析（判断材料の提供のみ）</p>
             {market_selector}
             {timeframe_selector}
+            <!-- 市場ヒートマップ -->
+            <div id="market-heatmap" class="heatmap-grid"></div>
         </header>"""
     
     @staticmethod

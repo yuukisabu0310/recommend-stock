@@ -14,6 +14,7 @@
         initTimeframeSelector();
         initDetailsToggle();
         restoreState();
+        initHeatmap();
     });
     
     // 期間選択ボタンの初期化
@@ -245,6 +246,27 @@
     // 後方互換性のため残す（非推奨）
     function saveUserPreferences(market, timeframe) {
         saveState(market, timeframe);
+    }
+    
+    // 市場ヒートマップを初期化
+    function initHeatmap() {
+        const heatmapContainer = document.getElementById('market-heatmap');
+        if (!heatmapContainer) {
+            return;
+        }
+        
+        // グローバル変数からヒートマップデータを取得
+        if (typeof window.heatmapData === 'undefined' || !window.heatmapData || window.heatmapData.length === 0) {
+            return;
+        }
+        
+        // ヒートマップを描画
+        window.heatmapData.forEach(function(item) {
+            const tile = document.createElement('div');
+            tile.className = 'heat-tile heat-' + item.direction + '-' + item.strength;
+            tile.textContent = item.symbol;
+            heatmapContainer.appendChild(tile);
+        });
     }
 })();
 

@@ -46,9 +46,53 @@ class HTMLGenerator:
         # コンテンツ結合
         content = header + "\n".join(sections)
         
+        # FactデータをJSON形式で埋め込み（ヒートマップ用）
+        import json
+        import pandas as pd
+        
+        heatmap_data = []
+        facts = page_data.get("facts", {})
+        
+        # 株価データからヒートマップ用データを生成
+        price_fact = facts.get("price")
+        if price_fact and price_fact.get("is_valid"):
+            price_data = price_fact.get("data")
+            symbol = price_fact.get("symbol", "")
+            if price_data is not None and not price_data.empty and "Close" in price_data.columns:
+                close_values = price_data["Close"].dropna()
+                if len(close_values) >= 2:
+                    current = float(close_values.iloc[-1])
+                    previous = float(close_values.iloc[-2])
+                    change_pct = ((current - previous) / previous) * 100 if previous != 0 else 0
+                    
+                    # 変化率の絶対値で弱/中/強を判定
+                    abs_change = abs(change_pct)
+                    if abs_change < 1.0:
+                        strength = "weak"
+                    elif abs_change < 3.0:
+                        strength = "mid"
+                    else:
+                        strength = "strong"
+                    
+                    direction = "up" if change_pct > 0 else "down" if change_pct < 0 else "flat"
+                    
+                    heatmap_data.append({
+                        "symbol": symbol,
+                        "direction": direction,
+                        "strength": strength,
+                        "change_pct": round(change_pct, 2)
+                    })
+        
+        # JSONデータをスクリプトタグに埋め込み
+        heatmap_json = json.dumps(heatmap_data, ensure_ascii=False)
+        heatmap_script = f'<script>window.heatmapData = {heatmap_json};</script>'
+        
         # ベースHTML生成
         title = f"{market_name} - {timeframe_name}市場レポート"
         html = Layout.get_base_html(title, content)
+        
+        # スクリプトタグをbodyの最後に追加
+        html = html.replace('</body>', f'{heatmap_script}</body>')
         
         return html
     

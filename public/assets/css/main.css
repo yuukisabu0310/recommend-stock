@@ -295,6 +295,72 @@ h1 {
     margin-bottom: 2rem;
 }
 
+/* 市場ヒートマップ */
+.heatmap-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+    margin-bottom: 2rem;
+}
+
+.heat-tile {
+    padding: 12px;
+    border-radius: 12px;
+    color: white;
+    font-weight: 600;
+    text-align: center;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.heat-tile:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.heat-up-weak {
+    background: #6ee7b7;
+}
+
+.heat-up-mid {
+    background: #10b981;
+}
+
+.heat-up-strong {
+    background: #047857;
+}
+
+.heat-down-weak {
+    background: #fca5a5;
+}
+
+.heat-down-mid {
+    background: #ef4444;
+}
+
+.heat-down-strong {
+    background: #7f1d1d;
+}
+
+/* 経済指標方向矢印 */
+.econ-arrow {
+    font-weight: 800;
+    margin-left: 6px;
+    display: inline-block;
+    font-size: 0.875rem;
+}
+
+.econ-arrow.up {
+    color: #10b981;
+}
+
+.econ-arrow.down {
+    color: #ef4444;
+}
+
+.econ-arrow.flat {
+    color: #9ca3af;
+}
+
 /* レポートリンク */
 .report-list {
     list-style: none;

@@ -49,7 +49,8 @@ class USShortPage(BasePage):
             "years": years,
             "switchable_years": switchable_years,
             "charts": {},
-            "interpretations": {}
+            "interpretations": {},
+            "facts": {}  # Factデータを保存（ヒートマップ・矢印用）
         }
         
         # ① 株価指数チャート
@@ -60,6 +61,13 @@ class USShortPage(BasePage):
             if not price_data.empty:
                 price_fact = PriceFact(self.market_code)
                 price_fact.load_data(price_data)
+                
+                # Factデータを保存（ヒートマップ・矢印用）
+                result["facts"]["price"] = {
+                    "is_valid": price_fact.is_valid,
+                    "data": price_data,
+                    "symbol": symbol
+                }
                 
                 price_chart = PriceChart(self.market_config.get("name", "米国"), price_index)
                 chart_fig = price_chart.create_chart(price_data, years, switchable_years)
@@ -93,12 +101,22 @@ class USShortPage(BasePage):
                 if not policy_data.empty:
                     policy_fact = RateFact(self.market_code, "policy")
                     policy_fact.load_data(policy_data)
+                    # Factデータを保存（矢印用）
+                    result["facts"]["policy_rate"] = {
+                        "is_valid": policy_fact.is_valid,
+                        "data": policy_data
+                    }
                     policy_interpretation = RateInterpretation(policy_fact)
                     interpretations.append(policy_interpretation.generate_summary())
                 
                 if not long_rate_data.empty:
                     long_rate_fact = RateFact(self.market_code, "long_10y")
                     long_rate_fact.load_data(long_rate_data)
+                    # Factデータを保存（矢印用）
+                    result["facts"]["long_rate"] = {
+                        "is_valid": long_rate_fact.is_valid,
+                        "data": long_rate_data
+                    }
                     long_rate_interpretation = RateInterpretation(long_rate_fact)
                     interpretations.append(long_rate_interpretation.generate_summary())
                 
@@ -119,6 +137,12 @@ class USShortPage(BasePage):
             if not cpi_data.empty:
                 cpi_fact = CPIFact(self.market_code)
                 cpi_fact.load_data(cpi_data)
+                
+                # Factデータを保存（矢印用）
+                result["facts"]["cpi"] = {
+                    "is_valid": cpi_fact.is_valid,
+                    "data": cpi_data
+                }
                 
                 cpi_chart = CPIChart(self.market_config.get("name", "米国"))
                 chart_fig = cpi_chart.create_chart(cpi_data, years)
