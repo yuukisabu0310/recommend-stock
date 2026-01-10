@@ -41,6 +41,11 @@ class PriceChart(BaseChart):
         if 'Close' not in data.columns:
             return None
         
+        # タイムゾーン情報を削除（比較エラーを回避）
+        data = data.copy()
+        if data.index.tz is not None:
+            data.index = data.index.tz_localize(None)
+        
         # 期間でフィルタリング
         end_date = datetime.now()
         start_date = end_date - timedelta(days=years * 365)

@@ -45,10 +45,16 @@ class RateChart(BaseChart):
         long_rate_filtered = pd.DataFrame()
         
         if policy_data is not None and not policy_data.empty:
-            policy_filtered = policy_data[(policy_data.index >= start_date) & (policy_data.index <= end_date)]
+            policy_data_copy = policy_data.copy()
+            if policy_data_copy.index.tz is not None:
+                policy_data_copy.index = policy_data_copy.index.tz_localize(None)
+            policy_filtered = policy_data_copy[(policy_data_copy.index >= start_date) & (policy_data_copy.index <= end_date)]
         
         if long_rate_data is not None and not long_rate_data.empty:
-            long_rate_filtered = long_rate_data[(long_rate_data.index >= start_date) & (long_rate_data.index <= end_date)]
+            long_rate_data_copy = long_rate_data.copy()
+            if long_rate_data_copy.index.tz is not None:
+                long_rate_data_copy.index = long_rate_data_copy.index.tz_localize(None)
+            long_rate_filtered = long_rate_data_copy[(long_rate_data_copy.index >= start_date) & (long_rate_data_copy.index <= end_date)]
         
         # 両方空の場合はNoneを返す
         if policy_filtered.empty and long_rate_filtered.empty:

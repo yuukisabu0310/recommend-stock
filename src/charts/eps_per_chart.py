@@ -37,6 +37,11 @@ class EPSPERChart(BaseChart):
         if 'EPS' not in data.columns or 'PER' not in data.columns:
             return None
         
+        # タイムゾーン情報を削除（比較エラーを回避）
+        data = data.copy()
+        if data.index.tz is not None:
+            data.index = data.index.tz_localize(None)
+        
         # 20年前からフィルタリング
         end_date = datetime.now()
         start_date = end_date - timedelta(days=20 * 365)
