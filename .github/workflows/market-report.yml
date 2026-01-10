@@ -1,57 +1,36 @@
-name: Market Report Generation
+name: Market Report Generation & Deploy
 
 on:
   schedule:
-    # 毎日日本時間08:00（UTC 23:00）に実行
     - cron: '0 23 * * *'
-  push:
-    branches:
-      - main
-    paths:
-      - 'src/**'
-      - 'scripts/**'
-      - 'config/**'
-      - '.github/workflows/**'
-  workflow_dispatch:  # 手動実行も可能
+  workflow_dispatch:
 
 jobs:
-  generate-report:
+  build-and-deploy:
     runs-on: ubuntu-latest
-    environment: github-pages
     permissions:
       contents: write
-    
+      pages: write
+      id-token: write
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      
-      - name: Install dependencies
-        run: |
-          pip install --upgrade pip
+
+      - run: |
           pip install -r requirements.txt
-      
-      - name: Fetch market data
-        env:
+
+      - env:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
         run: |
           python scripts/fetch_all.py
-      
-      - name: Build pages
-        run: |
           python scripts/build_pages.py
-      
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        if: github.ref == 'refs/heads/main'
+
+      - uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./public
-          user_name: 'github-actions[bot]'
-          user_email: 'github-actions[bot]@users.noreply.github.com'
-          commit_message: 'Deploy: Update market report pages'
-
+          commit_message: 'Auto deploy market report'
