@@ -174,6 +174,117 @@ class SectionRenderer:
         return f'<ul class="fact-list">\n{list_items}\n</ul>'
     
     @staticmethod
+    def render_fact_section(page_data: Dict[str, Any]) -> str:
+        """① 観測事実セクションをレンダリング"""
+        from .layout import Layout
+        
+        # すべてのFactを収集して箇条書きに変換
+        facts = page_data.get("facts", {})
+        fact_items = []
+        
+        # 株価指数のFact
+        price_fact = facts.get("price")
+        if price_fact and price_fact.get("is_valid"):
+            price_interp = page_data.get("interpretations", {}).get("price", "")
+            if price_interp:
+                fact_items.append(price_interp)
+        
+        # 政策金利のFact
+        policy_fact = facts.get("policy_rate")
+        if policy_fact and policy_fact.get("is_valid"):
+            rate_interp = page_data.get("interpretations", {}).get("rate", "")
+            if rate_interp:
+                fact_items.append(rate_interp)
+        
+        # CPIのFact
+        cpi_fact = facts.get("cpi")
+        if cpi_fact and cpi_fact.get("is_valid"):
+            cpi_interp = page_data.get("interpretations", {}).get("cpi", "")
+            if cpi_interp:
+                fact_items.append(cpi_interp)
+        
+        # EPS+PERのFact
+        eps_per_fact = facts.get("eps_per")
+        if eps_per_fact and eps_per_fact.get("is_valid"):
+            eps_per_interp = page_data.get("interpretations", {}).get("eps_per", "")
+            if eps_per_interp:
+                fact_items.append(eps_per_interp)
+        
+        # Factを箇条書きに変換
+        if fact_items:
+            fact_content = SectionRenderer._format_fact_list("\n".join(fact_items))
+        else:
+            fact_content = "<ul class=\"fact-list\"><li>データが取得できません。</li></ul>"
+        
+        section_html = Layout.get_section(
+            "① 観測事実",
+            "",
+            fact_content,
+            ""
+        )
+        return section_html.replace('<section class="card">', '<section class="card block-1">')
+    
+    @staticmethod
+    def render_interpretation_section(page_data: Dict[str, Any]) -> str:
+        """② 解釈セクションをレンダリング"""
+        from .layout import Layout
+        
+        interpretation_content = "<p>解釈情報は現在準備中です。</p>"
+        
+        section_html = Layout.get_section(
+            "② 解釈",
+            "",
+            interpretation_content,
+            ""
+        )
+        return section_html.replace('<section class="card">', '<section class="card block-2">')
+    
+    @staticmethod
+    def render_assumption_section(page_data: Dict[str, Any]) -> str:
+        """③ 前提セクションをレンダリング"""
+        from .layout import Layout
+        
+        assumption_content = "<p>前提情報は現在準備中です。</p>"
+        
+        section_html = Layout.get_section(
+            "③ 前提",
+            "",
+            assumption_content,
+            ""
+        )
+        return section_html.replace('<section class="card">', '<section class="card block-3">')
+    
+    @staticmethod
+    def render_turning_point_section(page_data: Dict[str, Any]) -> str:
+        """④ 転換条件セクションをレンダリング"""
+        from .layout import Layout
+        
+        turning_point_content = "<p>転換条件情報は現在準備中です。</p>"
+        
+        section_html = Layout.get_section(
+            "④ 転換条件",
+            "",
+            turning_point_content,
+            ""
+        )
+        return section_html.replace('<section class="card">', '<section class="card block-4">')
+    
+    @staticmethod
+    def render_reference_section(page_data: Dict[str, Any]) -> str:
+        """⑤ 参考情報セクションをレンダリング"""
+        from .layout import Layout
+        
+        reference_content = "<p>参考情報は現在準備中です。</p>"
+        
+        section_html = Layout.get_section(
+            "⑤ 参考情報",
+            "",
+            reference_content,
+            ""
+        )
+        return section_html.replace('<section class="card">', '<section class="card block-5">')
+    
+    @staticmethod
     def _get_direction_arrow(fact_data: Dict[str, Any], column_name: str) -> str:
         """
         経済指標の方向矢印を生成（直近値 - 前回値の符号のみで判定）

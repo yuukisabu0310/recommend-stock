@@ -25,14 +25,37 @@ body {
     display: grid;
     grid-template-columns: 1fr;
     gap: 24px;
+    align-items: start;
 }
 
 /* PC以上（992px以上）で2列レイアウト */
 @media (min-width: 992px) {
     .dashboard {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(2, 1fr);
     }
     .block-1 {
+        grid-column: 1 / -1;
+    }
+    .block-2 {
+        grid-column: 1 / 2;
+    }
+    .block-3 {
+        grid-column: 2 / 3;
+    }
+    .block-4 {
+        grid-column: 1 / 2;
+    }
+    .block-5 {
+        grid-column: 2 / 3;
+    }
+}
+
+/* モバイル（991px以下）で縦並び */
+@media (max-width: 991px) {
+    .dashboard {
+        grid-template-columns: 1fr;
+    }
+    .dashboard > * {
         grid-column: 1 / -1;
     }
 }

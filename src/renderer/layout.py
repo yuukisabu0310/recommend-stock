@@ -99,12 +99,18 @@ class Layout:
         
         chart_container_attr = f' data-chart-type="{chart_type}"' if chart_type else ""
         
-        return f"""<section class="card">
-            <h2 class="section-title">{title}</h2>
+        # チャートがない場合はチャート部分を省略
+        chart_section = ""
+        if chart_html and chart_html.strip() and chart_html != "<p>この指標は現在データを取得できません</p>":
+            chart_section = f"""
             {period_selector}
             <div class="chart-container"{chart_container_attr}>
                 {chart_html}
-            </div>
+            </div>"""
+        
+        return f"""<section class="card">
+            <h2 class="section-title">{title}</h2>
+            {chart_section}
             <div class="interpretation">
                 {interpretation}
             </div>

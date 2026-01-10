@@ -28,20 +28,39 @@ class HTMLGenerator:
         # ヘッダー（市場・期間選択UIを含む）
         header = Layout.get_header(market_name, timeframe_name, market_code, timeframe_code)
         
-        # セクション（すべて常時表示）
-        sections = []
-        
-        # ① 株価指数チャート
-        sections.append(SectionRenderer.render_price_section(page_data))
-        
-        # ② 政策金利 + 長期金利
-        sections.append(SectionRenderer.render_rate_section(page_data))
-        
-        # ③ CPI
-        sections.append(SectionRenderer.render_cpi_section(page_data))
-        
-        # ④ EPS + PER
-        sections.append(SectionRenderer.render_eps_per_section(page_data))
+        # US-mediumページの場合は特別な構造を使用
+        if market_code == "US" and timeframe_code == "medium":
+            sections = []
+            
+            # ① 観測事実
+            sections.append(SectionRenderer.render_fact_section(page_data))
+            
+            # ② 解釈
+            sections.append(SectionRenderer.render_interpretation_section(page_data))
+            
+            # ③ 前提
+            sections.append(SectionRenderer.render_assumption_section(page_data))
+            
+            # ④ 転換条件
+            sections.append(SectionRenderer.render_turning_point_section(page_data))
+            
+            # ⑤ 参考情報
+            sections.append(SectionRenderer.render_reference_section(page_data))
+        else:
+            # セクション（すべて常時表示）
+            sections = []
+            
+            # ① 株価指数チャート
+            sections.append(SectionRenderer.render_price_section(page_data))
+            
+            # ② 政策金利 + 長期金利
+            sections.append(SectionRenderer.render_rate_section(page_data))
+            
+            # ③ CPI
+            sections.append(SectionRenderer.render_cpi_section(page_data))
+            
+            # ④ EPS + PER
+            sections.append(SectionRenderer.render_eps_per_section(page_data))
         
         # コンテンツ結合（ダッシュボード型レイアウト）
         sections_html = "\n".join(sections)
