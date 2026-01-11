@@ -30,6 +30,8 @@ class Layout:
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../assets/css/main.css">
+    <script type="text/javascript">window.PlotlyConfig = {{MathJaxConfig: 'local'}};</script>
+    <script charset="utf-8" src="https://cdn.plot.ly/plotly-2.26.0.min.js"></script>
 </head>
 <body>
     <div class="container">

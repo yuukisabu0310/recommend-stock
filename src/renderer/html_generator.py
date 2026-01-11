@@ -94,9 +94,13 @@ class HTMLGenerator:
         chart_data_json = json.dumps(multi_period_chart_data, ensure_ascii=False, default=str)
         chart_data_script = f'<script>window.multiPeriodChartData = {chart_data_json};</script>'
         
-        # 憲法準拠：初期表示用のPlotly.newPlot()スクリプトを生成
+        # 憲法準拠：初期表示用のPlotly.newPlot()スクリプトを生成（Plotly読み込み後に実行）
         init_chart_script = '<script>'
-        init_chart_script += 'if (typeof Plotly !== "undefined" && window.multiPeriodChartData) {'
+        init_chart_script += 'function initCharts() {'
+        init_chart_script += '  if (typeof Plotly === "undefined" || !window.multiPeriodChartData) {'
+        init_chart_script += '    setTimeout(initCharts, 100);'
+        init_chart_script += '    return;'
+        init_chart_script += '  }'
         init_chart_script += '  const chartTypes = ["price", "rate", "cpi", "eps_per"];'
         init_chart_script += '  const chartIds = {"price": "price-chart", "rate": "rate-chart", "cpi": "cpi-chart", "eps_per": "eps-per-chart"};'
         init_chart_script += '  chartTypes.forEach(function(chartType) {'
@@ -114,6 +118,11 @@ class HTMLGenerator:
         init_chart_script += '      }'
         init_chart_script += '    }'
         init_chart_script += '  });'
+        init_chart_script += '}'
+        init_chart_script += 'if (document.readyState === "loading") {'
+        init_chart_script += '  document.addEventListener("DOMContentLoaded", initCharts);'
+        init_chart_script += '} else {'
+        init_chart_script += '  initCharts();'
         init_chart_script += '}'
         init_chart_script += '</script>'
         
