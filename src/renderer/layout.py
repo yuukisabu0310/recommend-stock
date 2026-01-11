@@ -65,6 +65,7 @@ class Layout:
         return f"""<header>
             <h1>{market_name} - {timeframe_name}市場レポート</h1>
             <p class="subtitle">実データに基づく市場分析（判断材料の提供のみ）</p>
+            <!--REPORT_TIMESTAMP-->
             {market_selector}
             {timeframe_selector}
             <!-- 市場ヒートマップ -->

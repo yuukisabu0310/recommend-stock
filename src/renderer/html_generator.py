@@ -2,6 +2,7 @@
 HTML生成
 """
 from typing import Dict, Any
+from datetime import datetime
 from .layout import Layout
 from .section import SectionRenderer
 
@@ -108,6 +109,13 @@ class HTMLGenerator:
         # ベースHTML生成
         title = f"{market_name} - {timeframe_name}市場レポート"
         html = Layout.get_base_html(title, content)
+        
+        # 生成日時を取得して置換
+        generated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        html = html.replace(
+            "<!--REPORT_TIMESTAMP-->",
+            f'<div class="report-generated">Generated at: {generated_at}</div>'
+        )
         
         # スクリプトタグをbodyの最後に追加
         html = html.replace('</body>', f'{heatmap_script}\n{chart_data_script}</body>')
