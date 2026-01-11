@@ -4,7 +4,7 @@ CPIチャート
 import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Dict, Any, List
 from .base_chart import BaseChart
 
 
@@ -80,4 +80,76 @@ class CPIChart(BaseChart):
         
         self.fig = fig
         return fig
+    
+    def create_multi_period_data(self, data: pd.DataFrame, periods: List[int]) -> Dict[int, Dict[str, Any]]:
+        """
+        複数期間のチャートデータを生成（憲法準拠）
+        
+        Args:
+            data: CPIデータ（CPI_YoY）
+            periods: 期間のリスト（例: [1, 5, 10]）
+        
+        Returns:
+            Dict[int, Dict[str, Any]]: {years: {"traces": [...], "layout": {...}}, ...}
+        """
+        result = {}
+        
+        if data is None or data.empty:
+            return result
+        
+        if 'CPI_YoY' not in data.columns:
+            return result
+        
+        # タイムゾーン情報を削除
+        data = data.copy()
+        if data.index.tz is not None:
+            data.index = data.index.tz_localize(None)
+        
+        for years in periods:
+            # 期間でフィルタリング
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=years * 365)
+            filtered_data = data[(data.index >= start_date) & (data.index <= end_date)]
+            
+            if filtered_data.empty:
+                continue
+            
+            # tracesを生成
+            traces = [{
+                "x": filtered_data.index.strftime("%Y-%m-%d").tolist(),
+                "y": filtered_data['CPI_YoY'].tolist(),
+                "mode": "lines+markers",
+                "name": "CPI前年比",
+                "line": {"color": "#2563eb", "width": 2},
+                "marker": {"size": 4},
+                "type": "scatter"
+            }]
+            
+            # layoutを生成
+            layout = {
+                "title": self.title,
+                "xaxis": {"title": "日付"},
+                "yaxis": {"title": "CPI前年比 (%)"},
+                "hovermode": "x unified",
+                "height": 400,
+                "margin": {"l": 50, "r": 50, "t": 50, "b": 50},
+                "legend": {"orientation": "h", "yanchor": "bottom", "y": 1.02, "xanchor": "right", "x": 1},
+                "shapes": [{
+                    "type": "line",
+                    "xref": "x domain",
+                    "yref": "y",
+                    "x0": 0,
+                    "x1": 1,
+                    "y0": 0,
+                    "y1": 0,
+                    "line": {"color": "gray", "dash": "dash", "opacity": 0.5}
+                }]
+            }
+            
+            result[years] = {
+                "traces": traces,
+                "layout": layout
+            }
+        
+        return result
 

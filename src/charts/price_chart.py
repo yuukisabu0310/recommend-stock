@@ -4,7 +4,7 @@
 import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Dict, Any, List
 from .base_chart import BaseChart
 
 
@@ -114,4 +114,105 @@ class PriceChart(BaseChart):
         
         self.fig = fig
         return fig
+    
+    def create_multi_period_data(self, data: pd.DataFrame, periods: List[int]) -> Dict[int, Dict[str, Any]]:
+        """
+        複数期間のチャートデータを生成（憲法準拠）
+        
+        Args:
+            data: 株価データ（Close, MA20, MA75, MA200）
+            periods: 期間のリスト（例: [1, 5, 10]）
+        
+        Returns:
+            Dict[int, Dict[str, Any]]: {years: {"traces": [...], "layout": {...}}, ...}
+        """
+        result = {}
+        
+        if data is None or data.empty:
+            return result
+        
+        if 'Close' not in data.columns:
+            return result
+        
+        # タイムゾーン情報を削除
+        data = data.copy()
+        if data.index.tz is not None:
+            data.index = data.index.tz_localize(None)
+        
+        for years in periods:
+            # 期間でフィルタリング
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=years * 365)
+            filtered_data = data[(data.index >= start_date) & (data.index <= end_date)]
+            
+            if filtered_data.empty:
+                continue
+            
+            # tracesを生成
+            traces = []
+            
+            # 株価（実線）
+            traces.append({
+                "x": filtered_data.index.strftime("%Y-%m-%d").tolist(),
+                "y": filtered_data['Close'].tolist(),
+                "mode": "lines",
+                "name": "株価",
+                "line": {"color": "#2563eb", "width": 2},
+                "type": "scatter"
+            })
+            
+            # 移動平均（波線）
+            if 'MA20' in filtered_data.columns:
+                traces.append({
+                    "x": filtered_data.index.strftime("%Y-%m-%d").tolist(),
+                    "y": filtered_data['MA20'].tolist(),
+                    "mode": "lines",
+                    "name": "MA20",
+                    "line": {"color": "#f59e0b", "width": 1, "dash": "dash"},
+                    "type": "scatter"
+                })
+            
+            if 'MA75' in filtered_data.columns:
+                traces.append({
+                    "x": filtered_data.index.strftime("%Y-%m-%d").tolist(),
+                    "y": filtered_data['MA75'].tolist(),
+                    "mode": "lines",
+                    "name": "MA75",
+                    "line": {"color": "#10b981", "width": 1, "dash": "dash"},
+                    "type": "scatter"
+                })
+            
+            if 'MA200' in filtered_data.columns:
+                traces.append({
+                    "x": filtered_data.index.strftime("%Y-%m-%d").tolist(),
+                    "y": filtered_data['MA200'].tolist(),
+                    "mode": "lines",
+                    "name": "MA200",
+                    "line": {"color": "#ef4444", "width": 1, "dash": "dash"},
+                    "type": "scatter"
+                })
+            
+            # layoutを生成
+            layout = {
+                "title": self.title,
+                "xaxis": {"title": "日付"},
+                "yaxis": {"title": "株価"},
+                "hovermode": "x unified",
+                "height": 400,
+                "margin": {"l": 50, "r": 50, "t": 50, "b": 50},
+                "legend": {"orientation": "h", "yanchor": "bottom", "y": 1.02, "xanchor": "right", "x": 1}
+            }
+            
+            # Y軸のマージンを確保
+            y_min = filtered_data['Close'].min()
+            y_max = filtered_data['Close'].max()
+            y_range = y_max - y_min
+            layout["yaxis"]["range"] = [y_min - y_range * 0.1, y_max + y_range * 0.1]
+            
+            result[years] = {
+                "traces": traces,
+                "layout": layout
+            }
+        
+        return result
 

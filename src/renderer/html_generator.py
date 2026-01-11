@@ -89,22 +89,33 @@ class HTMLGenerator:
         heatmap_json = json.dumps(heatmap_data, ensure_ascii=False)
         heatmap_script = f'<script>window.heatmapData = {heatmap_json};</script>'
         
-        # チャートデータをJSON形式で埋め込み（期間切替用）
-        chart_data = {}
-        for chart_type in ["price", "rate", "cpi"]:
-            fact = facts.get(chart_type)
-            if fact and fact.get("is_valid"):
-                fact_data = fact.get("data")
-                if fact_data is not None and not fact_data.empty:
-                    # DataFrameをJSON形式に変換（日付と値のみ）
-                    chart_data[chart_type] = {
-                        "dates": fact_data.index.strftime("%Y-%m-%d").tolist(),
-                        "columns": fact_data.columns.tolist(),
-                        "values": fact_data.values.tolist()
-                    }
+        # 憲法準拠：複数期間チャートデータをJSON形式で埋め込み
+        multi_period_chart_data = page_data.get("chart_data", {})
+        chart_data_json = json.dumps(multi_period_chart_data, ensure_ascii=False, default=str)
+        chart_data_script = f'<script>window.multiPeriodChartData = {chart_data_json};</script>'
         
-        chart_data_json = json.dumps(chart_data, ensure_ascii=False, default=str)
-        chart_data_script = f'<script>window.chartData = {chart_data_json};</script>'
+        # 憲法準拠：初期表示用のPlotly.newPlot()スクリプトを生成
+        init_chart_script = '<script>'
+        init_chart_script += 'if (typeof Plotly !== "undefined" && window.multiPeriodChartData) {'
+        init_chart_script += '  const chartTypes = ["price", "rate", "cpi", "eps_per"];'
+        init_chart_script += '  const chartIds = {"price": "price-chart", "rate": "rate-chart", "cpi": "cpi-chart", "eps_per": "eps-per-chart"};'
+        init_chart_script += '  chartTypes.forEach(function(chartType) {'
+        init_chart_script += '    const chartData = window.multiPeriodChartData[chartType];'
+        init_chart_script += '    if (chartData) {'
+        init_chart_script += '      const periods = Object.keys(chartData).map(Number).sort((a, b) => a - b);'
+        init_chart_script += '      if (periods.length > 0) {'
+        init_chart_script += '        const firstPeriod = periods[0];'
+        init_chart_script += '        const periodData = chartData[firstPeriod];'
+        init_chart_script += '        const chartId = chartIds[chartType];'
+        init_chart_script += '        const chartDiv = document.getElementById(chartId);'
+        init_chart_script += '        if (chartDiv && periodData && periodData.traces && periodData.layout) {'
+        init_chart_script += '          Plotly.newPlot(chartId, periodData.traces, periodData.layout, {responsive: true});'
+        init_chart_script += '        }'
+        init_chart_script += '      }'
+        init_chart_script += '    }'
+        init_chart_script += '  });'
+        init_chart_script += '}'
+        init_chart_script += '</script>'
         
         # ベースHTML生成
         title = f"{market_name} - {timeframe_name}市場レポート"
@@ -118,7 +129,7 @@ class HTMLGenerator:
         )
         
         # スクリプトタグをbodyの最後に追加
-        html = html.replace('</body>', f'{heatmap_script}\n{chart_data_script}</body>')
+        html = html.replace('</body>', f'{heatmap_script}\n{chart_data_script}\n{init_chart_script}</body>')
         
         return html
     

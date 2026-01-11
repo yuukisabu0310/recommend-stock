@@ -1,6 +1,9 @@
 name: Market Report Generation & Deploy
 
 on:
+  push:
+    branches:
+      - main
   schedule:
     - cron: '0 23 * * *'
   workflow_dispatch:

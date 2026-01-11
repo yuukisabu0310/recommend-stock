@@ -49,6 +49,7 @@ class USShortPage(BasePage):
             "years": years,
             "switchable_years": switchable_years,
             "charts": {},
+            "chart_data": {},  # 憲法準拠：複数期間データ
             "interpretations": {},
             "facts": {}  # Factデータを保存（ヒートマップ・矢印用）
         }
@@ -70,8 +71,17 @@ class USShortPage(BasePage):
                 }
                 
                 price_chart = PriceChart(self.market_config.get("name", "米国"), price_index)
-                chart_fig = price_chart.create_chart(price_data, years, switchable_years)
-                result["charts"]["price"] = price_chart.to_html(chart_fig)
+                # 憲法準拠：複数期間データを生成
+                all_periods = sorted(set([years] + switchable_years))
+                multi_period_data = price_chart.create_multi_period_data(price_data, all_periods)
+                result["chart_data"]["price"] = multi_period_data
+                # 初期表示用のチャートHTML（最初の期間）
+                if multi_period_data:
+                    first_period = min(multi_period_data.keys())
+                    chart_fig = price_chart.create_chart(price_data, first_period, switchable_years)
+                    result["charts"]["price"] = price_chart.to_html(chart_fig, "price-chart")
+                else:
+                    result["charts"]["price"] = price_chart.to_html(None, "price-chart")
                 
                 price_interpretation = PriceInterpretation(price_fact)
                 result["interpretations"]["price"] = price_interpretation.generate_summary()
@@ -93,8 +103,17 @@ class USShortPage(BasePage):
             
             if not policy_data.empty or not long_rate_data.empty:
                 rate_chart = RateChart(self.market_config.get("name", "米国"))
-                chart_fig = rate_chart.create_chart(policy_data, long_rate_data, years)
-                result["charts"]["rate"] = rate_chart.to_html(chart_fig)
+                # 憲法準拠：複数期間データを生成
+                all_periods = sorted(set([years] + switchable_years))
+                multi_period_data = rate_chart.create_multi_period_data(policy_data, long_rate_data, all_periods)
+                result["chart_data"]["rate"] = multi_period_data
+                # 初期表示用のチャートHTML（最初の期間）
+                if multi_period_data:
+                    first_period = min(multi_period_data.keys())
+                    chart_fig = rate_chart.create_chart(policy_data, long_rate_data, first_period)
+                    result["charts"]["rate"] = rate_chart.to_html(chart_fig, "rate-chart")
+                else:
+                    result["charts"]["rate"] = rate_chart.to_html(None, "rate-chart")
                 
                 # 解釈（政策金利と長期金利の両方）
                 interpretations = []
@@ -145,8 +164,17 @@ class USShortPage(BasePage):
                 }
                 
                 cpi_chart = CPIChart(self.market_config.get("name", "米国"))
-                chart_fig = cpi_chart.create_chart(cpi_data, years)
-                result["charts"]["cpi"] = cpi_chart.to_html(chart_fig)
+                # 憲法準拠：複数期間データを生成
+                all_periods = sorted(set([years] + switchable_years))
+                multi_period_data = cpi_chart.create_multi_period_data(cpi_data, all_periods)
+                result["chart_data"]["cpi"] = multi_period_data
+                # 初期表示用のチャートHTML（最初の期間）
+                if multi_period_data:
+                    first_period = min(multi_period_data.keys())
+                    chart_fig = cpi_chart.create_chart(cpi_data, first_period)
+                    result["charts"]["cpi"] = cpi_chart.to_html(chart_fig, "cpi-chart")
+                else:
+                    result["charts"]["cpi"] = cpi_chart.to_html(None, "cpi-chart")
                 
                 cpi_interpretation = CPIIntepretation(cpi_fact)
                 result["interpretations"]["cpi"] = cpi_interpretation.generate_summary()
@@ -168,8 +196,12 @@ class USShortPage(BasePage):
                 eps_per_fact.load_data(eps_per_data)
                 
                 eps_per_chart = EPSPERChart(self.market_config.get("name", "米国"))
+                # 憲法準拠：複数期間データを生成（EPS/PERは20年固定）
+                multi_period_data = eps_per_chart.create_multi_period_data(eps_per_data)
+                result["chart_data"]["eps_per"] = multi_period_data
+                # 初期表示用のチャートHTML
                 chart_fig = eps_per_chart.create_chart(eps_per_data)
-                result["charts"]["eps_per"] = eps_per_chart.to_html(chart_fig)
+                result["charts"]["eps_per"] = eps_per_chart.to_html(chart_fig, "eps-per-chart")
                 
                 eps_per_interpretation = EPSPERInterpretation(eps_per_fact)
                 result["interpretations"]["eps_per"] = eps_per_interpretation.generate_summary()

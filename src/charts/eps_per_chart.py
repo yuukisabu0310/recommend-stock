@@ -5,7 +5,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Dict, Any, List
 from .base_chart import BaseChart
 
 
@@ -101,4 +101,83 @@ class EPSPERChart(BaseChart):
         
         self.fig = fig
         return fig
+    
+    def create_multi_period_data(self, data: pd.DataFrame, periods: List[int] = None) -> Dict[int, Dict[str, Any]]:
+        """
+        複数期間のチャートデータを生成（憲法準拠：EPS/PERは20年固定）
+        
+        Args:
+            data: EPS + PERデータ（EPS, PER）
+            periods: 期間のリスト（EPS/PERは無視され、20年固定）
+        
+        Returns:
+            Dict[int, Dict[str, Any]]: {20: {"traces": [...], "layout": {...}}}
+        """
+        result = {}
+        
+        if data is None or data.empty:
+            return result
+        
+        if 'EPS' not in data.columns or 'PER' not in data.columns:
+            return result
+        
+        # タイムゾーン情報を削除
+        data = data.copy()
+        if data.index.tz is not None:
+            data.index = data.index.tz_localize(None)
+        
+        # 20年前からフィルタリング
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=20 * 365)
+        filtered_data = data[(data.index >= start_date) & (data.index <= end_date)]
+        
+        if filtered_data.empty:
+            return result
+        
+        # tracesを生成（サブプロット用）
+        traces = [
+            {
+                "x": filtered_data.index.strftime("%Y-%m-%d").tolist(),
+                "y": filtered_data['EPS'].tolist(),
+                "mode": "lines+markers",
+                "name": "EPS",
+                "line": {"color": "#2563eb", "width": 2},
+                "marker": {"size": 4},
+                "type": "scatter",
+                "xaxis": "x",
+                "yaxis": "y"
+            },
+            {
+                "x": filtered_data.index.strftime("%Y-%m-%d").tolist(),
+                "y": filtered_data['PER'].tolist(),
+                "mode": "lines+markers",
+                "name": "PER",
+                "line": {"color": "#f59e0b", "width": 2},
+                "marker": {"size": 4},
+                "type": "scatter",
+                "xaxis": "x2",
+                "yaxis": "y2"
+            }
+        ]
+        
+        # layoutを生成（サブプロット用）
+        layout = {
+            "title": self.title,
+            "height": 600,
+            "hovermode": "x unified",
+            "margin": {"l": 50, "r": 50, "t": 50, "b": 50},
+            "showlegend": False,
+            "grid": {"rows": 2, "columns": 1, "pattern": "independent"},
+            "xaxis": {"title": "", "domain": [0, 1], "anchor": "y"},
+            "xaxis2": {"title": "日付", "domain": [0, 1], "anchor": "y2"},
+            "yaxis": {"title": "EPS", "domain": [0.55, 1]},
+            "yaxis2": {"title": "PER", "domain": [0, 0.45]}
+        }
+        
+        result[20] = {
+            "traces": traces,
+            "layout": layout
+        }
+        
+        return result
 
