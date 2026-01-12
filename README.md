@@ -14,7 +14,8 @@
 
 - **Python 3.11+**: データ取得・分析
 - **yfinance**: 株価データ取得（Yahoo Finance、無料）
-- **FRED API**: 米国・日本の経済指標取得（無料、APIキー必要）
+- **FRED API**: 米国の経済指標取得（無料、APIキー必要）
+- **e-Stat API**: 日本の経済指標取得（無料、APIキー必要）
 - **GitHub Actions**: 定期実行・自動デプロイ（将来実装）
 - **GitHub Pages**: HTML静的表示（将来実装）
 
@@ -31,13 +32,19 @@ pip install -r requirements.txt
 `.env` ファイルを作成して以下を設定：
 
 ```bash
-FRED_API_KEY=your_fred_api_key  # 必須（FRED APIキーを取得してください）
+FRED_API_KEY=your_fred_api_key  # 必須（米国データ取得用）
+ESTAT_API_KEY=your_estat_api_key  # 必須（日本データ取得用）
 ```
 
 **FRED APIキーの取得方法**:
 - [FRED API Key](https://fred.stlouisfed.org/docs/api/api_key.html) にアクセス
 - アカウントを作成（無料）
 - API Keys セクションでAPIキーを生成
+
+**e-Stat APIキーの取得方法**:
+- [e-Stat API](https://www.e-stat.go.jp/api/api-info/e-stat-manual) にアクセス
+- ユーザー登録（無料）
+- マイページからアプリケーションID（appId）を取得
 
 ### 3. データ取得
 
