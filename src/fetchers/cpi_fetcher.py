@@ -106,7 +106,6 @@ class CPIFetcher(BaseFetcher):
                 "metaGetFlg": "N",
                 "cntGetFlg": "N",
                 "cdCat01": "0001",  # 総合
-                "cdCat02": "01",     # 指数
                 "cdArea": "00000"    # 全国
             }
             
