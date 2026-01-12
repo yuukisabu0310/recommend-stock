@@ -35,16 +35,11 @@ class CPIFetcher(BaseFetcher):
             self.estat_api_key = os.getenv("ESTAT_API_KEY")
             if not self.estat_api_key:
                 raise RuntimeError("ESTAT_API_KEYが設定されていません（GitHub Secretsを確認してください）")
-            # 消費者物価指数（全国）の統計表ID
-            # 統計表IDはe-Statサイトで「消費者物価指数」を検索して取得
-            # 一般的な統計表ID:
-            # - 0003410379: 消費者物価指数（全国・総合）
-            # - 0003410380: 消費者物価指数（全国・総合・前年同月比）
-            # 実際の統計表IDはe-Statサイトで確認してください
-            # e-Statサイト: https://www.e-stat.go.jp/stat-search/files?page=1&toukei=00200573
-            # 暫定的に一般的なIDを設定（実際のAPIレスポンスに合わせて調整が必要）
-            # 注意: 実際のAPIレスポンス構造を確認し、パース処理を調整してください
-            self.estat_stats_data_id = "0003410379"  # 消費者物価指数（全国・総合）
+            # 消費者物価指数（全国・総合）の統計表ID
+            # 2020年基準の消費者物価指数（全国・総合指数）の統計表ID
+            # e-Statサイト: https://www.e-stat.go.jp/api/info-cat/news/cpi-info202107
+            # 統計表ID: 0003427113（2020年基準）
+            self.estat_stats_data_id = "0003427113"
         else:
             raise ValueError(f"サポートされていない市場コード: {market_code}")
     
@@ -126,36 +121,53 @@ class CPIFetcher(BaseFetcher):
             # データをパース（e-Stat APIのレスポンス構造に応じて調整が必要）
             stats_data = data_json.get("GET_STATS_DATA", {}).get("STATISTICAL_DATA", {})
             
+            # 統計表情報を確認（デバッグ用）
+            table_inf = stats_data.get("TABLE_INF", {})
+            stat_name = table_inf.get("STAT_NAME", {})
+            if isinstance(stat_name, dict):
+                stat_name_value = stat_name.get("$", "")
+                if "国勢調査" in stat_name_value or "人口" in stat_name_value:
+                    print(f"警告: 統計表ID {self.estat_stats_data_id} は国勢調査データです。正しいCPI統計表IDを設定してください。")
+                    return pd.DataFrame()
+            
             # データポイントを抽出
             data_points = []
-            
-            # e-Stat APIのレスポンス構造は統計表によって異なるため、
-            # 実際のレスポンス構造に合わせて調整が必要
-            # 一般的な構造例:
-            # - CLASS_INF: 分類情報
-            # - DATA_INF: データ情報（VALUE配列）
-            # デバッグ用: レスポンス構造を確認
-            if not stats_data:
-                print("デバッグ: e-Stat APIレスポンスが空です")
-            else:
-                print(f"デバッグ: e-Stat APIレスポンス構造のキー: {list(stats_data.keys())}")
             
             if "DATA_INF" in stats_data:
                 data_inf = stats_data["DATA_INF"]
                 # VALUEが配列の場合
                 if isinstance(data_inf.get("VALUE"), list):
                     for value_info in data_inf["VALUE"]:
-                        # 日付と値を取得（実際のJSON構造に応じて調整が必要）
-                        # 例: {"@time": "202401", "@value": "105.5"}
+                        # 日付と値を取得
+                        # 月次データの場合: @time は "YYYYMM" 形式
+                        # 年次データの場合: @time は "YYYY000000" 形式
                         date_str = value_info.get("@time", "") or value_info.get("time", "")
                         value_str = value_info.get("@value", "") or value_info.get("value", "")
                         
+                        # 分類項目コードを確認（総合指数を取得）
+                        # @cat01: 品目分類（総合指数は特定のコード）
+                        # @area: 地域コード（全国は "00000"）
+                        cat01 = value_info.get("@cat01", "")
+                        area = value_info.get("@area", "")
+                        
+                        # デバッグ: 最初の数件のデータ構造を確認
+                        if len(data_points) < 3:
+                            print(f"デバッグ: データ構造 - @time: {date_str}, @value: {value_str}, @cat01: {cat01}, @area: {area}")
+                        
                         if date_str and value_str:
                             try:
-                                # 日付をdatetimeに変換（YYYYMM形式）
-                                date = datetime.strptime(date_str, "%Y%m")
-                                value = float(value_str)
-                                data_points.append({"date": date, "CPI": value})
+                                # 年次データ（YYYY000000形式）をスキップ
+                                if len(date_str) == 10 and date_str.endswith("000000"):
+                                    continue
+                                
+                                # 月次データ（YYYYMM形式）を処理
+                                if len(date_str) == 6:
+                                    date = datetime.strptime(date_str, "%Y%m")
+                                    value = float(value_str)
+                                    # 総合指数を取得（cat01が空または特定の値の場合）
+                                    # 地域は全国（area == "00000"）のみ
+                                    if not area or area == "00000":
+                                        data_points.append({"date": date, "CPI": value})
                             except (ValueError, TypeError) as e:
                                 continue
                 # VALUEが単一オブジェクトの場合
@@ -166,9 +178,13 @@ class CPIFetcher(BaseFetcher):
                     
                     if date_str and value_str:
                         try:
-                            date = datetime.strptime(date_str, "%Y%m")
-                            value = float(value_str)
-                            data_points.append({"date": date, "CPI": value})
+                            # 年次データをスキップ
+                            if len(date_str) == 10 and date_str.endswith("000000"):
+                                pass
+                            elif len(date_str) == 6:
+                                date = datetime.strptime(date_str, "%Y%m")
+                                value = float(value_str)
+                                data_points.append({"date": date, "CPI": value})
                         except (ValueError, TypeError) as e:
                             pass
             
@@ -182,15 +198,19 @@ class CPIFetcher(BaseFetcher):
                         
                         if date_str and value_str:
                             try:
-                                date = datetime.strptime(date_str, "%Y%m")
-                                value = float(value_str)
-                                data_points.append({"date": date, "CPI": value})
+                                # 年次データをスキップ
+                                if len(date_str) == 10 and date_str.endswith("000000"):
+                                    continue
+                                elif len(date_str) == 6:
+                                    date = datetime.strptime(date_str, "%Y%m")
+                                    value = float(value_str)
+                                    data_points.append({"date": date, "CPI": value})
                             except (ValueError, TypeError) as e:
                                 continue
             
             if not data_points:
-                print("e-Stat APIから有効なデータを取得できませんでした")
-                print(f"デバッグ: レスポンス構造の詳細: {data_json}")
+                print("e-Stat APIから有効なCPIデータを取得できませんでした")
+                print(f"デバッグ: 統計表名: {stat_name}")
                 return pd.DataFrame()
             
             # DataFrameに変換
