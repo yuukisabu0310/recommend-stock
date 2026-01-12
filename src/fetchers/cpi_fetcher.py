@@ -98,13 +98,16 @@ class CPIFetcher(BaseFetcher):
             # e-Stat APIのエンドポイント
             url = "https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData"
             
-            # パラメータ設定
+            # パラメータ設定（API側でフィルタリング）
             params = {
                 "appId": self.estat_api_key,
                 "statsDataId": self.estat_stats_data_id,
                 "lang": "J",
                 "metaGetFlg": "N",
-                "cntGetFlg": "N"
+                "cntGetFlg": "N",
+                "cdCat01": "0001",  # 総合
+                "cdCat02": "01",     # 指数
+                "cdArea": "00000"    # 全国
             }
             
             # データ取得
@@ -144,16 +147,6 @@ class CPIFetcher(BaseFetcher):
                         date_str = value_info.get("@time", "") or value_info.get("time", "")
                         value_str = value_info.get("@value", "") or value_info.get("value", "")
                         
-                        # 分類項目コードを確認（総合指数を取得）
-                        # @cat01: 品目分類（総合指数は特定のコード）
-                        # @area: 地域コード（全国は "00000"）
-                        cat01 = value_info.get("@cat01", "")
-                        area = value_info.get("@area", "")
-                        
-                        # デバッグ: 最初の数件のデータ構造を確認
-                        if len(data_points) < 3:
-                            print(f"デバッグ: データ構造 - @time: {date_str}, @value: {value_str}, @cat01: {cat01}, @area: {area}")
-                        
                         if date_str and value_str:
                             try:
                                 # 年次データ（YYYY000000形式）をスキップ
@@ -161,13 +154,11 @@ class CPIFetcher(BaseFetcher):
                                     continue
                                 
                                 # 月次データ（YYYYMM形式）を処理
+                                # API側でフィルタリング済みのため、すべてのデータを取得
                                 if len(date_str) == 6:
                                     date = datetime.strptime(date_str, "%Y%m")
                                     value = float(value_str)
-                                    # 総合指数を取得（cat01が空または特定の値の場合）
-                                    # 地域は全国（area == "00000"）のみ
-                                    if not area or area == "00000":
-                                        data_points.append({"date": date, "CPI": value})
+                                    data_points.append({"date": date, "CPI": value})
                             except (ValueError, TypeError) as e:
                                 continue
                 # VALUEが単一オブジェクトの場合
@@ -218,11 +209,8 @@ class CPIFetcher(BaseFetcher):
             df.set_index("date", inplace=True)
             df.sort_index(inplace=True)
             
-            # 期間でフィルタリング
-            if start_date:
-                df = df[df.index >= start_date]
-            if end_date:
-                df = df[df.index <= end_date]
+            # API側でフィルタリング済みのため、ローカル側でのフィルタリングは行わない
+            # （start_date, end_dateは使用しない）
             
             if df.empty:
                 return pd.DataFrame()

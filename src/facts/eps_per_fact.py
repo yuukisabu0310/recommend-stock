@@ -24,11 +24,15 @@ class EPSPERFact(BaseFact):
             self.is_valid = False
             return False
         
-        # 必須カラムのチェック
-        required_columns = ['EPS', 'PER']
-        if not all(col in df.columns for col in required_columns):
+        # 必須カラムのチェック（USの場合はPERのみ、JPの場合はEPSとPER）
+        # USの場合はEPSがNoneでもOK
+        if 'PER' not in df.columns:
             self.is_valid = False
             return False
+        # JPの場合はEPSも必要
+        if 'EPS' not in df.columns:
+            # USの場合、EPSがNoneでもOK
+            pass
         
         # データ検証
         validator = DataValidator()
