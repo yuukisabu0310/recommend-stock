@@ -24,17 +24,17 @@ class CPIFetcher(BaseFetcher):
         super().__init__(market_code)
         
         if market_code == "US":
-            # FRED APIキーの取得（環境変数または直接指定）
-            api_key = os.getenv("FRED_API_KEY", "812d0bbe6c3dbedf34d7ea5aa7f401fc")
+            # FRED APIキーの取得（環境変数から取得）
+            api_key = os.getenv("FRED_API_KEY")
             if not api_key:
-                raise ValueError("FRED_API_KEY環境変数が設定されていません")
+                raise RuntimeError("FRED_API_KEYが設定されていません（GitHub Secretsを確認してください）")
             self.fred = Fred(api_key=api_key)
             self.series_id = "CPIAUCSL"  # Consumer Price Index for All Urban Consumers: All Items
         elif market_code == "JP":
-            # e-Stat APIキーの取得
+            # e-Stat APIキーの取得（環境変数から取得）
             self.estat_api_key = os.getenv("ESTAT_API_KEY")
             if not self.estat_api_key:
-                print("警告: ESTAT_API_KEY環境変数が設定されていません")
+                raise RuntimeError("ESTAT_API_KEYが設定されていません（GitHub Secretsを確認してください）")
             # 消費者物価指数（全国）の統計表ID
             # 統計表IDはe-Statサイトで「消費者物価指数」を検索して取得
             # 一般的な統計表ID:
@@ -96,9 +96,9 @@ class CPIFetcher(BaseFetcher):
             DataFrame: CPIデータ（CPI, CPI_YoY）
         """
         try:
+            # APIキーは初期化時にチェック済みだが、念のため再確認
             if not self.estat_api_key:
-                print("e-Stat APIキーが設定されていません")
-                return pd.DataFrame()
+                raise RuntimeError("ESTAT_API_KEYが設定されていません")
             
             # e-Stat APIのエンドポイント
             url = "https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData"

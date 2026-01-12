@@ -28,6 +28,7 @@ jobs:
 
       - env:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          ESTAT_API_KEY: ${{ secrets.ESTAT_API_KEY }}
         run: |
           python scripts/fetch_all.py
           python scripts/build_pages.py

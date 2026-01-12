@@ -24,10 +24,10 @@ class RateFetcher(BaseFetcher):
         super().__init__(market_code)
         self.rate_type = rate_type
         
-        # FRED APIキーの取得（環境変数または直接指定）
-        api_key = os.getenv("FRED_API_KEY", "812d0bbe6c3dbedf34d7ea5aa7f401fc")
+        # FRED APIキーの取得（環境変数から取得）
+        api_key = os.getenv("FRED_API_KEY")
         if not api_key:
-            raise ValueError("FRED_API_KEY環境変数が設定されていません")
+            raise RuntimeError("FRED_API_KEYが設定されていません（GitHub Secretsを確認してください）")
         
         self.fred = Fred(api_key=api_key)
         
