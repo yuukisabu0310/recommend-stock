@@ -40,92 +40,10 @@ class CPIFetcher(BaseFetcher):
             # e-Statサイト: https://www.e-stat.go.jp/api/info-cat/news/cpi-info202107
             # 統計表ID: 0003427113（2020年基準）
             self.estat_stats_data_id = "0003427113"
-            # cat02コード（指数）を取得（初期化時に取得）
-            self.estat_cat02_code = self._get_cat02_code_for_index()
+            # cat02コード（指数）を固定値で指定（TradingView完全一致版）
+            self.estat_cat02_code = "1"  # 指数（固定値）
         else:
             raise ValueError(f"サポートされていない市場コード: {market_code}")
-    
-    def _get_cat02_code_for_index(self) -> Optional[str]:
-        """
-        getMetaInfo APIを使用して、statsDataId=0003427113のcat02定義を取得し、
-        「指数」に該当するcat02コードを特定する
-        
-        Returns:
-            str: 指数に該当するcat02コード（見つからない場合はNone）
-        """
-        try:
-            if not self.estat_api_key:
-                return None
-            
-            # getMetaInfo APIのエンドポイント
-            url = "https://api.e-stat.go.jp/rest/3.0/app/json/getMetaInfo"
-            
-            # パラメータ設定
-            params = {
-                "appId": self.estat_api_key,
-                "statsDataId": self.estat_stats_data_id,
-                "lang": "J"
-            }
-            
-            # メタ情報取得
-            response = requests.get(url, params=params, timeout=30)
-            response.raise_for_status()
-            
-            meta_json = response.json()
-            
-            # フルパスでアクセス
-            meta_data = meta_json.get("GET_META_INFO", {})
-            if not meta_data:
-                print("e-Stat getMetaInfo APIからメタ情報を取得できませんでした")
-                return None
-            
-            class_obj = meta_data.get("METADATA_INF", {}).get("CLASS_INF", {})
-            if not class_obj:
-                print("e-Stat getMetaInfo APIにCLASS_INFがありません")
-                return None
-            
-            # CLASS_OBJを取得（配列または辞書）
-            class_objs = class_obj.get("CLASS_OBJ", [])
-            if not isinstance(class_objs, list):
-                if isinstance(class_objs, dict):
-                    class_objs = [class_objs]
-                else:
-                    print("e-Stat getMetaInfo APIにCLASS_OBJがありません")
-                    return None
-            
-            # cat02（時系列分類）を探す
-            for class_item in class_objs:
-                class_id = class_item.get("@id", "")
-                if class_id == "cat02":
-                    # CLASS内のITEMを確認
-                    items = class_item.get("CLASS", {}).get("ITEM", [])
-                    if not isinstance(items, list):
-                        if isinstance(items, dict):
-                            items = [items]
-                        else:
-                            continue
-                    
-                    # 「指数」に該当するITEMを探す
-                    for item in items:
-                        item_code = item.get("@code", "")
-                        item_name = item.get("@name", "")
-                        item_name_alt = item.get("$", "")
-                        
-                        # 「指数」を含む名前を探す
-                        name_to_check = item_name or item_name_alt or ""
-                        if "指数" in name_to_check:
-                            print(f"e-Stat cat02コード（指数）を特定: {item_code} ({name_to_check})")
-                            return item_code
-            
-            print("e-Stat getMetaInfo APIから「指数」に該当するcat02コードが見つかりませんでした")
-            return None
-            
-        except requests.exceptions.RequestException as e:
-            print(f"e-Stat getMetaInfo APIリクエストエラー: {e}")
-            return None
-        except Exception as e:
-            print(f"e-Stat getMetaInfo API取得エラー: {e}")
-            return None
     
     def _fetch_from_fred(self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> pd.DataFrame:
         """
@@ -182,21 +100,16 @@ class CPIFetcher(BaseFetcher):
             # e-Stat APIのエンドポイント
             url = "https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData"
             
-            # cat02コードが取得できていない場合はエラー
-            if not self.estat_cat02_code:
-                print("エラー: cat02コード（指数）が取得できていません。getMetaInfo APIを確認してください。")
-                return pd.DataFrame()
-            
-            # パラメータ設定（API側でフィルタリング）
+            # パラメータ設定（API側でフィルタリング、TradingView完全一致版）
             params = {
                 "appId": self.estat_api_key,
-                "statsDataId": self.estat_stats_data_id,
+                "statsDataId": "0003427113",
                 "lang": "J",
                 "metaGetFlg": "N",
                 "cntGetFlg": "N",
-                "cdCat01": "0001",        # 総合
-                "cdCat02": self.estat_cat02_code,  # 指数（getMetaInfoから取得）
-                "cdArea": "00000"          # 全国
+                "cdCat01": "0001",   # 総合
+                "cdCat02": "1",      # 指数（固定値、TradingView完全一致）
+                "cdArea": "00000"    # 全国
             }
             
             # データ取得
@@ -303,8 +216,8 @@ class CPIFetcher(BaseFetcher):
             # API側でフィルタリング済みのため、ローカル側でのフィルタリングは行わない
             # （start_date, end_dateは使用しない）
             
-            # 前年比（YoY）を計算（12ヶ月差分で算出）
-            df['CPI_YoY'] = df['CPI'].pct_change(periods=12, fill_method=None) * 100
+            # 前年比（YoY）を計算（指数から12ヶ月差分で算出、TradingView完全一致）
+            df['CPI_YoY'] = df['CPI'].pct_change(12) * 100
             
             return df
             
