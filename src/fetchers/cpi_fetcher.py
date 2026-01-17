@@ -41,7 +41,7 @@ class CPIFetcher(BaseFetcher):
             # 統計表ID: 0003427113（2020年基準）
             self.estat_stats_data_id = "0003427113"
             # cat02コード（指数）を固定値で指定（TradingView完全一致版）
-            self.estat_cat02_code = "1"  # 指数（固定値）
+            self.estat_cat02_code = "01"  # 指数（2020年基準、固定値）
         else:
             raise ValueError(f"サポートされていない市場コード: {market_code}")
     
@@ -101,15 +101,20 @@ class CPIFetcher(BaseFetcher):
             url = "https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData"
             
             # パラメータ設定（API側でフィルタリング、TradingView完全一致版）
+            stats_id = "0003427113"
+            cat01 = "0001"   # 総合
+            cat02 = "01"     # 指数（2020年基準、固定値）
+            area = "00000"   # 全国
+            
             params = {
                 "appId": self.estat_api_key,
-                "statsDataId": "0003427113",
+                "statsDataId": stats_id,
                 "lang": "J",
                 "metaGetFlg": "N",
                 "cntGetFlg": "N",
-                "cdCat01": "0001",   # 総合
-                "cdCat02": "1",      # 指数（固定値、TradingView完全一致）
-                "cdArea": "00000"    # 全国
+                "cdCat01": cat01,
+                "cdCat02": cat02,
+                "cdArea": area
             }
             
             # データ取得
@@ -198,10 +203,10 @@ class CPIFetcher(BaseFetcher):
                         print(f"デバッグ: VALUEパースエラー - date_str: {date_str}, value_str: {value_str}, エラー: {e}")
             
             if not data_points:
-                print("e-Stat APIから有効なCPIデータを取得できませんでした")
                 stat_name_value = ""
                 if isinstance(stat_name, dict):
                     stat_name_value = stat_name.get("$", "")
+                print(f"e-Stat CPI取得失敗: statsDataId={stats_id}, cat01={cat01}, cat02={cat02}, area={area}")
                 print(f"デバッグ: 統計表名: {stat_name_value}, 取得データポイント数: 0")
                 return pd.DataFrame()
             
