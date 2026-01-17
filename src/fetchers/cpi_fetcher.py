@@ -100,18 +100,13 @@ class CPIFetcher(BaseFetcher):
             # e-Stat APIのエンドポイント
             url = "https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData"
             
-            # パラメータ設定（API側でフィルタリング、TradingView完全一致版）
+            # パラメータ設定（最小構成、時間指定パラメータは一切使用しない）
+            # statsDataId=0003427113は時間指定パラメータを受け付けないため、
+            # 全データを取得してPython側で直近10年分にフィルタリングする
             stats_id = "0003427113"
             cat01 = "0001"   # 総合
             cat02 = "1"      # 指数（2020年基準、固定値、ゼロ埋め禁止）
             area = "00000"   # 全国
-            
-            # 直近10年間の期間を計算（固定ルール）
-            # timeFrom: (現在年 - 10) + 01
-            # timeTo: 現在年月
-            now = datetime.now()
-            time_to = now.strftime("%Y%m")
-            time_from = f"{now.year - 10}01"
             
             params = {
                 "appId": self.estat_api_key,
@@ -121,9 +116,8 @@ class CPIFetcher(BaseFetcher):
                 "cntGetFlg": "N",
                 "cdCat01": cat01,
                 "cdCat02": cat02,
-                "cdArea": area,
-                "timeFrom": time_from,  # 必須：未指定だとVALUEが空になる（cdTimeFromは使用不可）
-                "timeTo": time_to       # 必須：未指定だとVALUEが空になる（cdTimeToは使用不可）
+                "cdArea": area
+                # ⚠ time / timeFrom / timeTo / cdTime は一切指定しない
             }
             
             # データ取得
@@ -215,7 +209,7 @@ class CPIFetcher(BaseFetcher):
                 stat_name_value = ""
                 if isinstance(stat_name, dict):
                     stat_name_value = stat_name.get("$", "")
-                print(f"e-Stat CPI取得失敗: statsDataId={stats_id}, cat01={cat01}, cat02={cat02}, area={area}, timeFrom={time_from}, timeTo={time_to}")
+                print(f"e-Stat CPI取得失敗: statsDataId={stats_id}, cat01={cat01}, cat02={cat02}, area={area}")
                 print(f"デバッグ: 統計表名: {stat_name_value}, 取得データポイント数: 0")
                 return pd.DataFrame()
             
@@ -227,9 +221,14 @@ class CPIFetcher(BaseFetcher):
             df.set_index("date", inplace=True)
             df.sort_index(inplace=True)  # 昇順ソート
             
-            # API側でcdTimeFrom/cdTimeToにより期間を確定済みのため、
-            # ローカル側でのstart_date/end_dateによるフィルタリングは禁止
-            # （直近10年間の月次データのみを取得する仕様）
+            # Python側で直近10年分にフィルタリング（APIは時間指定パラメータを受け付けない）
+            now = datetime.now()
+            ten_years_ago = now - pd.DateOffset(years=10)
+            df = df[df.index >= ten_years_ago]
+            
+            if df.empty:
+                print(f"警告: 直近10年分のデータが取得できませんでした")
+                return pd.DataFrame()
             
             # データ件数確認（直近10年 = 約120件の月次データ）
             if len(df) < 100:
