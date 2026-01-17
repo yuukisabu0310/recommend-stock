@@ -83,11 +83,11 @@ class CPIFetcher(BaseFetcher):
     
     def _fetch_from_estat(self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> pd.DataFrame:
         """
-        e-Stat APIからCPIデータを取得
+        e-Stat APIからCPIデータを取得（直近10年間の月次データのみ）
         
         Args:
-            start_date: 開始日
-            end_date: 終了日
+            start_date: 開始日（JPの場合は無視、API側で直近10年を自動計算）
+            end_date: 終了日（JPの場合は無視、API側で直近10年を自動計算）
         
         Returns:
             DataFrame: CPIデータ（CPI, CPI_YoY）
@@ -106,6 +106,13 @@ class CPIFetcher(BaseFetcher):
             cat02 = "01"     # 指数（2020年基準、固定値）
             area = "00000"   # 全国
             
+            # 直近10年間の期間を計算（固定ルール）
+            # cdTimeFrom: (現在年 - 10) + 01
+            # cdTimeTo: 現在年月
+            now = datetime.now()
+            cd_time_to = now.strftime("%Y%m")
+            cd_time_from = f"{now.year - 10}01"
+            
             params = {
                 "appId": self.estat_api_key,
                 "statsDataId": stats_id,
@@ -114,7 +121,9 @@ class CPIFetcher(BaseFetcher):
                 "cntGetFlg": "N",
                 "cdCat01": cat01,
                 "cdCat02": cat02,
-                "cdArea": area
+                "cdArea": area,
+                "cdTimeFrom": cd_time_from,  # 必須：未指定だとVALUEが空になる
+                "cdTimeTo": cd_time_to       # 必須：未指定だとVALUEが空になる
             }
             
             # データ取得
@@ -206,7 +215,7 @@ class CPIFetcher(BaseFetcher):
                 stat_name_value = ""
                 if isinstance(stat_name, dict):
                     stat_name_value = stat_name.get("$", "")
-                print(f"e-Stat CPI取得失敗: statsDataId={stats_id}, cat01={cat01}, cat02={cat02}, area={area}")
+                print(f"e-Stat CPI取得失敗: statsDataId={stats_id}, cat01={cat01}, cat02={cat02}, area={area}, cdTimeFrom={cd_time_from}, cdTimeTo={cd_time_to}")
                 print(f"デバッグ: 統計表名: {stat_name_value}, 取得データポイント数: 0")
                 return pd.DataFrame()
             
@@ -218,8 +227,13 @@ class CPIFetcher(BaseFetcher):
             df.set_index("date", inplace=True)
             df.sort_index(inplace=True)  # 昇順ソート
             
-            # API側でフィルタリング済みのため、ローカル側でのフィルタリングは行わない
-            # （start_date, end_dateは使用しない）
+            # API側でcdTimeFrom/cdTimeToにより期間を確定済みのため、
+            # ローカル側でのstart_date/end_dateによるフィルタリングは禁止
+            # （直近10年間の月次データのみを取得する仕様）
+            
+            # データ件数確認（直近10年 = 約120件の月次データ）
+            if len(df) < 100:
+                print(f"警告: 取得データ件数が少ないです（{len(df)}件）。期待値: 約120件（10年×12ヶ月）")
             
             # 前年比（YoY）を計算（指数から12ヶ月差分で算出、TradingView完全一致）
             df['CPI_YoY'] = df['CPI'].pct_change(12) * 100
@@ -238,8 +252,8 @@ class CPIFetcher(BaseFetcher):
         CPIデータを取得し、前年比（YoY）を計算
         
         Args:
-            start_date: 開始日
-            end_date: 終了日
+            start_date: 開始日（USのみ有効、JPの場合は無視して直近10年を自動取得）
+            end_date: 終了日（USのみ有効、JPの場合は無視して直近10年を自動取得）
         
         Returns:
             DataFrame: CPI前年比データ
@@ -251,7 +265,8 @@ class CPIFetcher(BaseFetcher):
             if self.market_code == "US":
                 df = self._fetch_from_fred(start_date, end_date)
             elif self.market_code == "JP":
-                df = self._fetch_from_estat(start_date, end_date)
+                # JPの場合はstart_date/end_dateを無視し、API側で直近10年を自動計算
+                df = self._fetch_from_estat(start_date=None, end_date=None)
             else:
                 print(f"サポートされていない市場コード: {self.market_code}")
                 return pd.DataFrame()
