@@ -40,8 +40,6 @@ class CPIFetcher(BaseFetcher):
             # e-Statサイト: https://www.e-stat.go.jp/api/info-cat/news/cpi-info202107
             # 統計表ID: 0003427113（2020年基準）
             self.estat_stats_data_id = "0003427113"
-            # cat02コード（指数）を固定値で指定（TradingView完全一致版）
-            self.estat_cat02_code = "1"  # 指数（2020年基準、固定値、ゼロ埋め禁止）
         else:
             raise ValueError(f"サポートされていない市場コード: {market_code}")
     
@@ -84,28 +82,20 @@ class CPIFetcher(BaseFetcher):
     def _fetch_from_estat(self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> pd.DataFrame:
         """
         e-Stat APIからCPIデータを取得（直近10年間の月次データのみ）
-        
-        Args:
-            start_date: 開始日（JPの場合は無視、API側で直近10年を自動計算）
-            end_date: 終了日（JPの場合は無視、API側で直近10年を自動計算）
-        
-        Returns:
-            DataFrame: CPIデータ（CPI, CPI_YoY）
         """
         try:
-            # APIキーは初期化時にチェック済みだが、念のため再確認
             if not self.estat_api_key:
                 raise RuntimeError("ESTAT_API_KEYが設定されていません")
             
-            # e-Stat APIのエンドポイント
             url = "https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData"
             
-            # パラメータ設定（最小構成、時間指定パラメータは一切使用しない）
-            # statsDataId=0003427113は時間指定パラメータを受け付けないため、
-            # 全データを取得してPython側で直近10年分にフィルタリングする
+            # statsDataId=0003427113 (2020年基準 消費者物価指数) の構造:
+            # - cat01: 品目 (0001 = 総合)
+            # - area: 地域 (00000 = 全国)
+            # - cat02: 存在しないため指定してはいけない (指定すると0件になる)
+            
             stats_id = "0003427113"
             cat01 = "0001"   # 総合
-            cat02 = "1"      # 指数（2020年基準、固定値、ゼロ埋め禁止）
             area = "00000"   # 全国
             
             params = {
@@ -115,9 +105,8 @@ class CPIFetcher(BaseFetcher):
                 "metaGetFlg": "N",
                 "cntGetFlg": "N",
                 "cdCat01": cat01,
-                "cdCat02": cat02,
                 "cdArea": area
-                # ⚠ time / timeFrom / timeTo / cdTime は一切指定しない
+                # "cdCat02": ...  <-- 削除！このテーブルにはcat02は存在しません
             }
             
             # データ取得
@@ -126,122 +115,63 @@ class CPIFetcher(BaseFetcher):
             
             data_json = response.json()
             
-            # フルパスでアクセス（必須修正点①）
             get_stats_data = data_json.get("GET_STATS_DATA", {})
             if not get_stats_data:
-                print("e-Stat APIからGET_STATS_DATAを取得できませんでした")
+                print(f"APIレスポンスエラー: {data_json}")  # エラー詳細を見るために出力変更
                 return pd.DataFrame()
-            
+
             statistical_data = get_stats_data.get("STATISTICAL_DATA", {})
-            if not statistical_data:
-                print("e-Stat APIからSTATISTICAL_DATAを取得できませんでした")
-                return pd.DataFrame()
-            
-            # 統計表情報を確認（デバッグ用）
-            table_inf = statistical_data.get("TABLE_INF", {})
-            stat_name = table_inf.get("STAT_NAME", {})
-            if isinstance(stat_name, dict):
-                stat_name_value = stat_name.get("$", "")
-                if "国勢調査" in stat_name_value or "人口" in stat_name_value:
-                    print(f"警告: 統計表ID {self.estat_stats_data_id} は国勢調査データです。正しいCPI統計表IDを設定してください。")
-                    return pd.DataFrame()
-            
-            # データポイントを抽出（フルパスでアクセス）
-            data_points = []
             data_inf = statistical_data.get("DATA_INF", {})
-            if not data_inf:
-                print("e-Stat APIからDATA_INFを取得できませんでした")
-                return pd.DataFrame()
-            
             value_list = data_inf.get("VALUE")
+            
             if not value_list:
-                print("e-Stat APIからVALUEを取得できませんでした")
+                # ここで引っかかる場合、paramsがまだ間違っている可能性があります
+                print("データが取得できませんでした (VALUEなし)")
                 return pd.DataFrame()
+
+            data_points = []
             
-            # VALUEが配列の場合
-            if isinstance(value_list, list):
-                for value_info in value_list:
-                    # 必須修正点③：VALUEパース処理の強化
-                    # time取得順序: @time → time
-                    date_str = value_info.get("@time") or value_info.get("time")
-                    
-                    # value取得順序: @value → value → $
-                    value_str = value_info.get("@value") or value_info.get("value") or value_info.get("$")
-                    
-                    if date_str and value_str:
-                        try:
-                            # 年次データ（YYYY000000形式）をスキップ
-                            if len(date_str) == 10 and date_str.endswith("000000"):
-                                continue
-                            
-                            # 月次データ（YYYYMM形式）を処理
-                            if len(date_str) == 6:
-                                # 月初日として設定
-                                date = datetime.strptime(date_str, "%Y%m")
-                                value = float(value_str)
-                                data_points.append({"date": date, "CPI": value})
-                        except (ValueError, TypeError) as e:
-                            # デバッグログを残す
-                            print(f"デバッグ: VALUEパースエラー - date_str: {date_str}, value_str: {value_str}, エラー: {e}")
-                            continue
-            
-            # VALUEが単一オブジェクトの場合
-            elif isinstance(value_list, dict):
-                value_info = value_list
-                # 必須修正点③：VALUEパース処理の強化
+            # リストか辞書かで分岐する処理 (既存コードのロジックを使用)
+            # 正規化してリストとして扱うとコードが短くなります
+            if isinstance(value_list, dict):
+                value_list = [value_list]
+                
+            for value_info in value_list:
                 date_str = value_info.get("@time") or value_info.get("time")
                 value_str = value_info.get("@value") or value_info.get("value") or value_info.get("$")
                 
                 if date_str and value_str:
                     try:
-                        # 年次データをスキップ
+                        # 年次データ(YYYY000000)を除外
                         if len(date_str) == 10 and date_str.endswith("000000"):
-                            pass
-                        elif len(date_str) == 6:
+                            continue
+                            
+                        # 月次データ(YYYYMM)のみ処理
+                        if len(date_str) == 6:
                             date = datetime.strptime(date_str, "%Y%m")
                             value = float(value_str)
                             data_points.append({"date": date, "CPI": value})
-                    except (ValueError, TypeError) as e:
-                        # デバッグログを残す
-                        print(f"デバッグ: VALUEパースエラー - date_str: {date_str}, value_str: {value_str}, エラー: {e}")
-            
+                    except Exception:
+                        continue
+
             if not data_points:
-                stat_name_value = ""
-                if isinstance(stat_name, dict):
-                    stat_name_value = stat_name.get("$", "")
-                print(f"e-Stat CPI取得失敗: statsDataId={stats_id}, cat01={cat01}, cat02={cat02}, area={area}")
-                print(f"デバッグ: 統計表名: {stat_name_value}, 取得データポイント数: 0")
+                print("有効なデータポイントが見つかりませんでした")
                 return pd.DataFrame()
-            
-            # DataFrameに変換
+
             df = pd.DataFrame(data_points)
-            if df.empty:
-                return pd.DataFrame()
-            
             df.set_index("date", inplace=True)
-            df.sort_index(inplace=True)  # 昇順ソート
+            df.sort_index(inplace=True)
             
-            # Python側で直近10年分にフィルタリング（APIは時間指定パラメータを受け付けない）
+            # 直近10年フィルタ
             now = datetime.now()
             ten_years_ago = now - pd.DateOffset(years=10)
             df = df[df.index >= ten_years_ago]
             
-            if df.empty:
-                print(f"警告: 直近10年分のデータが取得できませんでした")
-                return pd.DataFrame()
-            
-            # データ件数確認（直近10年 = 約120件の月次データ）
-            if len(df) < 100:
-                print(f"警告: 取得データ件数が少ないです（{len(df)}件）。期待値: 約120件（10年×12ヶ月）")
-            
-            # 前年比（YoY）を計算（指数から12ヶ月差分で算出、TradingView完全一致）
+            # YoY計算
             df['CPI_YoY'] = df['CPI'].pct_change(12) * 100
             
             return df
-            
-        except requests.exceptions.RequestException as e:
-            print(f"e-Stat APIリクエストエラー: {e}")
-            return pd.DataFrame()
+
         except Exception as e:
             print(f"e-Stat CPIデータ取得エラー: {e}")
             return pd.DataFrame()
