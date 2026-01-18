@@ -94,7 +94,9 @@ class CPIFetcher(BaseFetcher):
             # - area: 地域 (00000 = 全国)
             # - cat02: 存在しないため指定してはいけない
             # - 時間指定（timeFrom / timeTo / cdTime）は使用不可
-            # - 月次コードは YYYY00MM00 形式（例: 2020000100 → 2020年1月）
+            # - @time 形式: YYYY00MMMM（10桁）
+            #   例: 2025001111 → 2025年1月、2025001010 → 2025年10月、2024000000 → 年平均（除外）
+            # - 月次判定: time[6:8] != "00"
             # - sectionHeaderFlg を指定しないと VALUE 構造が不安定
             
             stats_id = "0003427113"
@@ -127,67 +129,66 @@ class CPIFetcher(BaseFetcher):
             data_inf = statistical_data.get("DATA_INF", {})
             value_list = data_inf.get("VALUE")
             
-            # ① VALUE の型・件数をログ出力
-            print("DEBUG: VALUE 型:", type(value_list))
-            if isinstance(value_list, list):
-                print("DEBUG: VALUE 件数:", len(value_list))
-                if len(value_list) > 0:
-                    print("DEBUG: VALUE[0] keys:", value_list[0].keys() if isinstance(value_list[0], dict) else "not dict")
-                    print("DEBUG: VALUE[0]:", value_list[0])
-            elif isinstance(value_list, dict):
-                print("DEBUG: VALUE(dict) keys:", value_list.keys())
-                print("DEBUG: VALUE(dict):", value_list)
-            
             if not value_list:
                 print(f"e-Stat CPI取得失敗: statsDataId={stats_id}, cat01={cat01}, area={area} (VALUEなし)")
                 return pd.DataFrame()
 
-            data_points = []
-            
-            # リストか辞書かで分岐する処理 (既存コードのロジックを使用)
-            # 正規化してリストとして扱うとコードが短くなります
+            # リストか辞書かで分岐する処理（正規化してリストとして扱う）
             if isinstance(value_list, dict):
                 value_list = [value_list]
             
-            # ② time フィールドの生データをサンプル表示
-            sample_times = []
-            for v in value_list[:10]:
-                sample_times.append(v.get("@time") or v.get("time"))
-            print("DEBUG: time サンプル:", sample_times)
+            # ① APIレスポンスの生データ構造を全件ログ出力
+            print(f"DEBUG: VALUE 件数: {len(value_list)}")
+            for idx, value_info in enumerate(value_list[:5]):  # 最初の5件をサンプル表示
+                time_key = "@time" if "@time" in value_info else "time"
+                value_key = "$" if "$" in value_info else ("@value" if "@value" in value_info else "value")
+                print(f"DEBUG: VALUE[{idx}] - {time_key}: {value_info.get(time_key)}, {value_key}: {value_info.get(value_key)}")
+
+            data_points = []
+            excluded_yearly = 0
+            excluded_invalid = 0
             
-            # ③ value フィールドの実体を確認
-            sample_values = []
-            for v in value_list[:10]:
-                sample_values.append(v.get("$") or v.get("@value") or v.get("value"))
-            print("DEBUG: value サンプル:", sample_values)
-                
+            # ② 正しい月次データ抽出ロジック
             for value_info in value_list:
+                # @time を取得（@time が存在しない場合は time を試す）
                 date_str = value_info.get("@time") or value_info.get("time")
-                value_str = value_info.get("@value") or value_info.get("value") or value_info.get("$")
+                # value を取得（$ > @value > value の順で試す）
+                value_str = value_info.get("$") or value_info.get("@value") or value_info.get("value")
                 
-                if date_str and value_str:
-                    # ④ 月次除外ロジックを一時的に無効化して生ログを出す
-                    print("DEBUG RAW:", date_str, value_str)
+                if not date_str or not value_str:
+                    excluded_invalid += 1
+                    continue
+                
+                try:
+                    # e-Stat CPI の @time 仕様: YYYY00MMMM（10桁）
+                    # 例: 2025001111 → 2025年1月、2025001010 → 2025年10月、2024000000 → 年平均
+                    if len(date_str) != 10:
+                        excluded_invalid += 1
+                        continue
                     
-                    # 一時的にコメントアウト（デバッグ用）
-                    # try:
-                    #     # e-Stat CPI の月次コード仕様: YYYY00MM00
-                    #     # 例: 2020000100 → 2020年1月
-                    #     # 月次判定条件: len == 10, [4:6] == "00", [8:10] == "00"
-                    #     if len(date_str) == 10 and date_str[4:6] == "00" and date_str[8:10] == "00":
-                    #         year = date_str[0:4]
-                    #         month = date_str[6:8]
-                    #         
-                    #         # 年次・平均値の除外（month == "00"）
-                    #         if month == "00":
-                    #             continue
-                    #         
-                    #         # YYYYMM に変換して datetime に変換
-                    #         date = datetime(int(year), int(month), 1)
-                    #         value = float(value_str)
-                    #         data_points.append({"date": date, "CPI": value})
-                    # except Exception:
-                    #     continue
+                    # 月次判定条件: time[6:8] != "00"
+                    month_str = date_str[6:8]
+                    if month_str == "00":
+                        # 年平均は除外
+                        excluded_yearly += 1
+                        continue
+                    
+                    # 正しい月次データ抽出
+                    year = date_str[0:4]
+                    month = month_str
+                    date = datetime(int(year), int(month), 1)
+                    value = float(value_str)
+                    data_points.append({"date": date, "CPI": value})
+                    
+                except Exception as e:
+                    excluded_invalid += 1
+                    continue
+
+            # ⑥ エラーメッセージ前に詳細ログ出力
+            print(f"DEBUG: 取得VALUE件数: {len(value_list)}")
+            print(f"DEBUG: 月次判定後の件数: {len(data_points)}")
+            print(f"DEBUG: 年平均除外件数: {excluded_yearly}")
+            print(f"DEBUG: 無効データ除外件数: {excluded_invalid}")
 
             if not data_points:
                 print("有効なデータポイントが見つかりませんでした")
@@ -197,18 +198,22 @@ class CPIFetcher(BaseFetcher):
             df.set_index("date", inplace=True)
             df.sort_index(inplace=True)
             
-            # 成功判定条件（ログで確認）:
-            # - 取得件数: 600件前後（全期間）
-            # - 直近10年: 約120件
-            # - 月次が連続している
-            # - TradingView（ECONOMICS:JPCPI）と水準一致
+            # ⑤ フィルタ後の件数を必ずログ出力
             print(f"e-Stat CPI取得成功: 全期間{len(df)}件")
             
             # 直近10年フィルタ（Python側で実施）
             ten_years_ago = pd.Timestamp.today() - pd.DateOffset(years=10)
-            df = df[df.index >= ten_years_ago]
+            df_filtered = df[df.index >= ten_years_ago]
             
-            print(f"e-Stat CPI取得成功: 直近10年{len(df)}件")
+            print(f"e-Stat CPI取得成功: 直近10年{len(df_filtered)}件")
+            
+            # 期待結果の確認:
+            # - 月次 CPI データが連続して取得できる
+            # - 約400件以上（全期間）
+            # - 直近10年で約120件
+            # - TradingView（ECONOMICS:JPCPI）と水準が一致する
+            
+            df = df_filtered
             
             # YoY計算
             df['CPI_YoY'] = df['CPI'].pct_change(12) * 100
