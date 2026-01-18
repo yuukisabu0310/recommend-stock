@@ -92,7 +92,10 @@ class CPIFetcher(BaseFetcher):
             # statsDataId=0003427113 (2020年基準 消費者物価指数) の構造:
             # - cat01: 品目 (0001 = 総合)
             # - area: 地域 (00000 = 全国)
-            # - cat02: 存在しないため指定してはいけない (指定すると0件になる)
+            # - cat02: 存在しないため指定してはいけない
+            # - 時間指定（timeFrom / timeTo / cdTime）は使用不可
+            # - 月次コードは YYYY00MM00 形式（例: 2020000100 → 2020年1月）
+            # - sectionHeaderFlg を指定しないと VALUE 構造が不安定
             
             stats_id = "0003427113"
             cat01 = "0001"   # 総合
@@ -100,13 +103,13 @@ class CPIFetcher(BaseFetcher):
             
             params = {
                 "appId": self.estat_api_key,
-                "statsDataId": stats_id,
                 "lang": "J",
+                "statsDataId": stats_id,
+                "cdCat01": cat01,
+                "cdArea": area,
                 "metaGetFlg": "N",
                 "cntGetFlg": "N",
-                "cdCat01": cat01,
-                "cdArea": area
-                # "cdCat02": ...  <-- 削除！このテーブルにはcat02は存在しません
+                "sectionHeaderFlg": "1"   # ★必須
             }
             
             # データ取得
@@ -125,8 +128,7 @@ class CPIFetcher(BaseFetcher):
             value_list = data_inf.get("VALUE")
             
             if not value_list:
-                # ここで引っかかる場合、paramsがまだ間違っている可能性があります
-                print("データが取得できませんでした (VALUEなし)")
+                print(f"e-Stat CPI取得失敗: statsDataId={stats_id}, cat01={cat01}, area={area} (VALUEなし)")
                 return pd.DataFrame()
 
             data_points = []
@@ -142,13 +144,19 @@ class CPIFetcher(BaseFetcher):
                 
                 if date_str and value_str:
                     try:
-                        # 年次データ(YYYY000000)を除外
-                        if len(date_str) == 10 and date_str.endswith("000000"):
-                            continue
+                        # e-Stat CPI の月次コード仕様: YYYY00MM00
+                        # 例: 2020000100 → 2020年1月
+                        # 月次判定条件: len == 10, [4:6] == "00", [8:10] == "00"
+                        if len(date_str) == 10 and date_str[4:6] == "00" and date_str[8:10] == "00":
+                            year = date_str[0:4]
+                            month = date_str[6:8]
                             
-                        # 月次データ(YYYYMM)のみ処理
-                        if len(date_str) == 6:
-                            date = datetime.strptime(date_str, "%Y%m")
+                            # 年次・平均値の除外（month == "00"）
+                            if month == "00":
+                                continue
+                            
+                            # YYYYMM に変換して datetime に変換
+                            date = datetime(int(year), int(month), 1)
                             value = float(value_str)
                             data_points.append({"date": date, "CPI": value})
                     except Exception:
@@ -162,10 +170,18 @@ class CPIFetcher(BaseFetcher):
             df.set_index("date", inplace=True)
             df.sort_index(inplace=True)
             
-            # 直近10年フィルタ
-            now = datetime.now()
-            ten_years_ago = now - pd.DateOffset(years=10)
+            # 成功判定条件（ログで確認）:
+            # - 取得件数: 600件前後（全期間）
+            # - 直近10年: 約120件
+            # - 月次が連続している
+            # - TradingView（ECONOMICS:JPCPI）と水準一致
+            print(f"e-Stat CPI取得成功: 全期間{len(df)}件")
+            
+            # 直近10年フィルタ（Python側で実施）
+            ten_years_ago = pd.Timestamp.today() - pd.DateOffset(years=10)
             df = df[df.index >= ten_years_ago]
+            
+            print(f"e-Stat CPI取得成功: 直近10年{len(df)}件")
             
             # YoY計算
             df['CPI_YoY'] = df['CPI'].pct_change(12) * 100
