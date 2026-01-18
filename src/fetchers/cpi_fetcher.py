@@ -127,6 +127,17 @@ class CPIFetcher(BaseFetcher):
             data_inf = statistical_data.get("DATA_INF", {})
             value_list = data_inf.get("VALUE")
             
+            # ① VALUE の型・件数をログ出力
+            print("DEBUG: VALUE 型:", type(value_list))
+            if isinstance(value_list, list):
+                print("DEBUG: VALUE 件数:", len(value_list))
+                if len(value_list) > 0:
+                    print("DEBUG: VALUE[0] keys:", value_list[0].keys() if isinstance(value_list[0], dict) else "not dict")
+                    print("DEBUG: VALUE[0]:", value_list[0])
+            elif isinstance(value_list, dict):
+                print("DEBUG: VALUE(dict) keys:", value_list.keys())
+                print("DEBUG: VALUE(dict):", value_list)
+            
             if not value_list:
                 print(f"e-Stat CPI取得失敗: statsDataId={stats_id}, cat01={cat01}, area={area} (VALUEなし)")
                 return pd.DataFrame()
@@ -137,30 +148,46 @@ class CPIFetcher(BaseFetcher):
             # 正規化してリストとして扱うとコードが短くなります
             if isinstance(value_list, dict):
                 value_list = [value_list]
+            
+            # ② time フィールドの生データをサンプル表示
+            sample_times = []
+            for v in value_list[:10]:
+                sample_times.append(v.get("@time") or v.get("time"))
+            print("DEBUG: time サンプル:", sample_times)
+            
+            # ③ value フィールドの実体を確認
+            sample_values = []
+            for v in value_list[:10]:
+                sample_values.append(v.get("$") or v.get("@value") or v.get("value"))
+            print("DEBUG: value サンプル:", sample_values)
                 
             for value_info in value_list:
                 date_str = value_info.get("@time") or value_info.get("time")
                 value_str = value_info.get("@value") or value_info.get("value") or value_info.get("$")
                 
                 if date_str and value_str:
-                    try:
-                        # e-Stat CPI の月次コード仕様: YYYY00MM00
-                        # 例: 2020000100 → 2020年1月
-                        # 月次判定条件: len == 10, [4:6] == "00", [8:10] == "00"
-                        if len(date_str) == 10 and date_str[4:6] == "00" and date_str[8:10] == "00":
-                            year = date_str[0:4]
-                            month = date_str[6:8]
-                            
-                            # 年次・平均値の除外（month == "00"）
-                            if month == "00":
-                                continue
-                            
-                            # YYYYMM に変換して datetime に変換
-                            date = datetime(int(year), int(month), 1)
-                            value = float(value_str)
-                            data_points.append({"date": date, "CPI": value})
-                    except Exception:
-                        continue
+                    # ④ 月次除外ロジックを一時的に無効化して生ログを出す
+                    print("DEBUG RAW:", date_str, value_str)
+                    
+                    # 一時的にコメントアウト（デバッグ用）
+                    # try:
+                    #     # e-Stat CPI の月次コード仕様: YYYY00MM00
+                    #     # 例: 2020000100 → 2020年1月
+                    #     # 月次判定条件: len == 10, [4:6] == "00", [8:10] == "00"
+                    #     if len(date_str) == 10 and date_str[4:6] == "00" and date_str[8:10] == "00":
+                    #         year = date_str[0:4]
+                    #         month = date_str[6:8]
+                    #         
+                    #         # 年次・平均値の除外（month == "00"）
+                    #         if month == "00":
+                    #             continue
+                    #         
+                    #         # YYYYMM に変換して datetime に変換
+                    #         date = datetime(int(year), int(month), 1)
+                    #         value = float(value_str)
+                    #         data_points.append({"date": date, "CPI": value})
+                    # except Exception:
+                    #     continue
 
             if not data_points:
                 print("有効なデータポイントが見つかりませんでした")
