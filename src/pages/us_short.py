@@ -186,21 +186,23 @@ class USShortPage(BasePage):
             result["charts"]["cpi"] = "<p>この指標は現在データを取得できません</p>"
             result["interpretations"]["cpi"] = "CPIデータは現在取得できません。"
         
-        # ④ EPS + PERチャート（20年固定）
+        # ④ EPS + PERチャート（short: 5年, medium: 10年, long: 20年）
         try:
             eps_per_fetcher = EPSPERFetcher(self.market_code, symbol)
-            eps_per_data = eps_per_fetcher.fetch()  # 20年固定なので日付指定なし
+            eps_per_data = eps_per_fetcher.fetch()  # 可能な限り過去から取得
             
             if not eps_per_data.empty:
                 eps_per_fact = EPSPERFact(self.market_code)
                 eps_per_fact.load_data(eps_per_data)
                 
                 eps_per_chart = EPSPERChart(self.market_config.get("name", "米国"))
-                # 憲法準拠：複数期間データを生成（EPS/PERは20年固定）
+                # 期間に応じた表示年数を決定（short: 5, medium: 10, long: 20）
+                display_years = 5 if self.timeframe_code == "short" else (10 if self.timeframe_code == "medium" else 20)
+                # 複数期間データを生成（short: 5年, medium: 10年, long: 20年）
                 multi_period_data = eps_per_chart.create_multi_period_data(eps_per_data)
                 result["chart_data"]["eps_per"] = multi_period_data
-                # 初期表示用のチャートHTML
-                chart_fig = eps_per_chart.create_chart(eps_per_data)
+                # 初期表示用のチャートHTML（期間に応じた年数で表示）
+                chart_fig = eps_per_chart.create_chart(eps_per_data, display_years)
                 result["charts"]["eps_per"] = eps_per_chart.to_html(chart_fig, "eps-per-chart")
                 
                 eps_per_interpretation = EPSPERInterpretation(eps_per_fact)
